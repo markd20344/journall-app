@@ -1,0 +1,89 @@
+import { useState } from "react";
+import type { Category } from "../types";
+import { upsertCategory } from "../db/repo";
+
+const COLOR_CHOICES = [
+  "#6b7280",
+  "#2563eb",
+  "#16a34a",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#db2777",
+];
+
+interface Props {
+  categories: Category[];
+  value: string;
+  onChange: (categoryId: string) => void;
+}
+
+export default function CategorySelect({ categories, value, onChange }: Props) {
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  async function handleAdd() {
+    const name = newName.trim();
+    if (!name) {
+      setAdding(false);
+      return;
+    }
+    const color = COLOR_CHOICES[categories.length % COLOR_CHOICES.length];
+    const category = await upsertCategory(name, color);
+    onChange(category.id);
+    setNewName("");
+    setAdding(false);
+  }
+
+  if (adding) {
+    return (
+      <div className="inline-add">
+        <input
+          autoFocus
+          type="text"
+          placeholder="New category name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleAdd();
+            } else if (e.key === "Escape") {
+              setAdding(false);
+              setNewName("");
+            }
+          }}
+        />
+        <button type="button" onClick={() => void handleAdd()}>
+          Add
+        </button>
+        <button type="button" className="ghost" onClick={() => setAdding(false)}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      className="category-select"
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === "__new__") {
+          setAdding(true);
+        } else {
+          onChange(e.target.value);
+        }
+      }}
+    >
+      {categories.length === 0 && <option value="">No categories yet</option>}
+      {categories.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+        </option>
+      ))}
+      <option value="__new__">+ New category…</option>
+    </select>
+  );
+}
