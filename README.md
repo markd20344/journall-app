@@ -60,6 +60,24 @@ updatedAt       updatedAt      │     body                  │  │
 - An **Entry** has a date (which can be any date, not just today), one
   Category, any number of Topics, and free-text body content. Multiple
   entries per day are fully supported since `date` isn't a unique key.
+  `createdAt` also stamps the exact time an entry was logged, so same-day
+  entries show a chronological time progression in the UI.
+
+### Spin-off items
+
+Beyond free-text entries, you can spin off structured records from a saved
+journal entry (or create them standalone from the **Log** page): Lessons
+Learned, Actions, Risks, Assumptions, Decisions, and Calendar Bookings.
+These all share one `Item` shape (`kind`, `title`, `body`, `date`, `time`,
+`done`, `sourceEntryId`) — fields that don't apply to a given kind are just
+left blank (e.g. `done` only matters for Actions, `time` only for Bookings).
+Calendar Bookings and Action due-dates also surface on the **Calendar**
+page itself (a second dot on the day, and a "Scheduled" section in the day
+panel) so the calendar functions as a real day-planner, not just a journal
+index. This is intentionally a local record, not a Google Calendar
+integration — that would need an OAuth connection to Google's servers,
+which is a reasonable phase-2 addition but a separate piece of work from
+the local-first core.
 
 ## Project structure
 
@@ -76,14 +94,18 @@ src/
     speech.ts           Web Speech API wrapper (voice dictation)
     exportImport.ts      JSON/Markdown export, JSON import, merge logic
     fileSync.ts          File System Access API folder sync
+    itemKinds.ts          Spin-off item kind metadata (labels/colors)
+    theme.ts               Accent color presets + runtime CSS var application
   components/
     CategorySelect.tsx, TopicTagInput.tsx, VoiceButton.tsx,
-    EntryEditor.tsx, EntryCard.tsx, CalendarView.tsx
+    EntryEditor.tsx, EntryCard.tsx, CalendarView.tsx,
+    ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx
   pages/
     WritePage.tsx        Default landing view — fastest path to writing
-    CalendarPage.tsx      Month calendar + per-day entry list
-    BrowsePage.tsx         Chronological list + search + category/topic filter
-    SettingsPage.tsx        Category management, backup, folder sync
+    CalendarPage.tsx      Month calendar + per-day entries and scheduled items
+    LogPage.tsx             Browse/filter spin-off items by kind
+    BrowsePage.tsx           Chronological list + search + category/topic filter
+    SettingsPage.tsx          Appearance, categories, backup, folder sync
   App.tsx             Nav shell / view switcher
 scripts/
   generate-icons.cjs  Generates the PWA app icons (no image lib needed)

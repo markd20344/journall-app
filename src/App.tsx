@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
+import { applyStoredAccentColor } from "./lib/theme";
 import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
+import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
 import SettingsPage from "./pages/SettingsPage";
 
-type View = "write" | "calendar" | "browse" | "settings";
+type View = "write" | "calendar" | "log" | "browse" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
   { id: "write", label: "Write" },
   { id: "calendar", label: "Calendar" },
+  { id: "log", label: "Log" },
   { id: "browse", label: "Browse" },
   { id: "settings", label: "Settings" },
 ];
@@ -19,7 +22,7 @@ export default function App() {
   const [view, setView] = useState<View>("write");
 
   useEffect(() => {
-    void ensureSeeded().then(() => setReady(true));
+    void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
   }, []);
 
   if (!ready) {
@@ -46,6 +49,7 @@ export default function App() {
       <main className="app-main">
         {view === "write" && <WritePage />}
         {view === "calendar" && <CalendarPage />}
+        {view === "log" && <LogPage />}
         {view === "browse" && <BrowsePage />}
         {view === "settings" && <SettingsPage />}
       </main>

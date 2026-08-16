@@ -1,17 +1,17 @@
 :root {
-  --text: #4b4a52;
-  --text-h: #17171b;
-  --bg: #fbfaf8;
+  --text: #48505c;
+  --text-h: #131b2e;
+  --bg: #eef1f6;
   --bg-raised: #ffffff;
-  --border: #e4e2dd;
-  --accent: #7c5cff;
+  --border: #dbe0ea;
+  --accent: #2563eb;
   --accent-contrast: #ffffff;
-  --accent-bg: rgba(124, 92, 255, 0.1);
+  --accent-bg: rgba(37, 99, 235, 0.1);
   --danger: #c0392b;
   --danger-bg: rgba(192, 57, 43, 0.08);
   --success-bg: rgba(22, 163, 74, 0.1);
   --success-text: #15803d;
-  --shadow: rgba(20, 18, 30, 0.06) 0 1px 3px, rgba(20, 18, 30, 0.04) 0 8px 20px;
+  --shadow: rgba(15, 23, 42, 0.06) 0 1px 3px, rgba(15, 23, 42, 0.05) 0 8px 20px;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
 
@@ -25,14 +25,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #b9b7c2;
-    --text-h: #f2f1f6;
-    --bg: #131319;
-    --bg-raised: #1b1b23;
-    --border: #2c2c36;
-    --accent: #9b82ff;
-    --accent-contrast: #131319;
-    --accent-bg: rgba(155, 130, 255, 0.16);
+    --text: #aab3c5;
+    --text-h: #eef1f8;
+    --bg: #0f1420;
+    --bg-raised: #171d2c;
+    --border: #2a3244;
+    --accent: #5b8def;
+    --accent-contrast: #0b0f18;
+    --accent-bg: rgba(91, 141, 239, 0.18);
     --danger: #ff6b5e;
     --danger-bg: rgba(255, 107, 94, 0.12);
     --success-bg: rgba(74, 222, 128, 0.14);
@@ -130,6 +130,21 @@ button, input, select, textarea {
 .page-title {
   font-size: 22px;
   margin: 0 0 20px;
+}
+
+.write-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.write-page-header .page-title {
+  margin-bottom: 0;
+}
+
+.write-page-header + .saved-banner {
+  margin-top: 12px;
 }
 
 /* ---------- Buttons ---------- */
@@ -495,17 +510,31 @@ textarea {
   color: var(--accent-contrast);
 }
 
-.calendar-dot {
+.calendar-dots {
   position: absolute;
   bottom: 5px;
+  display: flex;
+  gap: 3px;
+}
+
+.calendar-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
 }
 
+.calendar-dot-scheduled {
+  background: #b45309;
+}
+
 .calendar-day.selected .calendar-dot {
   background: var(--accent-contrast);
+}
+
+.calendar-day.selected .calendar-dot-scheduled {
+  background: var(--accent-contrast);
+  opacity: 0.7;
 }
 
 .day-panel {
@@ -520,12 +549,34 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 24px;
 }
 
 .day-panel-header h2 {
   margin: 0;
   font-size: 16px;
+}
+
+.day-panel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  opacity: 0.65;
+  margin: 0 0 10px;
+}
+
+.day-scheduled-section {
+  margin-bottom: 24px;
 }
 
 /* ---------- Browse / search ---------- */
@@ -597,4 +648,215 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.accent-swatch.selected {
+  border-color: var(--text-h);
+  box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 4px var(--text-h);
+}
+
+.accent-swatch-custom {
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.accent-swatch-custom input[type="color"] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* ---------- Entry timestamp ---------- */
+
+.entry-timestamp {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+  margin: -8px 0 16px;
+}
+
+/* ---------- Spin-off panel ---------- */
+
+.spin-off-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
+.spin-off-header {
+  margin-bottom: 10px;
+}
+
+.spin-off-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.spin-off-btn {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+.spin-off-btn.active {
+  border-color: transparent;
+}
+
+.linked-items-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.linked-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.linked-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 6px 4px;
+  text-align: left;
+  flex: 1;
+  border-radius: 6px;
+}
+
+.linked-item-title:hover {
+  background: var(--accent-bg);
+  border-color: transparent;
+}
+
+.done-text {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.linked-badge {
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ---------- Item editor (Lessons/Actions/Risks/Assumptions/Decisions/Bookings) ---------- */
+
+.item-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.item-title-input {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.item-body-input {
+  width: 100%;
+  resize: vertical;
+}
+
+.item-editor-row {
+  display: flex;
+  gap: 16px;
+}
+
+.item-editor-row .field {
+  margin-bottom: 0;
+}
+
+/* ---------- Kind badge ---------- */
+
+.kind-badge {
+  color: white;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Item cards (Log page) ---------- */
+
+.item-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--bg-raised);
+}
+
+.item-card-checkbox {
+  margin-top: 4px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.item-card-main {
+  display: block;
+  flex: 1;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+  min-width: 0;
+}
+
+.item-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.item-card-title {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.item-done .item-card-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.new-item-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
 }

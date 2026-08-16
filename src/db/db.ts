@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Entry, Topic } from "../types";
+import type { Category, Entry, Item, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 
 const DEFAULT_CATEGORIES: Array<Pick<Category, "name" | "color">> = [
@@ -19,6 +19,7 @@ class JournalDB extends Dexie {
   categories!: Table<Category, string>;
   topics!: Table<Topic, string>;
   settings!: Table<SettingRecord, string>;
+  items!: Table<Item, string>;
 
   constructor() {
     super("journall-db");
@@ -28,6 +29,13 @@ class JournalDB extends Dexie {
       categories: "id, name",
       topics: "id, name, categoryId",
       settings: "key",
+    });
+    this.version(2).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, done, updatedAt",
     });
   }
 }

@@ -12,7 +12,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { useEntryDatesInRange } from "../hooks/useJournalData";
+import { useEntryDatesInRange, useScheduledDatesInRange } from "../hooks/useJournalData";
 
 interface Props {
   selectedDate: string;
@@ -30,6 +30,7 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
   const days = useMemo(() => eachDayOfInterval({ start: gridStart, end: gridEnd }), [gridStart, gridEnd]);
 
   const entryDates = useEntryDatesInRange(format(gridStart, "yyyy-MM-dd"), format(gridEnd, "yyyy-MM-dd"));
+  const scheduledDates = useScheduledDatesInRange(format(gridStart, "yyyy-MM-dd"), format(gridEnd, "yyyy-MM-dd"));
 
   return (
     <div className="calendar">
@@ -51,6 +52,7 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
         {days.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const hasEntries = entryDates.has(dateStr);
+          const hasScheduled = scheduledDates.has(dateStr);
           const inMonth = isSameMonth(day, visibleMonth);
           const selected = isSameDay(day, new Date(selectedDate));
           return (
@@ -68,7 +70,12 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
               onClick={() => onSelectDate(dateStr)}
             >
               <span>{format(day, "d")}</span>
-              {hasEntries && <span className="calendar-dot" />}
+              {(hasEntries || hasScheduled) && (
+                <span className="calendar-dots">
+                  {hasEntries && <span className="calendar-dot" />}
+                  {hasScheduled && <span className="calendar-dot calendar-dot-scheduled" />}
+                </span>
+              )}
             </button>
           );
         })}

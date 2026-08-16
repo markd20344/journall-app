@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { format } from "date-fns";
 import type { Entry } from "../types";
 import { useCategories, useTopicsForCategory } from "../hooks/useJournalData";
 import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/repo";
@@ -7,6 +8,7 @@ import { todayDateString } from "../lib/id";
 import CategorySelect from "./CategorySelect";
 import TopicTagInput from "./TopicTagInput";
 import VoiceButton from "./VoiceButton";
+import SpinOffPanel from "./SpinOffPanel";
 
 interface Props {
   entry?: Entry;
@@ -70,8 +72,6 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
       } else {
         const created = await createEntry({ date, categoryId, topicIds, body });
         onSaved?.(created);
-        setBody("");
-        setTopicNames([]);
       }
     } finally {
       setSaving(false);
@@ -97,6 +97,10 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
           <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
         </label>
       </div>
+
+      {entry && (
+        <p className="entry-timestamp">Logged {format(new Date(entry.createdAt), "h:mm a")}</p>
+      )}
 
       <label className="field">
         <span className="field-label">Topics</span>
@@ -133,6 +137,8 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
           </button>
         )}
       </div>
+
+      {entry && <SpinOffPanel entry={entry} />}
     </div>
   );
 }

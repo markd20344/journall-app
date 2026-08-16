@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCategories } from "../hooks/useJournalData";
 import { deleteCategory, renameCategory } from "../db/repo";
 import { exportAsJson, exportAsMarkdown, importDump, readFileAsJson } from "../lib/exportImport";
+import { ACCENT_PRESETS, getStoredAccentColor, setStoredAccentColor } from "../lib/theme";
 import {
   forgetDirectoryHandle,
   getSavedDirectoryHandle,
@@ -24,11 +25,19 @@ export default function SettingsPage() {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
+  const [accentColor, setAccentColor] = useState<string | null>(null);
+
   useEffect(() => {
     void getSavedDirectoryHandle().then((handle) => {
       if (handle) setSyncFolderName(handle.name);
     });
+    void getStoredAccentColor().then(setAccentColor);
   }, []);
+
+  async function chooseAccent(hex: string) {
+    setAccentColor(hex);
+    await setStoredAccentColor(hex);
+  }
 
   function startEdit(id: string, name: string, color: string) {
     setEditingId(id);
@@ -99,6 +108,31 @@ export default function SettingsPage() {
   return (
     <div className="page settings-page">
       <h1 className="page-title">Settings</h1>
+
+      <section className="settings-section">
+        <h2>Appearance</h2>
+        <p className="settings-hint">Pick an accent color for buttons, highlights and links.</p>
+        <div className="accent-swatches">
+          {ACCENT_PRESETS.map((preset) => (
+            <button
+              key={preset.hex}
+              type="button"
+              className={`accent-swatch ${accentColor === preset.hex ? "selected" : ""}`}
+              style={{ background: preset.hex }}
+              title={preset.name}
+              aria-label={preset.name}
+              onClick={() => void chooseAccent(preset.hex)}
+            />
+          ))}
+          <label className="accent-swatch accent-swatch-custom" title="Custom color">
+            <input
+              type="color"
+              value={accentColor ?? "#2563eb"}
+              onChange={(e) => void chooseAccent(e.target.value)}
+            />
+          </label>
+        </div>
+      </section>
 
       <section className="settings-section">
         <h2>Categories</h2>

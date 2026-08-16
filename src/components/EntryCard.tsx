@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import type { EntryWithRefs } from "../types";
 
 interface Props {
@@ -7,10 +8,13 @@ interface Props {
 
 export default function EntryCard({ entry, onClick }: Props) {
   const preview = entry.body.length > 220 ? `${entry.body.slice(0, 220)}…` : entry.body;
+  const time = format(new Date(entry.createdAt), "h:mm a");
   return (
     <button type="button" className="entry-card" onClick={onClick}>
       <div className="entry-card-meta">
-        <span className="entry-card-date">{entry.date}</span>
+        <span className="entry-card-date">
+          {entry.date} · {time}
+        </span>
         {entry.category && (
           <span className="category-pill" style={{ background: entry.category.color }}>
             {entry.category.name}
