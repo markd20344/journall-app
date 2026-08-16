@@ -199,6 +199,71 @@ export async function unlinkItems(aId: string, bId: string): Promise<void> {
   if (updatedB) pushRecord("items", updatedB);
 }
 
+/**
+ * Merges categories (and, within them, topics) that share a name but have
+ * different ids — the result of two devices each auto-seeding their own
+ * "first run" defaults before ever syncing. Keeps the oldest of each
+ * duplicate set, re-points any entries/topics referencing the others onto
+ * it, then removes the duplicates. Safe to call anytime; a no-op if there's
+ * nothing to merge.
+ */
+export async function dedupeCategoriesAndTopics(): Promise<void> {
+  const categories = await db.categories.toArray();
+  const categoryGroups = new Map<string, Category[]>();
+  for (const c of categories) {
+    const key = c.name.trim().toLowerCase();
+    categoryGroups.set(key, [...(categoryGroups.get(key) ?? []), c]);
+  }
+
+  for (const group of categoryGroups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [canonical, ...dupes] = group;
+    for (const dupe of dupes) {
+      const entries = await db.entries.where("categoryId").equals(dupe.id).toArray();
+      for (const entry of entries) {
+        await db.entries.update(entry.id, { categoryId: canonical.id, updatedAt: nowIso() });
+        const updated = await db.entries.get(entry.id);
+        if (updated) pushRecord("entries", updated);
+      }
+      const topics = await db.topics.where("categoryId").equals(dupe.id).toArray();
+      for (const topic of topics) {
+        await db.topics.update(topic.id, { categoryId: canonical.id, updatedAt: nowIso() });
+        const updated = await db.topics.get(topic.id);
+        if (updated) pushRecord("topics", updated);
+      }
+      await db.categories.delete(dupe.id);
+      deleteRecord("categories", dupe.id);
+    }
+  }
+
+  const topics = await db.topics.toArray();
+  const topicGroups = new Map<string, Topic[]>();
+  for (const t of topics) {
+    const key = `${t.categoryId}::${t.name.trim().toLowerCase()}`;
+    topicGroups.set(key, [...(topicGroups.get(key) ?? []), t]);
+  }
+
+  for (const group of topicGroups.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [canonical, ...dupes] = group;
+    const dupeIds = new Set(dupes.map((d) => d.id));
+    const entries = await db.entries.toArray();
+    for (const entry of entries) {
+      if (!entry.topicIds.some((id) => dupeIds.has(id))) continue;
+      const newTopicIds = Array.from(new Set(entry.topicIds.map((id) => (dupeIds.has(id) ? canonical.id : id))));
+      await db.entries.update(entry.id, { topicIds: newTopicIds, updatedAt: nowIso() });
+      const updated = await db.entries.get(entry.id);
+      if (updated) pushRecord("entries", updated);
+    }
+    for (const dupe of dupes) {
+      await db.topics.delete(dupe.id);
+      deleteRecord("topics", dupe.id);
+    }
+  }
+}
+
 export async function deleteItem(id: string): Promise<void> {
   let linkerIds: string[] = [];
   await db.transaction("rw", db.items, async () => {

@@ -11,22 +11,23 @@ import { auth } from "./config";
 
 const provider = new GoogleAuthProvider();
 
-/** True when running as an installed PWA (standalone display mode), where popups are unreliable. */
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return false;
-  const nav = window.navigator as Navigator & { standalone?: boolean };
-  return window.matchMedia?.("(display-mode: standalone)").matches || nav.standalone === true;
-}
-
-export function signIn(): Promise<void> {
-  if (!auth) return Promise.reject(new Error("Firebase is not configured."));
+export async function signIn(): Promise<void> {
+  if (!auth) throw new Error("Firebase is not configured.");
   // Popup avoids a redirect-auth-domain handoff issue caused by third-party
-  // storage partitioning in Chrome/Edge on regular browser tabs. Installed
-  // PWAs can block popups, so those fall back to the redirect flow.
-  if (isStandalone()) {
-    return signInWithRedirect(auth, provider);
+  // storage partitioning (confirmed on both a regular desktop tab and an
+  // installed home-screen PWA, where redirect silently failed to complete).
+  // Only fall back to redirect if the environment genuinely can't open a
+  // popup at all — not for the user simply closing/cancelling it.
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+    throw err;
   }
-  return signInWithPopup(auth, provider).then(() => undefined);
 }
 
 export function signOutUser(): Promise<void> {

@@ -6,6 +6,7 @@ import { exportAsJson, exportAsMarkdown, importDump, readFileAsJson } from "../l
 import { ACCENT_PRESETS, getStoredAccentColor, setStoredAccentColor } from "../lib/theme";
 import { signOutUser, watchAuthState } from "../firebase/auth";
 import { firebaseEnabled } from "../firebase/config";
+import { refreshNow } from "../firebase/sync";
 import {
   forgetDirectoryHandle,
   getSavedDirectoryHandle,
@@ -30,6 +31,8 @@ export default function SettingsPage() {
 
   const [accentColor, setAccentColor] = useState<string | null>(null);
   const [account, setAccount] = useState<User | null>(null);
+  const [cloudSyncing, setCloudSyncing] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
 
   useEffect(() => {
     void getSavedDirectoryHandle().then((handle) => {
@@ -38,6 +41,19 @@ export default function SettingsPage() {
     void getStoredAccentColor().then(setAccentColor);
     return watchAuthState(setAccount);
   }, []);
+
+  async function handleCloudSyncNow() {
+    setCloudSyncing(true);
+    setCloudSyncStatus(null);
+    try {
+      await refreshNow();
+      setCloudSyncStatus("Synced.");
+    } catch (err) {
+      setCloudSyncStatus(`Sync failed: ${err instanceof Error ? err.message : "unknown error"}`);
+    } finally {
+      setCloudSyncing(false);
+    }
+  }
 
   async function chooseAccent(hex: string) {
     setAccentColor(hex);
@@ -119,11 +135,16 @@ export default function SettingsPage() {
           <h2>Account</h2>
           <p className="settings-hint">
             Signed in as <strong>{account.email}</strong>. Your journal syncs automatically to any other device
-            signed in with this account.
+            signed in with this account — but phones pause background tabs, so a device that's been asleep can lag
+            behind until it's reopened. Use "Sync now" to force it immediately.
           </p>
           <div className="settings-actions">
+            <button type="button" onClick={() => void handleCloudSyncNow()} disabled={cloudSyncing}>
+              {cloudSyncing ? "Syncing…" : "Sync now"}
+            </button>
             <button type="button" className="ghost" onClick={() => void signOutUser()}>Sign out</button>
           </div>
+          {cloudSyncStatus && <p className="settings-status">{cloudSyncStatus}</p>}
         </section>
       )}
 
