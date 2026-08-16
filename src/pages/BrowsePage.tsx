@@ -45,7 +45,7 @@ export default function BrowsePage() {
       </div>
 
       {tab === "items" ? (
-        <ItemBrowser />
+        <ItemBrowser allowCreate={false} />
       ) : editingEntry ? (
         <EntryEditor
           entry={editingEntry}

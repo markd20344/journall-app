@@ -7,13 +7,20 @@ import ItemEditor from "./ItemEditor";
 
 const STATUS_SORT_ORDER: Record<ItemStatus, number> = { blocked: 0, open: 1, on_hold: 2, closed: 3 };
 
+interface Props {
+  // Log page creates items; Browse's "Log items" tab is view/edit-only so
+  // it doesn't compete for attention with — or duplicate — the create flow
+  // that already lives on Log.
+  allowCreate?: boolean;
+}
+
 /**
  * Full search/filter/create UI for spin-off items (lessons, actions, risks,
  * assumptions, decisions, bookings). Shared between the dedicated Log page
  * and the "Items" tab on Browse, so item search lives in both places
  * without duplicating the logic.
  */
-export default function ItemBrowser() {
+export default function ItemBrowser({ allowCreate = true }: Props) {
   const allItems = useAllItems();
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<ItemStatus | "">("");
@@ -82,20 +89,6 @@ export default function ItemBrowser() {
         </select>
       </div>
 
-      <div className="new-item-buttons">
-        {ITEM_KINDS.map((k) => (
-          <button
-            key={k.kind}
-            type="button"
-            className="kind-action-btn"
-            style={{ "--kind-color": k.color } as CSSProperties}
-            onClick={() => setCreatingKind(k.kind)}
-          >
-            + {k.shortLabel}
-          </button>
-        ))}
-      </div>
-
       <p className="result-count">
         {filtered.length} {filtered.length === 1 ? "item" : "items"}
       </p>
@@ -106,6 +99,25 @@ export default function ItemBrowser() {
         ))}
         {filtered.length === 0 && <p className="empty-hint">Nothing here yet.</p>}
       </div>
+
+      {allowCreate && (
+        <div className="new-item-section">
+          <span className="field-label">Log something new</span>
+          <div className="new-item-buttons">
+            {ITEM_KINDS.map((k) => (
+              <button
+                key={k.kind}
+                type="button"
+                className="kind-action-btn"
+                style={{ "--kind-color": k.color } as CSSProperties}
+                onClick={() => setCreatingKind(k.kind)}
+              >
+                + {k.shortLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

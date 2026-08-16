@@ -368,6 +368,11 @@ textarea {
   gap: 8px;
 }
 
+.field-voice-row {
+  margin-top: -6px;
+  margin-bottom: 4px;
+}
+
 .voice-btn {
   font-size: 13px;
   padding: 6px 12px;
@@ -898,9 +903,19 @@ textarea {
   background: var(--bg-raised);
 }
 
+.new-item-section {
+  border-top: 1px solid var(--border);
+  margin-top: 28px;
+  padding-top: 18px;
+}
+
+.new-item-section .field-label {
+  display: block;
+  margin-bottom: 10px;
+}
+
 .new-item-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 16px;
 }

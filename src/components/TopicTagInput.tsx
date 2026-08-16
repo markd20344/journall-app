@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Topic } from "../types";
+import VoiceButton from "./VoiceButton";
 
 interface Props {
   availableTopics: Topic[];
@@ -79,6 +80,9 @@ export default function TopicTagInput({ availableTopics, selected, onChange }: P
           ))}
         </ul>
       )}
+      <div className="field-voice-row">
+        <VoiceButton onTranscript={(text) => setDraft((prev) => (prev ? `${prev} ${text}` : text))} />
+      </div>
     </div>
   );
 }

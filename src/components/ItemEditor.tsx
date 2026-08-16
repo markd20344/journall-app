@@ -4,6 +4,7 @@ import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
 import { createItem, deleteItem, updateItem } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
+import VoiceButton from "./VoiceButton";
 
 interface Props {
   kind: ItemKind;
@@ -77,6 +78,9 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         onChange={(e) => setTitle(e.target.value)}
         autoFocus
       />
+      <div className="field-voice-row">
+        <VoiceButton onTranscript={(text) => setTitle((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+      </div>
       <textarea
         className="item-body-input"
         placeholder="Details (optional)…"
@@ -84,6 +88,9 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         onChange={(e) => setBody(e.target.value)}
         rows={3}
       />
+      <div className="field-voice-row">
+        <VoiceButton onTranscript={(text) => setBody((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+      </div>
       <div className="item-editor-row">
         <label className="field">
           <span className="field-label">{meta.dateLabel}</span>
