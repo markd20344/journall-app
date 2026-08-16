@@ -1,9 +1,11 @@
 // Thin CRUD layer over Dexie. Every write also bumps `updatedAt` so the
-// file-sync layer can do simple last-write-wins conflict resolution.
+// file-sync and Firestore sync layers can do simple last-write-wins conflict
+// resolution, and mirrors the change to Firestore (a no-op when signed out).
 import { db } from "./db";
 import type { Category, Entry, Item, ItemKind, ItemStatus, StatusUpdate, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
+import { deleteRecord, pushRecord } from "../firebase/sync";
 
 export async function createEntry(input: {
   date: string;
@@ -22,6 +24,7 @@ export async function createEntry(input: {
     updatedAt: ts,
   };
   await db.entries.add(entry);
+  pushRecord("entries", entry);
   return entry;
 }
 
@@ -30,10 +33,13 @@ export async function updateEntry(
   changes: Partial<Pick<Entry, "date" | "categoryId" | "topicIds" | "body">>,
 ): Promise<void> {
   await db.entries.update(id, { ...changes, updatedAt: nowIso() });
+  const updated = await db.entries.get(id);
+  if (updated) pushRecord("entries", updated);
 }
 
 export async function deleteEntry(id: string): Promise<void> {
   await db.entries.delete(id);
+  deleteRecord("entries", id);
 }
 
 export async function upsertCategory(name: string, color: string): Promise<Category> {
@@ -42,6 +48,7 @@ export async function upsertCategory(name: string, color: string): Promise<Categ
   const ts = nowIso();
   const category: Category = { id: newId(), name, color, createdAt: ts, updatedAt: ts };
   await db.categories.add(category);
+  pushRecord("categories", category);
   return category;
 }
 
@@ -49,10 +56,13 @@ export async function deleteCategory(id: string): Promise<void> {
   // Keep entries/topics around (orphaned category ref) rather than cascading
   // deletes silently — journaling data should never disappear unexpectedly.
   await db.categories.delete(id);
+  deleteRecord("categories", id);
 }
 
 export async function renameCategory(id: string, name: string, color: string): Promise<void> {
   await db.categories.update(id, { name, color, updatedAt: nowIso() });
+  const updated = await db.categories.get(id);
+  if (updated) pushRecord("categories", updated);
 }
 
 export async function findOrCreateTopic(name: string, categoryId: string): Promise<Topic> {
@@ -66,6 +76,7 @@ export async function findOrCreateTopic(name: string, categoryId: string): Promi
   const ts = nowIso();
   const topic: Topic = { id: newId(), name: trimmed, categoryId, createdAt: ts, updatedAt: ts };
   await db.topics.add(topic);
+  pushRecord("topics", topic);
   return topic;
 }
 
@@ -108,6 +119,7 @@ export async function createItem(input: {
     updatedAt: ts,
   };
   await db.items.add(item);
+  pushRecord("items", item);
   return item;
 }
 
@@ -126,6 +138,8 @@ export async function updateItem(
     }
   }
   await db.items.update(id, finalChanges);
+  const updated = await db.items.get(id);
+  if (updated) pushRecord("items", updated);
 }
 
 export async function setItemStatus(id: string, status: ItemStatus): Promise<void> {
@@ -139,6 +153,8 @@ export async function addStatusUpdate(itemId: string, note: string): Promise<voi
   if (!item) return;
   const update: StatusUpdate = { id: newId(), note: trimmed, createdAt: nowIso() };
   await db.items.update(itemId, { statusUpdates: [...item.statusUpdates, update], updatedAt: nowIso() });
+  const updated = await db.items.get(itemId);
+  if (updated) pushRecord("items", updated);
 }
 
 export async function deleteStatusUpdate(itemId: string, updateId: string): Promise<void> {
@@ -148,6 +164,8 @@ export async function deleteStatusUpdate(itemId: string, updateId: string): Prom
     statusUpdates: item.statusUpdates.filter((u) => u.id !== updateId),
     updatedAt: nowIso(),
   });
+  const updated = await db.items.get(itemId);
+  if (updated) pushRecord("items", updated);
 }
 
 /** Links two items to each other. Always bidirectional — both sides show the connection. */
@@ -164,6 +182,9 @@ export async function linkItems(aId: string, bId: string): Promise<void> {
       await db.items.update(bId, { linkedItemIds: [...b.linkedItemIds, aId], updatedAt: ts });
     }
   });
+  const [updatedA, updatedB] = await Promise.all([db.items.get(aId), db.items.get(bId)]);
+  if (updatedA) pushRecord("items", updatedA);
+  if (updatedB) pushRecord("items", updatedB);
 }
 
 export async function unlinkItems(aId: string, bId: string): Promise<void> {
@@ -173,15 +194,25 @@ export async function unlinkItems(aId: string, bId: string): Promise<void> {
     if (a) await db.items.update(aId, { linkedItemIds: a.linkedItemIds.filter((id) => id !== bId), updatedAt: ts });
     if (b) await db.items.update(bId, { linkedItemIds: b.linkedItemIds.filter((id) => id !== aId), updatedAt: ts });
   });
+  const [updatedA, updatedB] = await Promise.all([db.items.get(aId), db.items.get(bId)]);
+  if (updatedA) pushRecord("items", updatedA);
+  if (updatedB) pushRecord("items", updatedB);
 }
 
 export async function deleteItem(id: string): Promise<void> {
+  let linkerIds: string[] = [];
   await db.transaction("rw", db.items, async () => {
     const linkers = await db.items.where("linkedItemIds").equals(id).toArray();
+    linkerIds = linkers.map((l) => l.id);
     const ts = nowIso();
     for (const linker of linkers) {
       await db.items.update(linker.id, { linkedItemIds: linker.linkedItemIds.filter((lid) => lid !== id), updatedAt: ts });
     }
     await db.items.delete(id);
   });
+  deleteRecord("items", id);
+  for (const linkerId of linkerIds) {
+    const updated = await db.items.get(linkerId);
+    if (updated) pushRecord("items", updated);
+  }
 }

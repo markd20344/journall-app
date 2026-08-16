@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
 import { applyStoredAccentColor } from "./lib/theme";
+import AuthGate from "./components/AuthGate";
 import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
@@ -30,29 +31,31 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="app-header">
-        <span className="app-title">Journall</span>
-        <nav className="app-nav">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`nav-btn ${view === item.id ? "active" : ""}`}
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </header>
-      <main className="app-main">
-        {view === "write" && <WritePage />}
-        {view === "calendar" && <CalendarPage />}
-        {view === "log" && <LogPage />}
-        {view === "browse" && <BrowsePage />}
-        {view === "settings" && <SettingsPage />}
-      </main>
-    </div>
+    <AuthGate>
+      <div className="app-shell">
+        <header className="app-header">
+          <span className="app-title">Journall</span>
+          <nav className="app-nav">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`nav-btn ${view === item.id ? "active" : ""}`}
+                onClick={() => setView(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </header>
+        <main className="app-main">
+          {view === "write" && <WritePage />}
+          {view === "calendar" && <CalendarPage />}
+          {view === "log" && <LogPage />}
+          {view === "browse" && <BrowsePage />}
+          {view === "settings" && <SettingsPage />}
+        </main>
+      </div>
+    </AuthGate>
   );
 }

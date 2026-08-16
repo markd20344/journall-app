@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import type { User } from "firebase/auth";
 import { useCategories } from "../hooks/useJournalData";
 import { deleteCategory, renameCategory } from "../db/repo";
 import { exportAsJson, exportAsMarkdown, importDump, readFileAsJson } from "../lib/exportImport";
 import { ACCENT_PRESETS, getStoredAccentColor, setStoredAccentColor } from "../lib/theme";
+import { signOutUser, watchAuthState } from "../firebase/auth";
+import { firebaseEnabled } from "../firebase/config";
 import {
   forgetDirectoryHandle,
   getSavedDirectoryHandle,
@@ -26,12 +29,14 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
 
   const [accentColor, setAccentColor] = useState<string | null>(null);
+  const [account, setAccount] = useState<User | null>(null);
 
   useEffect(() => {
     void getSavedDirectoryHandle().then((handle) => {
       if (handle) setSyncFolderName(handle.name);
     });
     void getStoredAccentColor().then(setAccentColor);
+    return watchAuthState(setAccount);
   }, []);
 
   async function chooseAccent(hex: string) {
@@ -108,6 +113,19 @@ export default function SettingsPage() {
   return (
     <div className="page settings-page">
       <h1 className="page-title">Settings</h1>
+
+      {firebaseEnabled && account && (
+        <section className="settings-section">
+          <h2>Account</h2>
+          <p className="settings-hint">
+            Signed in as <strong>{account.email}</strong>. Your journal syncs automatically to any other device
+            signed in with this account.
+          </p>
+          <div className="settings-actions">
+            <button type="button" className="ghost" onClick={() => void signOutUser()}>Sign out</button>
+          </div>
+        </section>
+      )}
 
       <section className="settings-section">
         <h2>Appearance</h2>
