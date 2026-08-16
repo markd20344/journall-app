@@ -433,15 +433,13 @@ textarea {
 
 .calendar-page-layout {
   display: flex;
-  gap: 28px;
+  gap: 0;
   flex-wrap: wrap;
   align-items: flex-start;
 }
 
 .calendar {
-  flex: 1;
-  min-width: 280px;
-  max-width: 360px;
+  flex: 0 0 300px;
 }
 
 .calendar-header {
@@ -511,9 +509,11 @@ textarea {
 }
 
 .day-panel {
-  flex: 1.4;
-  min-width: 300px;
+  flex: 1 1 320px;
+  min-width: 280px;
   padding-top: 6px;
+  border-left: 1px solid var(--border);
+  padding-left: 40px;
 }
 
 .day-panel-header {
