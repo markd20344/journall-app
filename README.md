@@ -68,9 +68,29 @@ updatedAt       updatedAt      │     body                  │  │
 Beyond free-text entries, you can spin off structured records from a saved
 journal entry (or create them standalone from the **Log** page): Lessons
 Learned, Actions, Risks, Assumptions, Decisions, and Calendar Bookings.
-These all share one `Item` shape (`kind`, `title`, `body`, `date`, `time`,
-`done`, `sourceEntryId`) — fields that don't apply to a given kind are just
-left blank (e.g. `done` only matters for Actions, `time` only for Bookings).
+These all share one `Item` shape (`kind`, `code`, `title`, `body`, `date`,
+`time`, `status`, `dependsOnItemId`, `sourceEntryId`) — fields that don't
+apply to a given kind are just left blank (e.g. `time` only matters for
+Bookings).
+
+Each item gets an auto-assigned sequential code per kind (e.g. `R001`,
+`D002`, `AC003`), and a status lifecycle that varies by kind:
+
+| Kind | Statuses |
+| --- | --- |
+| Lesson Learned | none — just logged |
+| Action | Open, On hold, Blocked, Closed |
+| Risk | Open, Closed |
+| Assumption | Open, Closed |
+| Decision | Open, Closed, Blocked |
+| Calendar Booking | none — just a booking |
+
+Actions and Risks can also reference another item they depend on / are
+blocked by (`dependsOnItemId`) — any item, any kind, picked by its code —
+so e.g. an Action blocked on a Decision shows "Depends on D001 — ..." right
+on its card. The Log page filters by kind and status together, with
+open/blocked items sorted before closed ones.
+
 Calendar Bookings and Action due-dates also surface on the **Calendar**
 page itself (a second dot on the day, and a "Scheduled" section in the day
 panel) so the calendar functions as a real day-planner, not just a journal

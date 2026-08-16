@@ -1,9 +1,10 @@
 :root {
   --text: #48505c;
   --text-h: #131b2e;
-  --bg: #eef1f6;
+  --bg: #e7edf9;
+  --bg-gradient: linear-gradient(160deg, #eef3fc 0%, #dfe7f8 45%, #d7e2f5 100%);
   --bg-raised: #ffffff;
-  --border: #dbe0ea;
+  --border: #d7deec;
   --accent: #2563eb;
   --accent-contrast: #ffffff;
   --accent-bg: rgba(37, 99, 235, 0.1);
@@ -11,7 +12,7 @@
   --danger-bg: rgba(192, 57, 43, 0.08);
   --success-bg: rgba(22, 163, 74, 0.1);
   --success-text: #15803d;
-  --shadow: rgba(15, 23, 42, 0.06) 0 1px 3px, rgba(15, 23, 42, 0.05) 0 8px 20px;
+  --shadow: rgba(15, 23, 42, 0.08) 0 1px 3px, rgba(15, 23, 42, 0.06) 0 8px 20px;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
 
@@ -28,6 +29,7 @@
     --text: #aab3c5;
     --text-h: #eef1f8;
     --bg: #0f1420;
+    --bg-gradient: linear-gradient(160deg, #141b2c 0%, #0f1420 55%, #0b101c 100%);
     --bg-raised: #171d2c;
     --border: #2a3244;
     --accent: #5b8def;
@@ -47,6 +49,9 @@
 
 body {
   margin: 0;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  min-height: 100svh;
 }
 
 h1, h2, h3 {
@@ -81,18 +86,19 @@ button, input, select, textarea {
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--accent);
   background: var(--bg-raised);
+  box-shadow: var(--shadow);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
 .app-title {
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--text-h);
-  letter-spacing: -0.2px;
+  font-weight: 800;
+  font-size: 19px;
+  color: var(--accent);
+  letter-spacing: -0.3px;
 }
 
 .app-nav {
@@ -128,8 +134,10 @@ button, input, select, textarea {
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 23px;
   margin: 0 0 20px;
+  color: var(--accent);
+  letter-spacing: -0.3px;
 }
 
 .write-page-header {
@@ -726,40 +734,7 @@ textarea {
 }
 
 .linked-items-list {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.linked-item-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.linked-item-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: none;
-  padding: 6px 4px;
-  text-align: left;
-  flex: 1;
-  border-radius: 6px;
-}
-
-.linked-item-title:hover {
-  background: var(--accent-bg);
-  border-color: transparent;
-}
-
-.done-text {
-  text-decoration: line-through;
-  opacity: 0.6;
+  margin-top: 12px;
 }
 
 .linked-badge {
@@ -796,7 +771,11 @@ textarea {
   margin-bottom: 0;
 }
 
-/* ---------- Kind badge ---------- */
+.item-editor-code-row {
+  margin-bottom: -4px;
+}
+
+/* ---------- Kind badge / code badge ---------- */
 
 .kind-badge {
   color: white;
@@ -807,23 +786,28 @@ textarea {
   white-space: nowrap;
 }
 
+.code-badge {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
 /* ---------- Item cards (Log page) ---------- */
 
 .item-card {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px 16px;
   background: var(--bg-raised);
-}
-
-.item-card-checkbox {
-  margin-top: 4px;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
 }
 
 .item-card-main {
@@ -852,6 +836,22 @@ textarea {
 .item-done .item-card-title {
   text-decoration: line-through;
   opacity: 0.6;
+}
+
+.dependency-line {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.status-select {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--bg-raised);
 }
 
 .new-item-buttons {

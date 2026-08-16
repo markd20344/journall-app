@@ -1,25 +1,36 @@
 import { useMemo, useState } from "react";
-import type { Item, ItemKind } from "../types";
-import { ITEM_KINDS } from "../lib/itemKinds";
+import type { Item, ItemKind, ItemStatus } from "../types";
+import { ITEM_KINDS, STATUS_META } from "../lib/itemKinds";
 import { useAllItems } from "../hooks/useJournalData";
 import ItemCard from "../components/ItemCard";
 import ItemEditor from "../components/ItemEditor";
 
+const STATUS_SORT_ORDER: Record<ItemStatus, number> = { blocked: 0, open: 1, on_hold: 2, closed: 3 };
+
 export default function LogPage() {
   const allItems = useAllItems();
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
+  const [statusFilter, setStatusFilter] = useState<ItemStatus | "">("");
   const [query, setQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [creatingKind, setCreatingKind] = useState<ItemKind | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return allItems.filter((item) => {
+    const items = allItems.filter((item) => {
       if (kindFilter && item.kind !== kindFilter) return false;
-      if (q && !item.title.toLowerCase().includes(q) && !item.body.toLowerCase().includes(q)) return false;
+      if (statusFilter && item.status !== statusFilter) return false;
+      if (q && !item.title.toLowerCase().includes(q) && !item.body.toLowerCase().includes(q) && !item.code.toLowerCase().includes(q))
+        return false;
       return true;
     });
-  }, [allItems, kindFilter, query]);
+    return [...items].sort((a, b) => {
+      const aOrder = a.status ? STATUS_SORT_ORDER[a.status] : 1;
+      const bOrder = b.status ? STATUS_SORT_ORDER[b.status] : 1;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return b.date.localeCompare(a.date);
+    });
+  }, [allItems, kindFilter, statusFilter, query]);
 
   return (
     <div className="page log-page">
@@ -44,7 +55,7 @@ export default function LogPage() {
           <div className="browse-filters">
             <input
               type="search"
-              placeholder="Search…"
+              placeholder="Search title, details, or code…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="search-input"
@@ -54,6 +65,14 @@ export default function LogPage() {
               {ITEM_KINDS.map((k) => (
                 <option key={k.kind} value={k.kind}>
                   {k.label}
+                </option>
+              ))}
+            </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ItemStatus | "")}>
+              <option value="">All statuses</option>
+              {(Object.keys(STATUS_META) as ItemStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_META[s].label}
                 </option>
               ))}
             </select>

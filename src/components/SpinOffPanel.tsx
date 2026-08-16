@@ -2,9 +2,8 @@ import { useState } from "react";
 import type { Entry, Item, ItemKind } from "../types";
 import { ITEM_KINDS } from "../lib/itemKinds";
 import { useItemsForEntry } from "../hooks/useJournalData";
-import { toggleItemDone } from "../db/repo";
 import ItemEditor from "./ItemEditor";
-import ItemKindBadge from "./ItemKindBadge";
+import ItemCard from "./ItemCard";
 
 interface Props {
   entry: Entry;
@@ -58,23 +57,11 @@ export default function SpinOffPanel({ entry }: Props) {
       )}
 
       {linkedItems.length > 0 && !editingItem && (
-        <ul className="linked-items-list">
+        <div className="entry-list linked-items-list">
           {linkedItems.map((item) => (
-            <li key={item.id} className="linked-item-row">
-              {item.kind === "action" && (
-                <input
-                  type="checkbox"
-                  checked={item.done}
-                  onChange={(e) => void toggleItemDone(item.id, e.target.checked)}
-                />
-              )}
-              <button type="button" className="linked-item-title" onClick={() => setEditingItem(item)}>
-                <ItemKindBadge kind={item.kind} short />
-                <span className={item.done ? "done-text" : ""}>{item.title}</span>
-              </button>
-            </li>
+            <ItemCard key={item.id} item={item} onClick={() => setEditingItem(item)} />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

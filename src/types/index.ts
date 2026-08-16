@@ -36,18 +36,25 @@ export interface EntryWithRefs extends Entry {
 // "Spin-off" items: structured records you can create out of a journal
 // entry (or standalone) — lessons learned, actions, risks, etc. Each kind
 // uses the same shape; fields that don't apply to a given kind are simply
-// left blank (e.g. `done` only matters for "action", `time` only for
-// "event").
+// left blank (e.g. `status` is null for kinds with no lifecycle, `time`
+// only matters for "event").
 export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event";
+
+// Not every kind uses every status — see ITEM_KINDS in lib/itemKinds.ts for
+// which statuses are valid per kind. Kinds with no lifecycle (lesson,
+// event) use a null status.
+export type ItemStatus = "open" | "on_hold" | "blocked" | "closed";
 
 export interface Item {
   id: string;
   kind: ItemKind;
+  code: string; // auto-assigned, e.g. "R001", "D001" — sequential per kind
   title: string;
   body: string;
   date: string; // YYYY-MM-DD — due date (action), booking date (event), or logged date otherwise
   time: string; // HH:mm, optional — mainly for "event" bookings; empty string if unset
-  done: boolean; // only meaningful for "action"
+  status: ItemStatus | null;
+  dependsOnItemId: string | null; // another Item this one is blocked/dependent on (Action, Risk only)
   sourceEntryId: string | null; // the journal entry this was spun off from, if any
   createdAt: string;
   updatedAt: string;

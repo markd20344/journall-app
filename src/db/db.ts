@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Entry, Item, Topic } from "../types";
+import type { Category, Entry, Item, ItemKind, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
+import { itemKindMeta } from "../lib/itemKinds";
 
 const DEFAULT_CATEGORIES: Array<Pick<Category, "name" | "color">> = [
   { name: "General", color: "#6b7280" },
@@ -37,6 +38,37 @@ class JournalDB extends Dexie {
       settings: "key",
       items: "id, kind, date, sourceEntryId, done, updatedAt",
     });
+    // v3: replace the boolean `done` field with a proper per-kind status
+    // lifecycle (open/on_hold/blocked/closed), add auto-assigned sequential
+    // codes (R001, D001, ...) and a dependsOnItemId link for Actions/Risks.
+    this.version(3)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, dependsOnItemId, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Array<Item & { done?: boolean }>;
+        const byKind = new Map<ItemKind, Array<Item & { done?: boolean }>>();
+        for (const item of items) {
+          if (!byKind.has(item.kind)) byKind.set(item.kind, []);
+          byKind.get(item.kind)!.push(item);
+        }
+        for (const [kind, list] of byKind) {
+          list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          const meta = itemKindMeta(kind);
+          list.forEach((item, idx) => {
+            item.code = `${meta.codePrefix}${String(idx + 1).padStart(3, "0")}`;
+            item.dependsOnItemId = item.dependsOnItemId ?? null;
+            item.status = meta.statuses.length === 0 ? null : item.done ? "closed" : "open";
+            delete item.done;
+          });
+          await tx.table("settings").put({ key: `codeCounter:${kind}`, value: list.length });
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 
