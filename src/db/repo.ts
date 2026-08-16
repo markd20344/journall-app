@@ -80,15 +80,84 @@ export async function findOrCreateTopic(name: string, categoryId: string): Promi
   return topic;
 }
 
+/**
+ * Derives the next code from the highest one already in use for this kind,
+ * rather than a stored per-device counter — the `settings` table isn't
+ * synced to Firestore (it also holds things like the folder-sync directory
+ * handle, which isn't serializable), so a stored counter would silently
+ * diverge across devices and hand out the same code twice.
+ */
 async function nextCode(kind: ItemKind): Promise<string> {
   const prefix = itemKindMeta(kind).codePrefix;
-  return db.transaction("rw", db.settings, async () => {
-    const key = `codeCounter:${kind}`;
-    const record = await db.settings.get(key);
-    const next = ((record?.value as number | undefined) ?? 0) + 1;
-    await db.settings.put({ key, value: next });
-    return `${prefix}${String(next).padStart(3, "0")}`;
-  });
+  const items = await db.items.where("kind").equals(kind).toArray();
+  let max = 0;
+  for (const item of items) {
+    const match = /(\d+)$/.exec(item.code);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
+}
+
+/**
+ * Renumbers items that ended up sharing a code — the result of two devices
+ * each generating their own codes before ever syncing (see `nextCode`
+ * above; this repairs codes issued before that fix). Keeps the oldest of
+ * each duplicate pair's code as-is and reassigns the newer one(s). Codes
+ * are just a display label, not a reference, so this is safe to do without
+ * touching any linked-item relationships.
+ */
+export async function dedupeItemCodes(): Promise<void> {
+  const items = await db.items.toArray();
+  const byKindCode = new Map<string, Item[]>();
+  for (const item of items) {
+    const key = `${item.kind}::${item.code}`;
+    byKindCode.set(key, [...(byKindCode.get(key) ?? []), item]);
+  }
+  for (const group of byKindCode.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const [, ...dupes] = group;
+    for (const dupe of dupes) {
+      const newCode = await nextCode(dupe.kind);
+      await db.items.update(dupe.id, { code: newCode, updatedAt: nowIso() });
+      const updated = await db.items.get(dupe.id);
+      if (updated) pushRecord("items", updated);
+    }
+  }
+}
+
+/**
+ * Collapses the double spaces that the pre-fix dictation join used to leave
+ * behind in already-saved entries/items, and trims stray whitespace. Only
+ * touches runs of spaces/tabs, never newlines, so intentional paragraph
+ * breaks are left alone. Runs once per device (flagged in `settings`).
+ */
+export async function cleanupDictationArtifacts(): Promise<void> {
+  const flagKey = "textCleanedV1";
+  if (await db.settings.get(flagKey)) return;
+
+  const collapse = (text: string) => text.replace(/[ \t]{2,}/g, " ").trim();
+
+  for (const entry of await db.entries.toArray()) {
+    const cleaned = collapse(entry.body);
+    if (cleaned !== entry.body) {
+      await db.entries.update(entry.id, { body: cleaned, updatedAt: nowIso() });
+      const updated = await db.entries.get(entry.id);
+      if (updated) pushRecord("entries", updated);
+    }
+  }
+
+  for (const item of await db.items.toArray()) {
+    const cleanedTitle = collapse(item.title);
+    const cleanedBody = collapse(item.body);
+    if (cleanedTitle !== item.title || cleanedBody !== item.body) {
+      await db.items.update(item.id, { title: cleanedTitle, body: cleanedBody, updatedAt: nowIso() });
+      const updated = await db.items.get(item.id);
+      if (updated) pushRecord("items", updated);
+    }
+  }
+
+  await db.settings.put({ key: flagKey, value: true });
 }
 
 export async function createItem(input: {

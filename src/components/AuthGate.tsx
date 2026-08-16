@@ -3,7 +3,7 @@ import type { User } from "firebase/auth";
 import { consumeRedirectResult, signIn, watchAuthState } from "../firebase/auth";
 import { startSync, stopSync } from "../firebase/sync";
 import { firebaseEnabled } from "../firebase/config";
-import { dedupeCategoriesAndTopics } from "../db/repo";
+import { cleanupDictationArtifacts, dedupeCategoriesAndTopics, dedupeItemCodes } from "../db/repo";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [checkedRedirect, setCheckedRedirect] = useState(false);
@@ -34,7 +34,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setSyncing(true);
     setError(null);
     startSync(user.uid)
+      // Sequential, not parallel: these can touch the same item rows, and
+      // running them concurrently risks one clobbering the other's write.
       .then(() => dedupeCategoriesAndTopics())
+      .then(() => dedupeItemCodes())
+      .then(() => cleanupDictationArtifacts())
       .catch((err) => setError(err instanceof Error ? err.message : "Cloud sync failed to start."))
       .finally(() => setSyncing(false));
   }, [user]);
