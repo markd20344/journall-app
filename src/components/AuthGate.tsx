@@ -53,7 +53,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <span className="app-title">Journall</span>
         <p>Sign in with Google to sync your journal across your PC and phone.</p>
         {error && <p className="auth-error">{error}</p>}
-        <button type="button" className="primary" onClick={() => void signIn()}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            setError(null);
+            signIn().catch((err) => {
+              // A user closing the popup isn't worth surfacing as an error.
+              if (err instanceof Error && err.message.includes("popup-closed-by-user")) return;
+              setError(err instanceof Error ? err.message : "Sign-in failed.");
+            });
+          }}
+        >
           Sign in with Google
         </button>
       </div>
