@@ -1,28 +1,19 @@
 import { useState, type CSSProperties } from "react";
 import CalendarView from "../components/CalendarView";
-import EntryCard from "../components/EntryCard";
-import EntryEditor from "../components/EntryEditor";
 import ItemCard from "../components/ItemCard";
 import ItemEditor from "../components/ItemEditor";
 import { itemKindMeta } from "../lib/itemKinds";
-import { useEnrichedEntries, useEntriesForDate, useScheduledItemsForDate } from "../hooks/useJournalData";
+import { useBookingsForDate } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
-import type { Entry, Item, ItemKind } from "../types";
+import type { Item } from "../types";
 
-type Mode =
-  | { type: "none" }
-  | { type: "new-entry" }
-  | { type: "edit-entry"; entry: Entry }
-  | { type: "new-item"; kind: ItemKind }
-  | { type: "edit-item"; item: Item };
+type Mode = { type: "none" } | { type: "new-booking" } | { type: "edit-booking"; item: Item };
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(todayDateString());
   const [mode, setMode] = useState<Mode>({ type: "none" });
 
-  const entriesForDate = useEntriesForDate(selectedDate);
-  const enriched = useEnrichedEntries(entriesForDate);
-  const scheduledItems = useScheduledItemsForDate(selectedDate);
+  const bookings = useBookingsForDate(selectedDate);
 
   const closeMode = () => setMode({ type: "none" });
 
@@ -45,68 +36,28 @@ export default function CalendarPage() {
                 type="button"
                 className="kind-action-btn"
                 style={{ "--kind-color": itemKindMeta("event").color } as CSSProperties}
-                onClick={() => setMode({ type: "new-item", kind: "event" })}
+                onClick={() => setMode({ type: "new-booking" })}
               >
                 + Booking
-              </button>
-              <button
-                type="button"
-                className="kind-action-btn"
-                style={{ "--kind-color": itemKindMeta("action").color } as CSSProperties}
-                onClick={() => setMode({ type: "new-item", kind: "action" })}
-              >
-                + Action
-              </button>
-              <button type="button" className="primary" onClick={() => setMode({ type: "new-entry" })}>
-                + New entry
               </button>
             </div>
           </div>
 
-          {mode.type === "new-entry" && (
-            <EntryEditor initialDate={selectedDate} onCancel={closeMode} onSaved={closeMode} />
+          {mode.type === "new-booking" && (
+            <ItemEditor kind="event" defaultDate={selectedDate} onCancel={closeMode} onSaved={closeMode} />
           )}
 
-          {mode.type === "edit-entry" && (
-            <EntryEditor entry={mode.entry} onCancel={closeMode} onSaved={closeMode} onDeleted={closeMode} />
-          )}
-
-          {mode.type === "new-item" && (
-            <ItemEditor kind={mode.kind} defaultDate={selectedDate} onCancel={closeMode} onSaved={closeMode} />
-          )}
-
-          {mode.type === "edit-item" && (
-            <ItemEditor kind={mode.item.kind} item={mode.item} onCancel={closeMode} onSaved={closeMode} onDeleted={closeMode} />
+          {mode.type === "edit-booking" && (
+            <ItemEditor kind="event" item={mode.item} onCancel={closeMode} onSaved={closeMode} onDeleted={closeMode} />
           )}
 
           {mode.type === "none" && (
-            <>
-              {scheduledItems.length > 0 && (
-                <div className="day-scheduled-section">
-                  <h3 className="day-section-title">Scheduled</h3>
-                  <div className="entry-list">
-                    {scheduledItems.map((item) => (
-                      <ItemCard key={item.id} item={item} onClick={() => setMode({ type: "edit-item", item })} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {enriched.length > 0 && (
-                <div className="day-scheduled-section">
-                  <h3 className="day-section-title">Journal entries</h3>
-                  <div className="entry-list">
-                    {enriched.map((entry) => (
-                      <EntryCard key={entry.id} entry={entry} onClick={() => setMode({ type: "edit-entry", entry })} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {scheduledItems.length === 0 && enriched.length === 0 && (
-                <p className="empty-hint">Nothing logged for this day yet.</p>
-              )}
-            </>
+            <div className="entry-list">
+              {bookings.length === 0 && <p className="empty-hint">No bookings for this day.</p>}
+              {bookings.map((item) => (
+                <ItemCard key={item.id} item={item} onClick={() => setMode({ type: "edit-booking", item })} />
+              ))}
+            </div>
           )}
         </div>
       </div>

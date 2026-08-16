@@ -525,31 +525,17 @@ textarea {
   color: var(--accent-contrast);
 }
 
-.calendar-dots {
+.calendar-dot {
   position: absolute;
   bottom: 5px;
-  display: flex;
-  gap: 3px;
-}
-
-.calendar-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
 }
 
-.calendar-dot-scheduled {
-  background: #b45309;
-}
-
 .calendar-day.selected .calendar-dot {
   background: var(--accent-contrast);
-}
-
-.calendar-day.selected .calendar-dot-scheduled {
-  background: var(--accent-contrast);
-  opacity: 0.7;
 }
 
 .day-panel {
@@ -578,20 +564,6 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.day-section-title {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text);
-  opacity: 0.65;
-  margin: 0 0 10px;
-}
-
-.day-scheduled-section {
-  margin-bottom: 24px;
 }
 
 /* ---------- Browse / search ---------- */

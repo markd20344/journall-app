@@ -91,13 +91,13 @@ so e.g. an Action blocked on a Decision shows "Depends on D001 — ..." right
 on its card. The Log page filters by kind and status together, with
 open/blocked items sorted before closed ones.
 
-Calendar Bookings and Action due-dates also surface on the **Calendar**
-page itself (a second dot on the day, and a "Scheduled" section in the day
-panel) so the calendar functions as a real day-planner, not just a journal
-index. This is intentionally a local record, not a Google Calendar
-integration — that would need an OAuth connection to Google's servers,
-which is a reasonable phase-2 addition but a separate piece of work from
-the local-first core.
+The **Calendar** page is deliberately single-purpose: it shows and creates
+Calendar Bookings only — no journal entries, no actions. Those live in
+Write/Browse and Log/Browse respectively, keeping the calendar a clean
+"what's booked" view rather than a second index of everything. This is
+intentionally a local record, not a Google Calendar integration — that
+would need an OAuth connection to Google's servers, which is a reasonable
+phase-2 addition but a separate piece of work from the local-first core.
 
 ## Project structure
 
@@ -122,7 +122,7 @@ src/
     ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx
   pages/
     WritePage.tsx        Default landing view — fastest path to writing
-    CalendarPage.tsx      Month calendar + per-day entries and scheduled items
+    CalendarPage.tsx      Month calendar + per-day bookings only
     LogPage.tsx             Browse/filter spin-off items by kind
     BrowsePage.tsx           Chronological list + search + category/topic filter
     SettingsPage.tsx          Appearance, categories, backup, folder sync

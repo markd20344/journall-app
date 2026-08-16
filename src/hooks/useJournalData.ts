@@ -24,26 +24,6 @@ export function useAllEntries(): Entry[] {
   return useLiveQuery(() => db.entries.orderBy("date").reverse().toArray(), [], []) ?? [];
 }
 
-export function useEntriesForDate(date: string): Entry[] {
-  return (
-    useLiveQuery(
-      () => db.entries.where("date").equals(date).sortBy("createdAt"),
-      [date],
-      [],
-    ) ?? []
-  );
-}
-
-export function useEntryDatesInRange(startDate: string, endDate: string): Set<string> {
-  const entries =
-    useLiveQuery(
-      () => db.entries.where("date").between(startDate, endDate, true, true).toArray(),
-      [startDate, endDate],
-      [],
-    ) ?? [];
-  return new Set(entries.map((e) => e.date));
-}
-
 export function useAllItems(): Item[] {
   return useLiveQuery(() => db.items.orderBy("date").reverse().toArray(), [], []) ?? [];
 }
@@ -63,23 +43,23 @@ export function useItemsByKind(kind: ItemKind | ""): Item[] {
   return kind ? all.filter((i) => i.kind === kind) : all;
 }
 
-// Items with real calendar semantics: bookings (dated events) and actions
-// (dated by their due date). Used to put markers on the Calendar view and
-// to list "what's scheduled today" alongside journal entries.
-export function useScheduledItemsForDate(date: string): Item[] {
+// The Calendar page is booking-only by design — journal entries and
+// actions live in Write/Log/Browse instead, so the calendar stays a clean
+// "what's booked" view.
+export function useBookingsForDate(date: string): Item[] {
   return (
     useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? []
-  ).filter((i) => i.kind === "event" || i.kind === "action");
+  ).filter((i) => i.kind === "event");
 }
 
-export function useScheduledDatesInRange(startDate: string, endDate: string): Set<string> {
+export function useBookingDatesInRange(startDate: string, endDate: string): Set<string> {
   const items =
     useLiveQuery(
       () => db.items.where("date").between(startDate, endDate, true, true).toArray(),
       [startDate, endDate],
       [],
     ) ?? [];
-  return new Set(items.filter((i) => i.kind === "event" || i.kind === "action").map((i) => i.date));
+  return new Set(items.filter((i) => i.kind === "event").map((i) => i.date));
 }
 
 export function useEnrichedEntries(entries: Entry[]): EntryWithRefs[] {
