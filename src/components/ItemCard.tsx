@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import type { Item, ItemStatus } from "../types";
 import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
@@ -18,6 +18,17 @@ export default function ItemCard({ item, onClick }: Props) {
     .filter((i): i is Item => Boolean(i));
   const latestUpdate = item.statusUpdates.length > 0 ? item.statusUpdates[item.statusUpdates.length - 1] : null;
 
+  // Days open (since logged) and how far before/after the due date we are —
+  // measured against the closure time once closed, otherwise today.
+  let agingLabel: string | null = null;
+  if (meta.statuses.length > 0) {
+    const reference = item.closedAt ? new Date(item.closedAt) : new Date();
+    const daysOpen = differenceInCalendarDays(reference, new Date(item.createdAt));
+    const dueDelta = differenceInCalendarDays(reference, new Date(item.date));
+    const dueSign = dueDelta >= 0 ? "+" : "";
+    agingLabel = `${daysOpen}d open · ${dueSign}${dueDelta}d due`;
+  }
+
   return (
     <div className={`item-card ${item.status === "closed" ? "item-done" : ""}`}>
       <button type="button" className="item-card-main" onClick={onClick}>
@@ -29,6 +40,7 @@ export default function ItemCard({ item, onClick }: Props) {
             {item.time ? ` · ${item.time}` : ""}
           </span>
           {item.sourceEntryId && <span className="linked-badge">from journal</span>}
+          {agingLabel && <span className="linked-badge">{agingLabel}</span>}
         </div>
         <p className="entry-card-body item-card-title">{item.title}</p>
         {item.body && <p className="entry-card-body">{item.body}</p>}

@@ -369,8 +369,8 @@ textarea {
 }
 
 .field-voice-row {
-  margin-top: -6px;
-  margin-bottom: 4px;
+  margin-top: 6px;
+  margin-bottom: 10px;
 }
 
 .voice-btn {
@@ -778,9 +778,12 @@ textarea {
   font-weight: 600;
 }
 
-.item-body-input {
+.closure-note-input {
   width: 100%;
+  min-height: 110px;
   resize: vertical;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .item-editor-row {
@@ -859,6 +862,10 @@ textarea {
 
 .add-link-row select {
   flex: 1;
+}
+
+.add-update-row {
+  margin-top: 10px;
 }
 
 /* ---------- Kind badge / code badge ---------- */

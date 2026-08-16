@@ -115,15 +115,18 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
       <div className="field-voice-row">
         <VoiceButton onTranscript={(text) => setTitle((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
       </div>
-      <textarea
-        className="item-body-input"
-        placeholder="Details (optional)…"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={3}
-      />
-      <div className="field-voice-row">
-        <VoiceButton onTranscript={(text) => setBody((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+      <div className="field">
+        <span className="field-label">Entry</span>
+        <textarea
+          className="entry-body"
+          placeholder="Details…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={10}
+        />
+        <div className="field-voice-row">
+          <VoiceButton onTranscript={(text) => setBody((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+        </div>
       </div>
       <div className="item-editor-row">
         <label className="field">
@@ -149,6 +152,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </label>
         )}
       </div>
+      {item && <p className="entry-timestamp">Logged {format(new Date(item.createdAt), "MMM d, yyyy · h:mm a")}</p>}
 
       {status === "closed" && (
         <label className="field">
@@ -156,11 +160,11 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             Closure note {item?.closedAt && <span className="closed-at">— closed {format(new Date(item.closedAt), "MMM d, h:mm a")}</span>}
           </span>
           <textarea
-            className="item-body-input"
+            className="closure-note-input"
             placeholder="What was the outcome / how was this resolved…"
             value={closureNote}
             onChange={(e) => setClosureNote(e.target.value)}
-            rows={2}
+            rows={4}
           />
         </label>
       )}
@@ -199,22 +203,20 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
                 ))}
             </ul>
           )}
-          <div className="add-link-row">
-            <input
-              type="text"
+          <div className="field">
+            <span className="field-label">Entry</span>
+            <textarea
+              className="entry-body"
               placeholder="Add a dated status update…"
               value={newUpdateNote}
               onChange={(e) => setNewUpdateNote(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void addUpdate();
-                }
-              }}
+              rows={10}
             />
-            <button type="button" disabled={!newUpdateNote.trim()} onClick={() => void addUpdate()}>
-              Add update
-            </button>
+            <div className="add-update-row">
+              <button type="button" className="primary" disabled={!newUpdateNote.trim()} onClick={() => void addUpdate()}>
+                Add update
+              </button>
+            </div>
           </div>
         </div>
       )}
