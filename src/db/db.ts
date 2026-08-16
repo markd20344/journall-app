@@ -97,6 +97,28 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v5: add a dated status-update log per item, plus a closure note and
+    // an auto-populated closedAt timestamp.
+    this.version(5)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.statusUpdates = item.statusUpdates ?? [];
+          item.closureNote = item.closureNote ?? "";
+          // Backfill a closedAt for anything already closed before this
+          // version existed, using its last-updated time as a reasonable
+          // approximation of when it was closed.
+          item.closedAt = item.status === "closed" ? (item.closedAt ?? item.updatedAt) : null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 

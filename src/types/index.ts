@@ -45,6 +45,14 @@ export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" 
 // event) use a null status.
 export type ItemStatus = "open" | "on_hold" | "blocked" | "closed";
 
+// A dated note logged against an item — a running progress/commentary
+// trail, distinct from a one-off closure note.
+export interface StatusUpdate {
+  id: string;
+  note: string;
+  createdAt: string; // ISO timestamp
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;
@@ -54,6 +62,9 @@ export interface Item {
   date: string; // YYYY-MM-DD — due date (action), booking date (event), or logged date otherwise
   time: string; // HH:mm, optional — mainly for "event" bookings; empty string if unset
   status: ItemStatus | null;
+  statusUpdates: StatusUpdate[]; // dated progress notes, newest last
+  closedAt: string | null; // auto-set the moment status becomes "closed"; cleared if reopened
+  closureNote: string; // optional note explaining the closure
   linkedItemIds: string[]; // other Items this one is linked to, any kind — always bidirectional
   sourceEntryId: string | null; // the journal entry this was spun off from, if any
   createdAt: string;

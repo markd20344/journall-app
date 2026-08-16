@@ -93,11 +93,19 @@ from the other side. Deleting an item cleans up its references on whatever
 it was linked to. The Log page filters by kind and status together, with
 open/blocked items sorted before closed ones.
 
-The **Calendar** page is deliberately single-purpose: it shows and creates
-Calendar Bookings only — no journal entries, no actions. Those live in
-Write/Browse and Log/Browse respectively, keeping the calendar a clean
-"what's booked" view rather than a second index of everything. This is
-intentionally a local record, not a Google Calendar integration — that
+Items with a status lifecycle also carry a **status-update log**
+(`statusUpdates`) — a running, dated trail of free-text progress notes you
+add over time, each stamped with when it was written, shown newest-first
+wherever the item appears. When status is set to Closed, a **closure
+note** field appears; the closure timestamp (`closedAt`) is set
+automatically the moment status becomes Closed (and cleared if reopened),
+not something you type in yourself.
+
+The **Calendar** page shows and creates Calendar Bookings and Action
+due-dates — no journal entries, which live in Write/Browse instead. This
+keeps the calendar a clean "what's scheduled" view rather than a second
+index of everything. Bookings are intentionally a local record, not a
+Google Calendar integration — that
 would need an OAuth connection to Google's servers, which is a reasonable
 phase-2 addition but a separate piece of work from the local-first core.
 

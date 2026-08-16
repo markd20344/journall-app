@@ -1,7 +1,7 @@
 // Thin CRUD layer over Dexie. Every write also bumps `updatedAt` so the
 // file-sync layer can do simple last-write-wins conflict resolution.
 import { db } from "./db";
-import type { Category, Entry, Item, ItemKind, ItemStatus, Topic } from "../types";
+import type { Category, Entry, Item, ItemKind, ItemStatus, StatusUpdate, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -99,6 +99,9 @@ export async function createItem(input: {
     date: input.date ?? ts.slice(0, 10),
     time: input.time ?? "",
     status: meta.statuses.length > 0 ? "open" : null,
+    statusUpdates: [],
+    closedAt: null,
+    closureNote: "",
     linkedItemIds: [],
     sourceEntryId: input.sourceEntryId ?? null,
     createdAt: ts,
@@ -110,13 +113,41 @@ export async function createItem(input: {
 
 export async function updateItem(
   id: string,
-  changes: Partial<Pick<Item, "title" | "body" | "date" | "time" | "status">>,
+  changes: Partial<Pick<Item, "title" | "body" | "date" | "time" | "status" | "closureNote">>,
 ): Promise<void> {
-  await db.items.update(id, { ...changes, updatedAt: nowIso() });
+  const ts = nowIso();
+  const finalChanges: Partial<Item> = { ...changes, updatedAt: ts };
+  if (changes.status !== undefined) {
+    const current = await db.items.get(id);
+    if (changes.status === "closed" && current?.status !== "closed") {
+      finalChanges.closedAt = ts;
+    } else if (changes.status !== "closed" && current?.status === "closed") {
+      finalChanges.closedAt = null;
+    }
+  }
+  await db.items.update(id, finalChanges);
 }
 
 export async function setItemStatus(id: string, status: ItemStatus): Promise<void> {
-  await db.items.update(id, { status, updatedAt: nowIso() });
+  await updateItem(id, { status });
+}
+
+export async function addStatusUpdate(itemId: string, note: string): Promise<void> {
+  const trimmed = note.trim();
+  if (!trimmed) return;
+  const item = await db.items.get(itemId);
+  if (!item) return;
+  const update: StatusUpdate = { id: newId(), note: trimmed, createdAt: nowIso() };
+  await db.items.update(itemId, { statusUpdates: [...item.statusUpdates, update], updatedAt: nowIso() });
+}
+
+export async function deleteStatusUpdate(itemId: string, updateId: string): Promise<void> {
+  const item = await db.items.get(itemId);
+  if (!item) return;
+  await db.items.update(itemId, {
+    statusUpdates: item.statusUpdates.filter((u) => u.id !== updateId),
+    updatedAt: nowIso(),
+  });
 }
 
 /** Links two items to each other. Always bidirectional — both sides show the connection. */

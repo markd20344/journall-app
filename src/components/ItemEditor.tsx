@@ -1,9 +1,18 @@
 import { useState } from "react";
-import type { Item, ItemKind, ItemStatus } from "../types";
+import { format } from "date-fns";
+import type { Item, ItemKind, ItemStatus, StatusUpdate } from "../types";
 import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
-import { createItem, deleteItem, linkItems, unlinkItems, updateItem } from "../db/repo";
+import {
+  addStatusUpdate,
+  createItem,
+  deleteItem,
+  deleteStatusUpdate,
+  linkItems,
+  unlinkItems,
+  updateItem,
+} from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
-import { todayDateString } from "../lib/id";
+import { newId, nowIso, todayDateString } from "../lib/id";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
 
@@ -24,8 +33,11 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [date, setDate] = useState(item?.date ?? defaultDate ?? todayDateString());
   const [time, setTime] = useState(item?.time ?? "");
   const [status, setStatus] = useState<ItemStatus | null>(item?.status ?? (meta.statuses[0] ?? null));
+  const [closureNote, setClosureNote] = useState(item?.closureNote ?? "");
   const [linkedIds, setLinkedIds] = useState<string[]>(item?.linkedItemIds ?? []);
   const [linkPick, setLinkPick] = useState("");
+  const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>(item?.statusUpdates ?? []);
+  const [newUpdateNote, setNewUpdateNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const allItems = useAllItems();
@@ -37,8 +49,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     setSaving(true);
     try {
       if (item) {
-        await updateItem(item.id, { title: title.trim(), body, date, time, status });
-        onSaved?.({ ...item, title: title.trim(), body, date, time, status });
+        await updateItem(item.id, { title: title.trim(), body, date, time, status, closureNote });
+        onSaved?.({ ...item, title: title.trim(), body, date, time, status, closureNote });
       } else {
         const created = await createItem({ kind, title: title.trim(), body, date, time, sourceEntryId: sourceEntryId ?? null });
         onSaved?.(created);
@@ -69,6 +81,20 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     if (!item) return;
     setLinkedIds((prev) => prev.filter((id) => id !== otherId));
     await unlinkItems(item.id, otherId);
+  }
+
+  async function addUpdate() {
+    if (!item || !newUpdateNote.trim()) return;
+    const note = newUpdateNote.trim();
+    setNewUpdateNote("");
+    await addStatusUpdate(item.id, note);
+    setStatusUpdates((prev) => [...prev, { id: newId(), note, createdAt: nowIso() }]);
+  }
+
+  async function removeUpdate(updateId: string) {
+    if (!item) return;
+    setStatusUpdates((prev) => prev.filter((u) => u.id !== updateId));
+    await deleteStatusUpdate(item.id, updateId);
   }
 
   return (
@@ -124,6 +150,21 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         )}
       </div>
 
+      {status === "closed" && (
+        <label className="field">
+          <span className="field-label">
+            Closure note {item?.closedAt && <span className="closed-at">— closed {format(new Date(item.closedAt), "MMM d, h:mm a")}</span>}
+          </span>
+          <textarea
+            className="item-body-input"
+            placeholder="What was the outcome / how was this resolved…"
+            value={closureNote}
+            onChange={(e) => setClosureNote(e.target.value)}
+            rows={2}
+          />
+        </label>
+      )}
+
       <div className="entry-editor-actions">
         <button type="button" className="primary" disabled={saving || !title.trim()} onClick={() => void handleSave()}>
           {item ? "Save changes" : `Add ${meta.shortLabel.toLowerCase()}`}
@@ -139,6 +180,44 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </button>
         )}
       </div>
+
+      {item && meta.statuses.length > 0 && (
+        <div className="link-section">
+          <span className="field-label">Status updates</span>
+          {statusUpdates.length > 0 && (
+            <ul className="status-update-list">
+              {[...statusUpdates]
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                .map((u) => (
+                  <li key={u.id} className="status-update-row">
+                    <span className="status-update-time">{format(new Date(u.createdAt), "MMM d, h:mm a")}</span>
+                    <span className="status-update-note">{u.note}</span>
+                    <button type="button" className="chip-remove" aria-label="Delete update" onClick={() => void removeUpdate(u.id)}>
+                      ×
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
+          <div className="add-link-row">
+            <input
+              type="text"
+              placeholder="Add a dated status update…"
+              value={newUpdateNote}
+              onChange={(e) => setNewUpdateNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void addUpdate();
+                }
+              }}
+            />
+            <button type="button" disabled={!newUpdateNote.trim()} onClick={() => void addUpdate()}>
+              Add update
+            </button>
+          </div>
+        </div>
+      )}
 
       {item ? (
         <div className="link-section">

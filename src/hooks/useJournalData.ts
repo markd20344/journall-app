@@ -43,23 +43,23 @@ export function useItemsByKind(kind: ItemKind | ""): Item[] {
   return kind ? all.filter((i) => i.kind === kind) : all;
 }
 
-// The Calendar page is booking-only by design — journal entries and
-// actions live in Write/Log/Browse instead, so the calendar stays a clean
-// "what's booked" view.
-export function useBookingsForDate(date: string): Item[] {
+// The Calendar page shows Bookings and Action due-dates only — journal
+// entries live in Write/Log/Browse instead, so the calendar stays a clean
+// "what's scheduled" view rather than a second journal index.
+export function useCalendarItemsForDate(date: string): Item[] {
   return (
     useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? []
-  ).filter((i) => i.kind === "event");
+  ).filter((i) => i.kind === "event" || i.kind === "action");
 }
 
-export function useBookingDatesInRange(startDate: string, endDate: string): Set<string> {
+export function useCalendarDatesInRange(startDate: string, endDate: string): Set<string> {
   const items =
     useLiveQuery(
       () => db.items.where("date").between(startDate, endDate, true, true).toArray(),
       [startDate, endDate],
       [],
     ) ?? [];
-  return new Set(items.filter((i) => i.kind === "event").map((i) => i.date));
+  return new Set(items.filter((i) => i.kind === "event" || i.kind === "action").map((i) => i.date));
 }
 
 export function useEnrichedEntries(entries: Entry[]): EntryWithRefs[] {

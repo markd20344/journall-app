@@ -802,6 +802,45 @@ textarea {
   padding-top: 16px;
 }
 
+.closed-at {
+  text-transform: none;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: normal;
+  opacity: 0.8;
+}
+
+.status-update-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-update-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.status-update-time {
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.65;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-update-note {
+  flex: 1;
+  color: var(--text-h);
+}
+
 .linked-item-chips {
   border: none;
   padding: 0;

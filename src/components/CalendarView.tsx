@@ -12,7 +12,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { useBookingDatesInRange } from "../hooks/useJournalData";
+import { useCalendarDatesInRange } from "../hooks/useJournalData";
 
 interface Props {
   selectedDate: string;
@@ -29,7 +29,7 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
 
   const days = useMemo(() => eachDayOfInterval({ start: gridStart, end: gridEnd }), [gridStart, gridEnd]);
 
-  const bookingDates = useBookingDatesInRange(format(gridStart, "yyyy-MM-dd"), format(gridEnd, "yyyy-MM-dd"));
+  const scheduledDates = useCalendarDatesInRange(format(gridStart, "yyyy-MM-dd"), format(gridEnd, "yyyy-MM-dd"));
 
   return (
     <div className="calendar">
@@ -50,7 +50,7 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
       <div className="calendar-grid">
         {days.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
-          const hasBooking = bookingDates.has(dateStr);
+          const hasScheduled = scheduledDates.has(dateStr);
           const inMonth = isSameMonth(day, visibleMonth);
           const selected = isSameDay(day, new Date(selectedDate));
           return (
@@ -68,7 +68,7 @@ export default function CalendarView({ selectedDate, onSelectDate }: Props) {
               onClick={() => onSelectDate(dateStr)}
             >
               <span>{format(day, "d")}</span>
-              {hasBooking && <span className="calendar-dot" />}
+              {hasScheduled && <span className="calendar-dot" />}
             </button>
           );
         })}

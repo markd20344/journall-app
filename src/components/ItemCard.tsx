@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import type { Item, ItemStatus } from "../types";
 import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
@@ -15,6 +16,7 @@ export default function ItemCard({ item, onClick }: Props) {
   const linkedItems = item.linkedItemIds
     .map((id) => allItems.find((i) => i.id === id))
     .filter((i): i is Item => Boolean(i));
+  const latestUpdate = item.statusUpdates.length > 0 ? item.statusUpdates[item.statusUpdates.length - 1] : null;
 
   return (
     <div className={`item-card ${item.status === "closed" ? "item-done" : ""}`}>
@@ -33,6 +35,17 @@ export default function ItemCard({ item, onClick }: Props) {
         {linkedItems.length > 0 && (
           <p className="dependency-line">
             🔗 Linked: {linkedItems.map((li) => `${li.code} — ${li.title}`).join(", ")}
+          </p>
+        )}
+        {latestUpdate && (
+          <p className="dependency-line">
+            🕐 {format(new Date(latestUpdate.createdAt), "MMM d, h:mm a")} — {latestUpdate.note}
+          </p>
+        )}
+        {item.status === "closed" && item.closedAt && (
+          <p className="dependency-line">
+            ✔ Closed {format(new Date(item.closedAt), "MMM d, h:mm a")}
+            {item.closureNote ? ` — ${item.closureNote}` : ""}
           </p>
         )}
       </button>
