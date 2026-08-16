@@ -50,8 +50,9 @@ class JournalDB extends Dexie {
         items: "id, kind, date, sourceEntryId, status, dependsOnItemId, code, updatedAt",
       })
       .upgrade(async (tx) => {
-        const items = (await tx.table("items").toArray()) as Array<Item & { done?: boolean }>;
-        const byKind = new Map<ItemKind, Array<Item & { done?: boolean }>>();
+        type V2Item = Item & { done?: boolean; dependsOnItemId?: string | null };
+        const items = (await tx.table("items").toArray()) as V2Item[];
+        const byKind = new Map<ItemKind, V2Item[]>();
         for (const item of items) {
           if (!byKind.has(item.kind)) byKind.set(item.kind, []);
           byKind.get(item.kind)!.push(item);
@@ -66,6 +67,33 @@ class JournalDB extends Dexie {
             delete item.done;
           });
           await tx.table("settings").put({ key: `codeCounter:${kind}`, value: list.length });
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v4: replace the single, kind-restricted dependsOnItemId with a
+    // general, bidirectional linkedItemIds array available on every kind.
+    this.version(4)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Array<Item & { dependsOnItemId?: string | null }>;
+        const byId = new Map(items.map((i) => [i.id, i]));
+        for (const item of items) {
+          const linked = new Set(item.linkedItemIds ?? []);
+          if (item.dependsOnItemId) {
+            linked.add(item.dependsOnItemId);
+            const other = byId.get(item.dependsOnItemId);
+            if (other) {
+              other.linkedItemIds = Array.from(new Set([...(other.linkedItemIds ?? []), item.id]));
+            }
+          }
+          item.linkedItemIds = Array.from(linked);
+          delete item.dependsOnItemId;
         }
         await tx.table("items").bulkPut(items);
       });

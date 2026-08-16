@@ -85,10 +85,12 @@ Each item gets an auto-assigned sequential code per kind (e.g. `R001`,
 | Decision | Open, Closed, Blocked |
 | Calendar Booking | none — just a booking |
 
-Actions and Risks can also reference another item they depend on / are
-blocked by (`dependsOnItemId`) — any item, any kind, picked by its code —
-so e.g. an Action blocked on a Decision shows "Depends on D001 — ..." right
-on its card. The Log page filters by kind and status together, with
+Any item can also be linked to any other item, any kind, any direction
+(`linkedItemIds`) — pick one by its code and it's always bidirectional:
+link an Action to a Risk from the Action's editor, and the Risk's own card
+immediately shows "Linked: AC001 — ..." too, no need to repeat the link
+from the other side. Deleting an item cleans up its references on whatever
+it was linked to. The Log page filters by kind and status together, with
 open/blocked items sorted before closed ones.
 
 The **Calendar** page is deliberately single-purpose: it shows and creates

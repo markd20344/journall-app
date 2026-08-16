@@ -86,7 +86,6 @@ export async function createItem(input: {
   body?: string;
   date?: string;
   time?: string;
-  dependsOnItemId?: string | null;
   sourceEntryId?: string | null;
 }): Promise<Item> {
   const ts = nowIso();
@@ -100,7 +99,7 @@ export async function createItem(input: {
     date: input.date ?? ts.slice(0, 10),
     time: input.time ?? "",
     status: meta.statuses.length > 0 ? "open" : null,
-    dependsOnItemId: input.dependsOnItemId ?? null,
+    linkedItemIds: [],
     sourceEntryId: input.sourceEntryId ?? null,
     createdAt: ts,
     updatedAt: ts,
@@ -111,7 +110,7 @@ export async function createItem(input: {
 
 export async function updateItem(
   id: string,
-  changes: Partial<Pick<Item, "title" | "body" | "date" | "time" | "status" | "dependsOnItemId">>,
+  changes: Partial<Pick<Item, "title" | "body" | "date" | "time" | "status">>,
 ): Promise<void> {
   await db.items.update(id, { ...changes, updatedAt: nowIso() });
 }
@@ -120,6 +119,38 @@ export async function setItemStatus(id: string, status: ItemStatus): Promise<voi
   await db.items.update(id, { status, updatedAt: nowIso() });
 }
 
+/** Links two items to each other. Always bidirectional — both sides show the connection. */
+export async function linkItems(aId: string, bId: string): Promise<void> {
+  if (aId === bId) return;
+  await db.transaction("rw", db.items, async () => {
+    const [a, b] = await Promise.all([db.items.get(aId), db.items.get(bId)]);
+    if (!a || !b) return;
+    const ts = nowIso();
+    if (!a.linkedItemIds.includes(bId)) {
+      await db.items.update(aId, { linkedItemIds: [...a.linkedItemIds, bId], updatedAt: ts });
+    }
+    if (!b.linkedItemIds.includes(aId)) {
+      await db.items.update(bId, { linkedItemIds: [...b.linkedItemIds, aId], updatedAt: ts });
+    }
+  });
+}
+
+export async function unlinkItems(aId: string, bId: string): Promise<void> {
+  await db.transaction("rw", db.items, async () => {
+    const [a, b] = await Promise.all([db.items.get(aId), db.items.get(bId)]);
+    const ts = nowIso();
+    if (a) await db.items.update(aId, { linkedItemIds: a.linkedItemIds.filter((id) => id !== bId), updatedAt: ts });
+    if (b) await db.items.update(bId, { linkedItemIds: b.linkedItemIds.filter((id) => id !== aId), updatedAt: ts });
+  });
+}
+
 export async function deleteItem(id: string): Promise<void> {
-  await db.items.delete(id);
+  await db.transaction("rw", db.items, async () => {
+    const linkers = await db.items.where("linkedItemIds").equals(id).toArray();
+    const ts = nowIso();
+    for (const linker of linkers) {
+      await db.items.update(linker.id, { linkedItemIds: linker.linkedItemIds.filter((lid) => lid !== id), updatedAt: ts });
+    }
+    await db.items.delete(id);
+  });
 }

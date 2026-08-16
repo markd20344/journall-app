@@ -8,7 +8,6 @@ export interface ItemKindMeta {
   codePrefix: string;
   statuses: ItemStatus[]; // empty = no lifecycle (Lesson, Booking)
   hasTime: boolean; // shows a time field alongside date
-  hasDependency: boolean; // can depend on / be blocked by another item
   dateLabel: string;
 }
 
@@ -23,7 +22,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "L",
     statuses: [],
     hasTime: false,
-    hasDependency: false,
     dateLabel: "Date",
   },
   {
@@ -34,7 +32,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "AC",
     statuses: ["open", "on_hold", "blocked", "closed"],
     hasTime: false,
-    hasDependency: true,
     dateLabel: "Due date",
   },
   {
@@ -45,7 +42,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "R",
     statuses: ["open", "closed"],
     hasTime: false,
-    hasDependency: true,
     dateLabel: "Date",
   },
   {
@@ -56,7 +52,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "AS",
     statuses: ["open", "closed"],
     hasTime: false,
-    hasDependency: false,
     dateLabel: "Date",
   },
   {
@@ -67,7 +62,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "D",
     statuses: ["open", "closed", "blocked"],
     hasTime: false,
-    hasDependency: false,
     dateLabel: "Date",
   },
   {
@@ -78,7 +72,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "CB",
     statuses: [],
     hasTime: true,
-    hasDependency: false,
     dateLabel: "Date",
   },
 ];

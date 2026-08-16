@@ -54,7 +54,7 @@ export interface Item {
   date: string; // YYYY-MM-DD — due date (action), booking date (event), or logged date otherwise
   time: string; // HH:mm, optional — mainly for "event" bookings; empty string if unset
   status: ItemStatus | null;
-  dependsOnItemId: string | null; // another Item this one is blocked/dependent on (Action, Risk only)
+  linkedItemIds: string[]; // other Items this one is linked to, any kind — always bidirectional
   sourceEntryId: string | null; // the journal entry this was spun off from, if any
   createdAt: string;
   updatedAt: string;

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { Item, ItemKind, ItemStatus } from "../types";
 import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
-import { createItem, deleteItem, updateItem } from "../db/repo";
+import { createItem, deleteItem, linkItems, unlinkItems, updateItem } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
 import VoiceButton from "./VoiceButton";
+import ItemKindBadge from "./ItemKindBadge";
 
 interface Props {
   kind: ItemKind;
@@ -23,30 +24,23 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [date, setDate] = useState(item?.date ?? defaultDate ?? todayDateString());
   const [time, setTime] = useState(item?.time ?? "");
   const [status, setStatus] = useState<ItemStatus | null>(item?.status ?? (meta.statuses[0] ?? null));
-  const [dependsOnItemId, setDependsOnItemId] = useState<string>(item?.dependsOnItemId ?? "");
+  const [linkedIds, setLinkedIds] = useState<string[]>(item?.linkedItemIds ?? []);
+  const [linkPick, setLinkPick] = useState("");
   const [saving, setSaving] = useState(false);
 
   const allItems = useAllItems();
-  const dependencyOptions = meta.hasDependency ? allItems.filter((i) => i.id !== item?.id) : [];
+  const linkedItems = linkedIds.map((id) => allItems.find((i) => i.id === id)).filter((i): i is Item => Boolean(i));
+  const linkCandidates = item ? allItems.filter((i) => i.id !== item.id && !linkedIds.includes(i.id)) : [];
 
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const dependsOnValue = meta.hasDependency && dependsOnItemId ? dependsOnItemId : null;
       if (item) {
-        await updateItem(item.id, { title: title.trim(), body, date, time, status, dependsOnItemId: dependsOnValue });
-        onSaved?.({ ...item, title: title.trim(), body, date, time, status, dependsOnItemId: dependsOnValue });
+        await updateItem(item.id, { title: title.trim(), body, date, time, status });
+        onSaved?.({ ...item, title: title.trim(), body, date, time, status });
       } else {
-        const created = await createItem({
-          kind,
-          title: title.trim(),
-          body,
-          date,
-          time,
-          dependsOnItemId: dependsOnValue,
-          sourceEntryId: sourceEntryId ?? null,
-        });
+        const created = await createItem({ kind, title: title.trim(), body, date, time, sourceEntryId: sourceEntryId ?? null });
         onSaved?.(created);
         setTitle("");
         setBody("");
@@ -61,6 +55,20 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     if (!window.confirm(`Delete this ${meta.label.toLowerCase()}?`)) return;
     await deleteItem(item.id);
     onDeleted?.();
+  }
+
+  async function addLink() {
+    if (!item || !linkPick) return;
+    const targetId = linkPick;
+    setLinkPick("");
+    setLinkedIds((prev) => [...prev, targetId]);
+    await linkItems(item.id, targetId);
+  }
+
+  async function removeLink(otherId: string) {
+    if (!item) return;
+    setLinkedIds((prev) => prev.filter((id) => id !== otherId));
+    await unlinkItems(item.id, otherId);
   }
 
   return (
@@ -116,20 +124,6 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         )}
       </div>
 
-      {meta.hasDependency && (
-        <label className="field">
-          <span className="field-label">Depends on / blocked by</span>
-          <select value={dependsOnItemId} onChange={(e) => setDependsOnItemId(e.target.value)}>
-            <option value="">None</option>
-            {dependencyOptions.map((dep) => (
-              <option key={dep.id} value={dep.id}>
-                {dep.code} — {dep.title}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
       <div className="entry-editor-actions">
         <button type="button" className="primary" disabled={saving || !title.trim()} onClick={() => void handleSave()}>
           {item ? "Save changes" : `Add ${meta.shortLabel.toLowerCase()}`}
@@ -145,6 +139,45 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </button>
         )}
       </div>
+
+      {item ? (
+        <div className="link-section">
+          <span className="field-label">Linked items</span>
+          {linkedItems.length > 0 && (
+            <div className="topic-chips linked-item-chips">
+              {linkedItems.map((li) => (
+                <span className="chip" key={li.id}>
+                  <ItemKindBadge kind={li.kind} short />
+                  {li.code} — {li.title}
+                  <button
+                    type="button"
+                    className="chip-remove"
+                    aria-label={`Unlink ${li.title}`}
+                    onClick={() => void removeLink(li.id)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="add-link-row">
+            <select value={linkPick} onChange={(e) => setLinkPick(e.target.value)}>
+              <option value="">Link to another item…</option>
+              {linkCandidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code} — {c.title}
+                </option>
+              ))}
+            </select>
+            <button type="button" disabled={!linkPick} onClick={() => void addLink()}>
+              Add link
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="settings-hint small">Save this {meta.label.toLowerCase()} first to link it to other items.</p>
+      )}
     </div>
   );
 }

@@ -12,7 +12,9 @@ interface Props {
 export default function ItemCard({ item, onClick }: Props) {
   const meta = itemKindMeta(item.kind);
   const allItems = useAllItems();
-  const dependency = item.dependsOnItemId ? allItems.find((i) => i.id === item.dependsOnItemId) : undefined;
+  const linkedItems = item.linkedItemIds
+    .map((id) => allItems.find((i) => i.id === id))
+    .filter((i): i is Item => Boolean(i));
 
   return (
     <div className={`item-card ${item.status === "closed" ? "item-done" : ""}`}>
@@ -28,9 +30,9 @@ export default function ItemCard({ item, onClick }: Props) {
         </div>
         <p className="entry-card-body item-card-title">{item.title}</p>
         {item.body && <p className="entry-card-body">{item.body}</p>}
-        {dependency && (
+        {linkedItems.length > 0 && (
           <p className="dependency-line">
-            ⛓ Depends on {dependency.code} — {dependency.title}
+            🔗 Linked: {linkedItems.map((li) => `${li.code} — ${li.title}`).join(", ")}
           </p>
         )}
       </button>

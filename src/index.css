@@ -796,6 +796,32 @@ textarea {
   margin-bottom: -4px;
 }
 
+.link-section {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.linked-item-chips {
+  border: none;
+  padding: 0;
+  margin-top: 8px;
+}
+
+.linked-item-chips .chip {
+  font-size: 13px;
+}
+
+.add-link-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.add-link-row select {
+  flex: 1;
+}
+
 /* ---------- Kind badge / code badge ---------- */
 
 .kind-badge {
