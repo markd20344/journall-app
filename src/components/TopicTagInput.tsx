@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Topic } from "../types";
+import { appendDictatedPhrase } from "../lib/dictation";
 import VoiceButton from "./VoiceButton";
 
 interface Props {
@@ -81,7 +82,7 @@ export default function TopicTagInput({ availableTopics, selected, onChange }: P
         </ul>
       )}
       <div className="field-voice-row">
-        <VoiceButton onTranscript={(text) => setDraft((prev) => (prev ? `${prev} ${text}` : text))} />
+        <VoiceButton onTranscript={(text) => setDraft((prev) => appendDictatedPhrase(prev, text))} />
       </div>
     </div>
   );

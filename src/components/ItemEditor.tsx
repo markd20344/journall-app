@@ -13,6 +13,7 @@ import {
 } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import { newId, nowIso, todayDateString } from "../lib/id";
+import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
 
@@ -113,7 +114,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         autoFocus
       />
       <div className="field-voice-row">
-        <VoiceButton onTranscript={(text) => setTitle((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+        <VoiceButton onTranscript={(text) => setTitle((prev) => appendDictatedPhrase(prev, text))} />
       </div>
       <div className="field">
         <span className="field-label">Entry</span>
@@ -125,7 +126,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           rows={10}
         />
         <div className="field-voice-row">
-          <VoiceButton onTranscript={(text) => setBody((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+          <VoiceButton onTranscript={(text) => setBody((prev) => appendDictatedSentence(prev, text))} />
         </div>
       </div>
       <div className="item-editor-row">

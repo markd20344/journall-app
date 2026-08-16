@@ -5,6 +5,7 @@ import { useCategories, useTopicsForCategory } from "../hooks/useJournalData";
 import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/repo";
 import { db } from "../db/db";
 import { todayDateString } from "../lib/id";
+import { appendDictatedSentence } from "../lib/dictation";
 import CategorySelect from "./CategorySelect";
 import TopicTagInput from "./TopicTagInput";
 import VoiceButton from "./VoiceButton";
@@ -56,7 +57,7 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
   }, [entry?.id]);
 
   function appendTranscript(text: string) {
-    setBody((prev) => (prev.trim().length === 0 ? text : `${prev.trim()} ${text}`));
+    setBody((prev) => appendDictatedSentence(prev, text));
   }
 
   async function handleSave() {
