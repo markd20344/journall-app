@@ -1,20 +1,23 @@
 import { db } from "../db/db";
-import type { Category, Entry, Topic } from "../types";
+import type { Category, Entry, Item, Topic } from "../types";
+import { itemKindMeta, STATUS_META } from "./itemKinds";
 
 export interface JournalDump {
   exportedAt: string;
   categories: Category[];
   topics: Topic[];
   entries: Entry[];
+  items: Item[];
 }
 
 export async function buildDump(): Promise<JournalDump> {
-  const [categories, topics, entries] = await Promise.all([
+  const [categories, topics, entries, items] = await Promise.all([
     db.categories.toArray(),
     db.topics.toArray(),
     db.entries.toArray(),
+    db.items.toArray(),
   ]);
-  return { exportedAt: new Date().toISOString(), categories, topics, entries };
+  return { exportedAt: new Date().toISOString(), categories, topics, entries, items };
 }
 
 function download(filename: string, content: string, mime: string) {
@@ -42,18 +45,49 @@ export async function exportAsMarkdown(): Promise<void> {
 
   const sorted = [...dump.entries].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
 
-  const lines: string[] = [`# Journal export`, "", `_Exported ${dump.exportedAt}_`, ""];
+  const lines: string[] = [`# Journal export`, "", `_Exported ${dump.exportedAt}_`, "", `## Journal entries`, ""];
   let currentDate = "";
   for (const entry of sorted) {
     if (entry.date !== currentDate) {
       currentDate = entry.date;
-      lines.push(`## ${currentDate}`, "");
+      lines.push(`### ${currentDate}`, "");
     }
     const category = categoryById.get(entry.categoryId);
     const topicNames = entry.topicIds.map((id) => topicById.get(id)?.name).filter(Boolean);
     const metaParts = [category?.name, ...topicNames].filter(Boolean);
-    lines.push(`### ${metaParts.join(" · ") || "Untitled"}`, "");
+    lines.push(`#### ${metaParts.join(" · ") || "Untitled"}`, "");
     lines.push(entry.body, "");
+  }
+
+  if (dump.items.length > 0) {
+    const itemById = new Map(dump.items.map((i) => [i.id, i]));
+    const sortedItems = [...dump.items].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+    lines.push(`## Log items`, "");
+    for (const item of sortedItems) {
+      const meta = itemKindMeta(item.kind);
+      const statusLabel = item.status ? STATUS_META[item.status].label : null;
+      const headerParts = [item.code, meta.label, statusLabel].filter(Boolean);
+      lines.push(`### ${headerParts.join(" · ")}`, "");
+      lines.push(`**${item.title}**`, "");
+      if (item.body) lines.push(item.body, "");
+      lines.push(`_${item.date}${item.time ? ` ${item.time}` : ""}_`, "");
+      if (item.linkedItemIds.length > 0) {
+        const linked = item.linkedItemIds.map((id) => itemById.get(id)).filter((i): i is Item => Boolean(i));
+        if (linked.length > 0) {
+          lines.push(`Linked: ${linked.map((li) => `${li.code} — ${li.title}`).join(", ")}`, "");
+        }
+      }
+      if (item.statusUpdates.length > 0) {
+        lines.push(`Status updates:`, "");
+        for (const u of item.statusUpdates) {
+          lines.push(`- ${u.createdAt}: ${u.note}`);
+        }
+        lines.push("");
+      }
+      if (item.closedAt) {
+        lines.push(`Closed ${item.closedAt}${item.closureNote ? ` — ${item.closureNote}` : ""}`, "");
+      }
+    }
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -69,7 +103,7 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
   let added = 0;
   let updated = 0;
 
-  await db.transaction("rw", db.categories, db.topics, db.entries, async () => {
+  await db.transaction("rw", db.categories, db.topics, db.entries, db.items, async () => {
     for (const category of dump.categories) {
       const existing = await db.categories.get(category.id);
       if (!existing) {
@@ -97,6 +131,17 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
         added++;
       } else if (entry.updatedAt > existing.updatedAt) {
         await db.entries.put(entry);
+        updated++;
+      }
+    }
+    // dump.items may be absent in exports taken before Log items existed.
+    for (const item of dump.items ?? []) {
+      const existing = await db.items.get(item.id);
+      if (!existing) {
+        await db.items.put(item);
+        added++;
+      } else if (item.updatedAt > existing.updatedAt) {
+        await db.items.put(item);
         updated++;
       }
     }
