@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Entry, Item, ItemKind } from "../types";
 import { ITEM_KINDS } from "../lib/itemKinds";
 import { useItemsForEntry } from "../hooks/useJournalData";
@@ -24,8 +24,8 @@ export default function SpinOffPanel({ entry }: Props) {
           <button
             key={meta.kind}
             type="button"
-            className={`spin-off-btn ${activeKind === meta.kind ? "active" : ""}`}
-            style={activeKind === meta.kind ? { background: meta.color, borderColor: meta.color, color: "#fff" } : undefined}
+            className={`kind-action-btn ${activeKind === meta.kind ? "active" : ""}`}
+            style={{ "--kind-color": meta.color } as CSSProperties}
             onClick={() => {
               setEditingItem(null);
               setActiveKind(activeKind === meta.kind ? null : meta.kind);

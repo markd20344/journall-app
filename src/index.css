@@ -15,6 +15,7 @@
   --shadow: rgba(15, 23, 42, 0.08) 0 1px 3px, rgba(15, 23, 42, 0.06) 0 8px 20px;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  --heading: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
 
   font: 16px/1.55 var(--sans);
   color-scheme: light dark;
@@ -55,8 +56,8 @@ body {
 }
 
 h1, h2, h3 {
-  font-family: var(--sans);
-  font-weight: 600;
+  font-family: var(--heading);
+  font-weight: 700;
   color: var(--text-h);
 }
 
@@ -95,8 +96,9 @@ button, input, select, textarea {
 }
 
 .app-title {
-  font-weight: 800;
-  font-size: 19px;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 24px;
   color: var(--accent);
   letter-spacing: -0.3px;
 }
@@ -134,10 +136,10 @@ button, input, select, textarea {
 }
 
 .page-title {
-  font-size: 23px;
+  font-size: 30px;
   margin: 0 0 20px;
   color: var(--accent);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
 }
 
 .write-page-header {
@@ -589,6 +591,36 @@ textarea {
 
 /* ---------- Browse / search ---------- */
 
+.browse-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.browse-tab {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 8px 4px;
+  margin-right: 20px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.6;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.browse-tab:hover {
+  opacity: 0.85;
+}
+
+.browse-tab.active {
+  color: var(--accent);
+  opacity: 1;
+  border-bottom-color: var(--accent);
+}
+
 .browse-filters {
   display: flex;
   flex-wrap: wrap;
@@ -724,13 +756,25 @@ textarea {
   margin-bottom: 12px;
 }
 
-.spin-off-btn {
+.kind-action-btn {
   font-size: 13px;
-  padding: 7px 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--kind-color);
+  background: color-mix(in srgb, var(--kind-color) 12%, var(--bg-raised));
+  color: var(--kind-color);
 }
 
-.spin-off-btn.active {
-  border-color: transparent;
+.kind-action-btn:hover {
+  background: var(--kind-color);
+  color: #fff;
+  border-color: var(--kind-color);
+}
+
+.kind-action-btn.active {
+  background: var(--kind-color);
+  color: #fff;
 }
 
 .linked-items-list {
