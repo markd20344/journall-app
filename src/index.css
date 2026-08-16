@@ -86,7 +86,15 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
   padding: 14px 20px;
+  /* Push content below the iOS/Android status bar & notch when installed
+     as a standalone PWA — otherwise the header renders underneath it and
+     the nav becomes untappable in that area. */
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
   border-bottom: 3px solid var(--accent);
   background: var(--bg-raised);
   box-shadow: var(--shadow);
@@ -105,7 +113,15 @@ button, input, select, textarea {
 
 .app-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+}
+
+@media (max-width: 480px) {
+  .nav-btn {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
 }
 
 .nav-btn {
