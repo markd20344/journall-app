@@ -73,6 +73,25 @@ export default function ItemBrowser({ allowCreate = true }: Props) {
 
   return (
     <>
+      {allowCreate && (
+        <div className="new-item-section new-item-section-top">
+          <span className="field-label">Log something new</span>
+          <div className="new-item-buttons">
+            {ITEM_KINDS.map((k) => (
+              <button
+                key={k.kind}
+                type="button"
+                className="kind-action-btn"
+                style={{ "--kind-color": k.color } as CSSProperties}
+                onClick={() => setCreatingKind(k.kind)}
+              >
+                + {k.shortLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="browse-filters">
         <input
           type="search"
@@ -119,25 +138,6 @@ export default function ItemBrowser({ allowCreate = true }: Props) {
         ))}
         {filtered.length === 0 && <p className="empty-hint">Nothing here yet.</p>}
       </div>
-
-      {allowCreate && (
-        <div className="new-item-section">
-          <span className="field-label">Log something new</span>
-          <div className="new-item-buttons">
-            {ITEM_KINDS.map((k) => (
-              <button
-                key={k.kind}
-                type="button"
-                className="kind-action-btn"
-                style={{ "--kind-color": k.color } as CSSProperties}
-                onClick={() => setCreatingKind(k.kind)}
-              >
-                + {k.shortLabel}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </>
   );
 }

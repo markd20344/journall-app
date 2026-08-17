@@ -60,7 +60,6 @@ export default function ItemCard({ item, onClick }: Props) {
           )}
         </div>
         <p className="entry-card-body item-card-title">{item.title}</p>
-        {item.body && <p className="entry-card-body">{item.body}</p>}
         {linkedItems.length > 0 && (
           <p className="dependency-line">
             🔗 Linked: {linkedItems.map((li) => `${li.code} — ${li.title}`).join(", ")}
