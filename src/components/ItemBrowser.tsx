@@ -117,6 +117,11 @@ export default function ItemBrowser({
     });
     return [...items].sort((a, b) => {
       if (sortMode === "date") {
+        if (kindScope) {
+          const aKind = kindScope.indexOf(a.kind);
+          const bKind = kindScope.indexOf(b.kind);
+          if (aKind !== bKind) return aKind - bKind;
+        }
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return (a.time || "").localeCompare(b.time || "");
       }
@@ -128,7 +133,7 @@ export default function ItemBrowser({
       if (aPriority !== bPriority) return aPriority - bPriority;
       return b.date.localeCompare(a.date);
     });
-  }, [scopedItems, kindFilter, statusFilter, projectFilter, dateRangeFilter, query, sortMode]);
+  }, [scopedItems, kindFilter, statusFilter, projectFilter, dateRangeFilter, query, sortMode, kindScope]);
 
   if (editingItem) {
     return (

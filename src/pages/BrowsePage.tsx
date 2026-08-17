@@ -51,7 +51,14 @@ export default function BrowsePage() {
       {tab === "items" ? (
         <ItemBrowser key="items" allowCreate={false} defaultStatusFilter="not-closed" />
       ) : tab === "calendar" ? (
-        <ItemBrowser key="calendar" allowCreate={false} kindScope={CALENDAR_KINDS} sortMode="date" showDateRangeFilter />
+        <ItemBrowser
+          key="calendar"
+          allowCreate={false}
+          kindScope={CALENDAR_KINDS}
+          sortMode="date"
+          showDateRangeFilter
+          defaultStatusFilter="not-closed"
+        />
       ) : editingEntry ? (
         <EntryEditor
           entry={editingEntry}
