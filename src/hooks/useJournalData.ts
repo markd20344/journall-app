@@ -57,6 +57,13 @@ export const LOG_ITEM_KINDS: ItemKind[] = ["action", "risk", "decision", "assump
 // as a dedicated story backlog rather than mixed in with everything else.
 export const STORY_KINDS: ItemKind[] = ["story"];
 
+// Entries' "Due" tab — everything with a due/logged date that isn't a Story
+// or a journal entry, so "what's due in period X" doesn't require flipping
+// between the Log items and Calendar tabs. Stories are deliberately left
+// out (they don't carry a due date the same way) and journal entries never
+// show here at all.
+export const DUE_TAB_KINDS: ItemKind[] = ["action", "event", "diary", "risk", "decision", "assumption", "lesson"];
+
 export function useCalendarItemsForDate(date: string): Item[] {
   return (
     useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? []

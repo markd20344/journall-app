@@ -18,11 +18,13 @@ const PRIORITY_SORT_ORDER = Object.fromEntries(PRIORITY_ORDER.map((p, i) => [p, 
 // (the composite default). Anything else filters to that exact status.
 type StatusFilterValue = ItemStatus | "" | "not-closed";
 
-// "" = no restriction. Otherwise, a forward-looking window from today.
-type DateRangeValue = "" | "7d" | "1m" | "3m" | "6m" | "1y";
+// "" = no restriction. "today" = due today only. Otherwise a forward-looking
+// window from today.
+type DateRangeValue = "" | "today" | "7d" | "1m" | "3m" | "6m" | "1y";
 
 const DATE_RANGE_OPTIONS: Array<{ value: DateRangeValue; label: string }> = [
   { value: "", label: "All dates" },
+  { value: "today", label: "Today" },
   { value: "7d", label: "Next week" },
   { value: "1m", label: "Next month" },
   { value: "3m", label: "Next 3 months" },
@@ -34,15 +36,17 @@ function rangeCutoffDate(range: DateRangeValue): string | null {
   if (!range) return null;
   const today = new Date();
   const cutoff =
-    range === "7d"
-      ? addWeeks(today, 1)
-      : range === "1m"
-        ? addMonths(today, 1)
-        : range === "3m"
-          ? addMonths(today, 3)
-          : range === "6m"
-            ? addMonths(today, 6)
-            : addYears(today, 1);
+    range === "today"
+      ? today
+      : range === "7d"
+        ? addWeeks(today, 1)
+        : range === "1m"
+          ? addMonths(today, 1)
+          : range === "3m"
+            ? addMonths(today, 3)
+            : range === "6m"
+              ? addMonths(today, 6)
+              : addYears(today, 1);
   return format(cutoff, "yyyy-MM-dd");
 }
 
@@ -60,6 +64,13 @@ interface Props {
   // appointments view.
   sortMode?: "status" | "date";
   showDateRangeFilter?: boolean;
+  defaultDateRangeFilter?: DateRangeValue;
+  // Only meaningful with sortMode="date". When true, results are grouped by
+  // kindScope's order first (e.g. Booking, then Action, then Diary) before
+  // sorting chronologically within each group — used by Calendar. When
+  // false (default), "date" is a flat chronological sort mixing every kind
+  // together — used by "Due" so today's items surface regardless of kind.
+  groupByKindPriority?: boolean;
 }
 
 /**
@@ -74,6 +85,8 @@ export default function ItemBrowser({
   kindScope,
   sortMode = "status",
   showDateRangeFilter = false,
+  defaultDateRangeFilter = "",
+  groupByKindPriority = false,
 }: Props) {
   const allItems = useAllItems();
   const scopedItems = useMemo(
@@ -85,7 +98,7 @@ export default function ItemBrowser({
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(defaultStatusFilter);
   const [projectFilter, setProjectFilter] = useState("");
-  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeValue>("");
+  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeValue>(defaultDateRangeFilter);
   const [query, setQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [creatingKind, setCreatingKind] = useState<ItemKind | null>(null);
@@ -117,7 +130,7 @@ export default function ItemBrowser({
     });
     return [...items].sort((a, b) => {
       if (sortMode === "date") {
-        if (kindScope) {
+        if (groupByKindPriority && kindScope) {
           const aKind = kindScope.indexOf(a.kind);
           const bKind = kindScope.indexOf(b.kind);
           if (aKind !== bKind) return aKind - bKind;
@@ -133,7 +146,7 @@ export default function ItemBrowser({
       if (aPriority !== bPriority) return aPriority - bPriority;
       return b.date.localeCompare(a.date);
     });
-  }, [scopedItems, kindFilter, statusFilter, projectFilter, dateRangeFilter, query, sortMode, kindScope]);
+  }, [scopedItems, kindFilter, statusFilter, projectFilter, dateRangeFilter, query, sortMode, kindScope, groupByKindPriority]);
 
   if (editingItem) {
     return (

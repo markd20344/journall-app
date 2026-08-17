@@ -5,6 +5,7 @@ import ItemBrowser from "../components/ItemBrowser";
 import Dropdown from "../components/Dropdown";
 import {
   CALENDAR_KINDS,
+  DUE_TAB_KINDS,
   LOG_ITEM_KINDS,
   STORY_KINDS,
   useAllEntries,
@@ -14,10 +15,10 @@ import {
 } from "../hooks/useJournalData";
 import type { Entry } from "../types";
 
-type Tab = "journal" | "items" | "stories" | "calendar";
+type Tab = "journal" | "due" | "items" | "stories" | "calendar";
 
 export default function BrowsePage() {
-  const [tab, setTab] = useState<Tab>("items");
+  const [tab, setTab] = useState<Tab>("due");
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [topicId, setTopicId] = useState("");
@@ -45,6 +46,9 @@ export default function BrowsePage() {
       <h1 className="page-title">Entries</h1>
 
       <div className="browse-tabs">
+        <button type="button" className={`browse-tab ${tab === "due" ? "active" : ""}`} onClick={() => setTab("due")}>
+          Due
+        </button>
         <button type="button" className={`browse-tab ${tab === "items" ? "active" : ""}`} onClick={() => setTab("items")}>
           Log items
         </button>
@@ -59,7 +63,17 @@ export default function BrowsePage() {
         </button>
       </div>
 
-      {tab === "items" ? (
+      {tab === "due" ? (
+        <ItemBrowser
+          key="due"
+          allowCreate={false}
+          kindScope={DUE_TAB_KINDS}
+          sortMode="date"
+          showDateRangeFilter
+          defaultDateRangeFilter="today"
+          defaultStatusFilter="not-closed"
+        />
+      ) : tab === "items" ? (
         <ItemBrowser key="items" allowCreate={false} kindScope={LOG_ITEM_KINDS} defaultStatusFilter="not-closed" />
       ) : tab === "stories" ? (
         <ItemBrowser key="stories" allowCreate={false} kindScope={STORY_KINDS} defaultStatusFilter="not-closed" />
@@ -70,6 +84,7 @@ export default function BrowsePage() {
           kindScope={CALENDAR_KINDS}
           sortMode="date"
           showDateRangeFilter
+          groupByKindPriority
           defaultStatusFilter="not-closed"
         />
       ) : editingEntry ? (
