@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { format } from "date-fns";
-import type { Item, ItemKind, ItemStatus, StatusUpdate } from "../types";
-import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
+import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate } from "../types";
+import { itemKindMeta, PRIORITY_META, PRIORITY_ORDER, STATUS_META } from "../lib/itemKinds";
 import {
   addStatusUpdate,
   createItem,
@@ -14,8 +14,38 @@ import {
 import { useAllItems } from "../hooks/useJournalData";
 import { newId, nowIso, todayDateString } from "../lib/id";
 import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
+import { showToast } from "../lib/toast";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
+
+function PriorityPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Priority | null;
+  onChange: (value: Priority | null) => void;
+}) {
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <div className="priority-picker">
+        {PRIORITY_ORDER.map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={`priority-btn ${value === p ? "active" : ""}`}
+            style={{ "--priority-color": PRIORITY_META[p].color } as CSSProperties}
+            onClick={() => onChange(value === p ? null : p)}
+          >
+            {PRIORITY_META[p].label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   kind: ItemKind;
@@ -39,21 +69,65 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [linkPick, setLinkPick] = useState("");
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>(item?.statusUpdates ?? []);
   const [newUpdateNote, setNewUpdateNote] = useState("");
+  const [priority, setPriority] = useState<Priority | null>(item?.priority ?? null);
+  const [probability, setProbability] = useState<Priority | null>(item?.probability ?? null);
+  const [impact, setImpact] = useState<Priority | null>(item?.impact ?? null);
+  const [project, setProject] = useState(item?.project ?? "");
   const [saving, setSaving] = useState(false);
 
   const allItems = useAllItems();
   const linkedItems = linkedIds.map((id) => allItems.find((i) => i.id === id)).filter((i): i is Item => Boolean(i));
   const linkCandidates = item ? allItems.filter((i) => i.id !== item.id && !linkedIds.includes(i.id)) : [];
+  const knownProjects = Array.from(
+    new Set(allItems.filter((i) => i.kind === "story" && i.project).map((i) => i.project as string)),
+  ).sort((a, b) => a.localeCompare(b));
 
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
     try {
+      const trimmedProject = meta.hasProject ? project.trim() || null : null;
       if (item) {
-        await updateItem(item.id, { title: title.trim(), body, date, time, status, closureNote });
-        onSaved?.({ ...item, title: title.trim(), body, date, time, status, closureNote });
+        await updateItem(item.id, {
+          title: title.trim(),
+          body,
+          date,
+          time,
+          status,
+          closureNote,
+          priority: meta.hasPriority ? priority : null,
+          probability: meta.hasProbabilityImpact ? probability : null,
+          impact: meta.hasProbabilityImpact ? impact : null,
+          project: trimmedProject,
+        });
+        showToast(`${meta.label} saved`);
+        onSaved?.({
+          ...item,
+          title: title.trim(),
+          body,
+          date,
+          time,
+          status,
+          closureNote,
+          priority: meta.hasPriority ? priority : null,
+          probability: meta.hasProbabilityImpact ? probability : null,
+          impact: meta.hasProbabilityImpact ? impact : null,
+          project: trimmedProject,
+        });
       } else {
-        const created = await createItem({ kind, title: title.trim(), body, date, time, sourceEntryId: sourceEntryId ?? null });
+        const created = await createItem({
+          kind,
+          title: title.trim(),
+          body,
+          date,
+          time,
+          sourceEntryId: sourceEntryId ?? null,
+          priority: meta.hasPriority ? priority : null,
+          probability: meta.hasProbabilityImpact ? probability : null,
+          impact: meta.hasProbabilityImpact ? impact : null,
+          project: trimmedProject,
+        });
+        showToast(`${meta.label} saved`);
         onSaved?.(created);
         setTitle("");
         setBody("");
@@ -153,6 +227,34 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </label>
         )}
       </div>
+
+      {meta.hasProject && (
+        <label className="field">
+          <span className="field-label">Project / App</span>
+          <input
+            type="text"
+            list="project-suggestions"
+            placeholder="Which project or app is this for?"
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+          />
+          <datalist id="project-suggestions">
+            {knownProjects.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        </label>
+      )}
+
+      {meta.hasPriority && <PriorityPicker label="Priority" value={priority} onChange={setPriority} />}
+
+      {meta.hasProbabilityImpact && (
+        <div className="item-editor-row">
+          <PriorityPicker label="Probability" value={probability} onChange={setProbability} />
+          <PriorityPicker label="Impact" value={impact} onChange={setImpact} />
+        </div>
+      )}
+
       {item && <p className="entry-timestamp">Logged {format(new Date(item.createdAt), "MMM d, yyyy · h:mm a")}</p>}
 
       {status === "closed" && (

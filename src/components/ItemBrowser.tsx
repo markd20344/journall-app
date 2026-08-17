@@ -24,15 +24,25 @@ export default function ItemBrowser({ allowCreate = true }: Props) {
   const allItems = useAllItems();
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<ItemStatus | "">("");
+  const [projectFilter, setProjectFilter] = useState("");
   const [query, setQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [creatingKind, setCreatingKind] = useState<ItemKind | null>(null);
+
+  const knownProjects = useMemo(
+    () =>
+      Array.from(new Set(allItems.filter((i) => i.kind === "story" && i.project).map((i) => i.project as string))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [allItems],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const items = allItems.filter((item) => {
       if (kindFilter && item.kind !== kindFilter) return false;
       if (statusFilter && item.status !== statusFilter) return false;
+      if (projectFilter && item.project !== projectFilter) return false;
       if (q && !item.title.toLowerCase().includes(q) && !item.body.toLowerCase().includes(q) && !item.code.toLowerCase().includes(q))
         return false;
       return true;
@@ -43,7 +53,7 @@ export default function ItemBrowser({ allowCreate = true }: Props) {
       if (aOrder !== bOrder) return aOrder - bOrder;
       return b.date.localeCompare(a.date);
     });
-  }, [allItems, kindFilter, statusFilter, query]);
+  }, [allItems, kindFilter, statusFilter, projectFilter, query]);
 
   if (editingItem) {
     return (
@@ -87,6 +97,16 @@ export default function ItemBrowser({ allowCreate = true }: Props) {
             </option>
           ))}
         </select>
+        {knownProjects.length > 0 && (
+          <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+            <option value="">All projects</option>
+            {knownProjects.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <p className="result-count">

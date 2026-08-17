@@ -119,6 +119,26 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v6: add priority (Actions/Decisions/Stories), probability+impact
+    // (Risks), and project (Stories) — plus the "story" kind itself.
+    this.version(6)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.priority = item.priority ?? null;
+          item.probability = item.probability ?? null;
+          item.impact = item.impact ?? null;
+          item.project = item.project ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 

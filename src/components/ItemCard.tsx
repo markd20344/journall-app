@@ -1,6 +1,7 @@
 import { differenceInCalendarDays, format } from "date-fns";
+import type { CSSProperties } from "react";
 import type { Item, ItemStatus } from "../types";
-import { itemKindMeta, STATUS_META } from "../lib/itemKinds";
+import { itemKindMeta, PRIORITY_META, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import ItemKindBadge from "./ItemKindBadge";
@@ -41,6 +42,22 @@ export default function ItemCard({ item, onClick }: Props) {
           </span>
           {item.sourceEntryId && <span className="linked-badge">from journal</span>}
           {agingLabel && <span className="linked-badge">{agingLabel}</span>}
+          {item.project && <span className="project-badge">{item.project}</span>}
+          {item.priority && (
+            <span className="rag-badge" style={{ "--rag-color": PRIORITY_META[item.priority].color } as CSSProperties}>
+              {PRIORITY_META[item.priority].label}
+            </span>
+          )}
+          {item.probability && (
+            <span className="rag-badge" style={{ "--rag-color": PRIORITY_META[item.probability].color } as CSSProperties}>
+              Probability: {PRIORITY_META[item.probability].label}
+            </span>
+          )}
+          {item.impact && (
+            <span className="rag-badge" style={{ "--rag-color": PRIORITY_META[item.impact].color } as CSSProperties}>
+              Impact: {PRIORITY_META[item.impact].label}
+            </span>
+          )}
         </div>
         <p className="entry-card-body item-card-title">{item.title}</p>
         {item.body && <p className="entry-card-body">{item.body}</p>}

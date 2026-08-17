@@ -6,6 +6,7 @@ import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/
 import { db } from "../db/db";
 import { todayDateString } from "../lib/id";
 import { appendDictatedSentence } from "../lib/dictation";
+import { showToast } from "../lib/toast";
 import CategorySelect from "./CategorySelect";
 import TopicTagInput from "./TopicTagInput";
 import VoiceButton from "./VoiceButton";
@@ -69,9 +70,11 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
       );
       if (entry) {
         await updateEntry(entry.id, { date, categoryId, topicIds, body });
+        showToast("Entry saved");
         onSaved?.({ ...entry, date, categoryId, topicIds, body });
       } else {
         const created = await createEntry({ date, categoryId, topicIds, body });
+        showToast("Entry saved");
         onSaved?.(created);
       }
     } finally {

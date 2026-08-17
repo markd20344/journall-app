@@ -2,7 +2,7 @@
 // file-sync and Firestore sync layers can do simple last-write-wins conflict
 // resolution, and mirrors the change to Firestore (a no-op when signed out).
 import { db } from "./db";
-import type { Category, Entry, Item, ItemKind, ItemStatus, StatusUpdate, Topic } from "../types";
+import type { Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 import { deleteRecord, pushRecord } from "../firebase/sync";
@@ -167,6 +167,10 @@ export async function createItem(input: {
   date?: string;
   time?: string;
   sourceEntryId?: string | null;
+  priority?: Priority | null;
+  probability?: Priority | null;
+  impact?: Priority | null;
+  project?: string | null;
 }): Promise<Item> {
   const ts = nowIso();
   const meta = itemKindMeta(input.kind);
@@ -184,6 +188,10 @@ export async function createItem(input: {
     closureNote: "",
     linkedItemIds: [],
     sourceEntryId: input.sourceEntryId ?? null,
+    priority: input.priority ?? null,
+    probability: input.probability ?? null,
+    impact: input.impact ?? null,
+    project: input.project ?? null,
     createdAt: ts,
     updatedAt: ts,
   };
@@ -194,7 +202,9 @@ export async function createItem(input: {
 
 export async function updateItem(
   id: string,
-  changes: Partial<Pick<Item, "title" | "body" | "date" | "time" | "status" | "closureNote">>,
+  changes: Partial<
+    Pick<Item, "title" | "body" | "date" | "time" | "status" | "closureNote" | "priority" | "probability" | "impact" | "project">
+  >,
 ): Promise<void> {
   const ts = nowIso();
   const finalChanges: Partial<Item> = { ...changes, updatedAt: ts };

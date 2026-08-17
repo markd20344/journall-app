@@ -38,7 +38,11 @@ export interface EntryWithRefs extends Entry {
 // uses the same shape; fields that don't apply to a given kind are simply
 // left blank (e.g. `status` is null for kinds with no lifecycle, `time`
 // only matters for "event").
-export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event";
+export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event" | "story";
+
+// Shared RAG scale — used as a priority on Actions/Decisions/Stories, and
+// as separate probability/impact ratings on Risks.
+export type Priority = "high" | "medium" | "low";
 
 // Not every kind uses every status — see ITEM_KINDS in lib/itemKinds.ts for
 // which statuses are valid per kind. Kinds with no lifecycle (lesson,
@@ -67,6 +71,10 @@ export interface Item {
   closureNote: string; // optional note explaining the closure
   linkedItemIds: string[]; // other Items this one is linked to, any kind — always bidirectional
   sourceEntryId: string | null; // the journal entry this was spun off from, if any
+  priority: Priority | null; // Actions, Decisions, Stories — null for kinds that don't use it
+  probability: Priority | null; // Risks only
+  impact: Priority | null; // Risks only
+  project: string | null; // Stories only — free-form project/app label, reused via autocomplete
   createdAt: string;
   updatedAt: string;
 }

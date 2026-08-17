@@ -116,6 +116,22 @@ button, input, select, textarea {
   color: var(--danger);
 }
 
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--success-bg);
+  color: var(--success-text);
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  z-index: 1000;
+  white-space: nowrap;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -520,6 +536,8 @@ textarea {
 
 .calendar {
   flex: 0 0 300px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .calendar-header {
@@ -553,6 +571,8 @@ textarea {
 .calendar-day {
   position: relative;
   aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 8px;
   background: var(--bg-raised);
@@ -614,6 +634,27 @@ textarea {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .calendar-page-layout {
+    flex-direction: column;
+  }
+
+  .calendar {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .day-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 20px;
+  }
 }
 
 /* ---------- Browse / search ---------- */
@@ -812,6 +853,51 @@ textarea {
   font-size: 11px;
   opacity: 0.6;
   font-style: italic;
+}
+
+.project-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.rag-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--rag-color);
+  color: var(--rag-color);
+  background: color-mix(in srgb, var(--rag-color) 12%, transparent);
+  white-space: nowrap;
+}
+
+.priority-picker {
+  display: flex;
+  gap: 6px;
+}
+
+.priority-btn {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--priority-color);
+  background: color-mix(in srgb, var(--priority-color) 10%, var(--bg-raised));
+  color: var(--priority-color);
+}
+
+.priority-btn:hover {
+  background: color-mix(in srgb, var(--priority-color) 25%, var(--bg-raised));
+}
+
+.priority-btn.active {
+  background: var(--priority-color);
+  color: #fff;
 }
 
 /* ---------- Item editor (Lessons/Actions/Risks/Assumptions/Decisions/Bookings) ---------- */

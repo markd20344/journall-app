@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
 import { applyStoredAccentColor } from "./lib/theme";
 import AuthGate from "./components/AuthGate";
+import ToastHost from "./components/ToastHost";
 import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
@@ -56,6 +57,7 @@ export default function App() {
           {view === "settings" && <SettingsPage />}
         </main>
       </div>
+      <ToastHost />
     </AuthGate>
   );
 }
