@@ -605,6 +605,18 @@ textarea {
   justify-content: flex-end;
 }
 
+.field-voice-row-multi {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.copy-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
 .voice-btn {
   font-size: 13px;
   padding: 6px 12px;

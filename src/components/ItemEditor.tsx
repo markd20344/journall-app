@@ -263,6 +263,16 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const subtaskDoneCount = subtasks.filter((s) => s.done).length;
   const subtaskPercent = subtasks.length > 0 ? Math.round((subtaskDoneCount / subtasks.length) * 100) : 0;
 
+  async function copyBody() {
+    if (!body.trim()) return;
+    try {
+      await navigator.clipboard.writeText(body);
+      showToast("Copied to clipboard");
+    } catch {
+      showToast("Couldn't copy — try selecting the text manually");
+    }
+  }
+
   return (
     <div className="item-editor">
       {item && (
@@ -290,8 +300,11 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           onChange={(e) => setBody(e.target.value)}
           rows={10}
         />
-        <div className="field-voice-row">
+        <div className="field-voice-row field-voice-row-multi">
           <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
+          <button type="button" className="copy-btn" disabled={!body.trim()} onClick={() => void copyBody()}>
+            📋 Copy
+          </button>
         </div>
       </div>
       {/* Classification first — what this is and how important it is — since
