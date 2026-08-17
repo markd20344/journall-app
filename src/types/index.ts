@@ -38,7 +38,7 @@ export interface EntryWithRefs extends Entry {
 // uses the same shape; fields that don't apply to a given kind are simply
 // left blank (e.g. `status` is null for kinds with no lifecycle, `time`
 // only matters for "event").
-export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event" | "story";
+export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event" | "story" | "diary";
 
 // Shared RAG scale — used as a priority on Actions/Decisions/Stories, and
 // as separate probability/impact ratings on Risks.

@@ -48,6 +48,14 @@ export default function CalendarPage() {
               >
                 + Booking
               </button>
+              <button
+                type="button"
+                className="kind-action-btn"
+                style={{ "--kind-color": itemKindMeta("diary").color } as CSSProperties}
+                onClick={() => setMode({ type: "new-item", kind: "diary" })}
+              >
+                + Diary Entry
+              </button>
             </div>
           </div>
 

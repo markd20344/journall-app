@@ -111,6 +111,19 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
   },
+  {
+    kind: "diary",
+    label: "Diary Entry",
+    shortLabel: "Diary",
+    color: "#be185d",
+    codePrefix: "DE",
+    statuses: [],
+    hasTime: false,
+    dateLabel: "Date",
+    hasPriority: false,
+    hasProbabilityImpact: false,
+    hasProject: false,
+  },
 ];
 
 const BY_KIND = new Map(ITEM_KINDS.map((k) => [k.kind, k]));
