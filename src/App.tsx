@@ -12,16 +12,16 @@ import SettingsPage from "./pages/SettingsPage";
 type View = "write" | "calendar" | "log" | "browse" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
-  { id: "write", label: "Journal" },
-  { id: "log", label: "Log" },
   { id: "browse", label: "Entries" },
+  { id: "log", label: "Log" },
   { id: "calendar", label: "Calendar" },
+  { id: "write", label: "Journal" },
   { id: "settings", label: "Settings" },
 ];
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>("write");
+  const [view, setView] = useState<View>("browse");
 
   useEffect(() => {
     void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
