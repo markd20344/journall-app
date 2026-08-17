@@ -1,15 +1,27 @@
 import { useEffect, useState } from "react";
-import { subscribeToast } from "../lib/toast";
+import { subscribeToast, type ToastState } from "../lib/toast";
 
 export default function ToastHost() {
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
-  useEffect(() => subscribeToast(setMessage), []);
+  useEffect(() => subscribeToast(setToast), []);
 
-  if (!message) return null;
+  if (!toast) return null;
   return (
     <div className="toast" role="status">
-      ✓ {message}
+      <span>✓ {toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          className="toast-action"
+          onClick={() => {
+            toast.action?.onClick();
+            setToast(null);
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { todayDateString } from "../lib/id";
 import { appendDictatedSentence } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
+import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import CategorySelect from "./CategorySelect";
 import TopicTagInput from "./TopicTagInput";
 import VoiceButton from "./VoiceButton";
@@ -81,10 +82,14 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!entry) return;
-    if (!window.confirm("Delete this entry? This can't be undone.")) return;
-    await deleteEntry(entry.id);
+    const id = entry.id;
+    schedulePendingDelete("entry", id, () => deleteEntry(id));
+    showToast("Entry deleted", {
+      action: { label: "Undo", onClick: () => cancelPendingDelete("entry", id) },
+      durationMs: 5000,
+    });
     onDeleted?.();
   }
 

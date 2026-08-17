@@ -19,6 +19,7 @@ import { todayDateString } from "../lib/id";
 import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
+import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import CategorySelect from "./CategorySelect";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
@@ -186,10 +187,15 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!item) return;
-    if (!window.confirm(`Delete this ${meta.label.toLowerCase()}?`)) return;
-    await deleteItem(item.id);
+    const id = item.id;
+    const title = item.title;
+    schedulePendingDelete("item", id, () => deleteItem(id));
+    showToast(`Deleted "${title}"`, {
+      action: { label: "Undo", onClick: () => cancelPendingDelete("item", id) },
+      durationMs: 5000,
+    });
     onDeleted?.();
   }
 

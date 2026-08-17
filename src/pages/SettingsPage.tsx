@@ -7,6 +7,8 @@ import { ACCENT_PRESETS, getStoredAccentColor, setStoredAccentColor } from "../l
 import { signOutUser, watchAuthState } from "../firebase/auth";
 import { firebaseEnabled } from "../firebase/config";
 import { refreshNow } from "../firebase/sync";
+import { showToast } from "../lib/toast";
+import { cancelPendingDelete, schedulePendingDelete } from "../lib/pendingDelete";
 import {
   forgetDirectoryHandle,
   getSavedDirectoryHandle,
@@ -72,9 +74,12 @@ export default function SettingsPage() {
     setEditingId(null);
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("Delete this category? Existing entries will keep a reference to it but it won't be selectable anymore.")) return;
-    await deleteCategory(id);
+  function handleDelete(id: string, name: string) {
+    schedulePendingDelete("category", id, () => deleteCategory(id));
+    showToast(`Deleted "${name}"`, {
+      action: { label: "Undo", onClick: () => cancelPendingDelete("category", id) },
+      durationMs: 5000,
+    });
   }
 
   async function handleImportFile(file: File) {
@@ -190,7 +195,7 @@ export default function SettingsPage() {
                 <>
                   <span className="category-pill" style={{ background: c.color }}>{c.name}</span>
                   <button type="button" className="ghost" onClick={() => startEdit(c.id, c.name, c.color)}>Edit</button>
-                  <button type="button" className="danger ghost" onClick={() => void handleDelete(c.id)}>Delete</button>
+                  <button type="button" className="danger ghost" onClick={() => handleDelete(c.id, c.name)}>Delete</button>
                 </>
               )}
             </li>

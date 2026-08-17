@@ -1,9 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
 import type { Category, Entry, EntryWithRefs, Item, ItemKind, Topic } from "../types";
+import { usePendingDeleteIds } from "../lib/pendingDelete";
 
 export function useCategories(): Category[] {
-  return useLiveQuery(() => db.categories.orderBy("name").toArray(), [], []) ?? [];
+  const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("category");
+  return pendingIds.size === 0 ? categories : categories.filter((c) => !pendingIds.has(c.id));
 }
 
 export function useTopics(): Topic[] {
@@ -20,12 +23,21 @@ export function useTopicsForCategory(categoryId: string | undefined): Topic[] {
   );
 }
 
+// A delete is staged for a few seconds before it actually happens (the
+// "Delete — Undo" toast pattern, see lib/pendingDelete) — filtering staged
+// ids out here, in the shared data hooks, means every view (Entries list,
+// Log, Calendar) drops the record immediately and consistently, not just
+// whichever screen happened to trigger the delete.
 export function useAllEntries(): Entry[] {
-  return useLiveQuery(() => db.entries.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const entries = useLiveQuery(() => db.entries.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("entry");
+  return pendingIds.size === 0 ? entries : entries.filter((e) => !pendingIds.has(e.id));
 }
 
 export function useAllItems(): Item[] {
-  return useLiveQuery(() => db.items.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const items = useLiveQuery(() => db.items.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("item");
+  return pendingIds.size === 0 ? items : items.filter((i) => !pendingIds.has(i.id));
 }
 
 export function useItemsForEntry(entryId: string | undefined): Item[] {
@@ -70,9 +82,9 @@ export const APPLICATION_KINDS: ItemKind[] = ["application"];
 export const DUE_TAB_KINDS: ItemKind[] = ["action", "event", "diary", "risk", "decision", "assumption", "lesson"];
 
 export function useCalendarItemsForDate(date: string): Item[] {
-  return (
-    useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? []
-  ).filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind));
+  const items = useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? [];
+  const pendingIds = usePendingDeleteIds("item");
+  return items.filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind) && !pendingIds.has(i.id));
 }
 
 export function useCalendarDatesInRange(startDate: string, endDate: string): Set<string> {
@@ -82,7 +94,10 @@ export function useCalendarDatesInRange(startDate: string, endDate: string): Set
       [startDate, endDate],
       [],
     ) ?? [];
-  return new Set(items.filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind)).map((i) => i.date));
+  const pendingIds = usePendingDeleteIds("item");
+  return new Set(
+    items.filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind) && !pendingIds.has(i.id)).map((i) => i.date),
+  );
 }
 
 // Powers the Calendar page's date-range view (Current week/month, Next 3/6
@@ -95,8 +110,9 @@ export function useCalendarItemsInRange(startDate: string, endDate: string): Ite
       [startDate, endDate],
       [],
     ) ?? [];
+  const pendingIds = usePendingDeleteIds("item");
   return items
-    .filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind))
+    .filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind) && !pendingIds.has(i.id))
     .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : (a.time || "").localeCompare(b.time || "")));
 }
 
