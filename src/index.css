@@ -601,6 +601,7 @@ textarea {
   margin: 0;
   color: var(--text);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-size: 14px;
 }
 
@@ -1163,6 +1164,7 @@ textarea {
 .item-card-title {
   font-weight: 600;
   color: var(--text-h);
+  overflow-wrap: anywhere;
 }
 
 .item-done .item-card-title {
