@@ -16,7 +16,7 @@ import {
 } from "date-fns";
 import type { Item, ItemKind, ItemStatus } from "../types";
 import { itemKindMeta, ITEM_KINDS, PRIORITY_ORDER, STATUS_META, statusLabelFor } from "../lib/itemKinds";
-import { useAllItems } from "../hooks/useJournalData";
+import { useAllItems, useCategories } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
 import ItemCard from "./ItemCard";
 import ItemEditor from "./ItemEditor";
@@ -163,10 +163,13 @@ export default function ItemBrowser({
   // filter can use that kind's own wording (e.g. "Interviewing") instead of
   // the generic Open/Blocked/Hold labels.
   const singleKind = kindScope && kindScope.length === 1 ? kindScope[0] : null;
+  const showCategoryFilter = kindOptions.some((k) => k.hasCategory);
+  const categories = useCategories();
 
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(defaultStatusFilter);
   const [projectFilter, setProjectFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState<AnyDateRangeValue>(defaultDateRangeFilter);
   const [query, setQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -202,6 +205,7 @@ export default function ItemBrowser({
         return false;
       }
       if (projectFilter && item.project !== projectFilter) return false;
+      if (categoryFilter && item.categoryId !== categoryFilter) return false;
       if (cutoff && (item.date < today || item.date > cutoff)) return false;
       if (pastBounds && (item.date < pastBounds.start || item.date > pastBounds.end)) return false;
       if (q && !item.title.toLowerCase().includes(q) && !item.body.toLowerCase().includes(q) && !item.code.toLowerCase().includes(q))
@@ -231,6 +235,7 @@ export default function ItemBrowser({
     kindFilter,
     statusFilter,
     projectFilter,
+    categoryFilter,
     dateRangeFilter,
     dateRangeDirection,
     query,
@@ -311,6 +316,13 @@ export default function ItemBrowser({
             value={projectFilter}
             onChange={setProjectFilter}
             options={[{ value: "", label: "All projects" }, ...knownProjects.map((p) => ({ value: p, label: p }))]}
+          />
+        )}
+        {showCategoryFilter && categories.length > 0 && (
+          <Dropdown
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
           />
         )}
         {showDateRangeFilter && (

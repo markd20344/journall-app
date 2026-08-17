@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { format } from "date-fns";
 import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate } from "../types";
 import { ITEM_KINDS, itemKindMeta, PRIORITY_META, PRIORITY_ORDER, statusLabelFor } from "../lib/itemKinds";
@@ -11,11 +11,12 @@ import {
   unlinkItems,
   updateItem,
 } from "../db/repo";
-import { useAllItems } from "../hooks/useJournalData";
+import { useAllItems, useCategories } from "../hooks/useJournalData";
 import { newId, nowIso, todayDateString } from "../lib/id";
 import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
+import CategorySelect from "./CategorySelect";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
 import Dropdown from "./Dropdown";
@@ -80,7 +81,18 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [project, setProject] = useState(item?.project ?? "");
   const [agency, setAgency] = useState(item?.agency ?? "");
   const [source, setSource] = useState(item?.source ?? "");
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? "");
   const [saving, setSaving] = useState(false);
+
+  const categories = useCategories();
+
+  // Default to the first available category once categories load, same as
+  // the journal entry editor — only for kinds that actually use one.
+  useEffect(() => {
+    if (meta.hasCategory && !categoryId && categories.length > 0) {
+      setCategoryId(categories[0].id);
+    }
+  }, [meta.hasCategory, categories, categoryId]);
 
   const allItems = useAllItems();
   const linkedItems = linkedIds.map((id) => allItems.find((i) => i.id === id)).filter((i): i is Item => Boolean(i));
@@ -108,6 +120,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
       const trimmedProject = meta.hasProject ? project.trim() || null : null;
       const trimmedAgency = meta.hasApplicationFields ? agency.trim() || null : null;
       const trimmedSource = meta.hasApplicationFields ? source.trim() || null : null;
+      const finalCategoryId = meta.hasCategory ? categoryId || null : null;
       if (item) {
         await updateItem(item.id, {
           title: title.trim(),
@@ -122,6 +135,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           project: trimmedProject,
           agency: trimmedAgency,
           source: trimmedSource,
+          categoryId: finalCategoryId,
         });
         showToast(`${meta.label} saved`);
         onSaved?.({
@@ -138,6 +152,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           project: trimmedProject,
           agency: trimmedAgency,
           source: trimmedSource,
+          categoryId: finalCategoryId,
         });
       } else {
         const created = await createItem({
@@ -154,6 +169,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           project: trimmedProject,
           agency: trimmedAgency,
           source: trimmedSource,
+          categoryId: finalCategoryId,
         });
         showToast(`${meta.label} saved`);
         onSaved?.(created);
@@ -260,6 +276,13 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </div>
         )}
       </div>
+
+      {meta.hasCategory && (
+        <div className="field">
+          <span className="field-label">Category</span>
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+        </div>
+      )}
 
       {meta.hasProject && (
         <label className="field">

@@ -174,6 +174,7 @@ export async function createItem(input: {
   project?: string | null;
   agency?: string | null;
   source?: string | null;
+  categoryId?: string | null;
 }): Promise<Item> {
   const ts = nowIso();
   const meta = itemKindMeta(input.kind);
@@ -198,6 +199,7 @@ export async function createItem(input: {
     project: input.project ?? null,
     agency: input.agency ?? null,
     source: input.source ?? null,
+    categoryId: input.categoryId ?? null,
     createdAt: ts,
     updatedAt: ts,
   };
@@ -223,6 +225,7 @@ export async function updateItem(
       | "project"
       | "agency"
       | "source"
+      | "categoryId"
     >
   >,
 ): Promise<void> {

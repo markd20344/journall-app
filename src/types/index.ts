@@ -77,6 +77,7 @@ export interface Item {
   project: string | null; // Stories only — free-form project/app label, reused via autocomplete
   agency: string | null; // Job Applications only — recruiter/agency applied through
   source: string | null; // Job Applications only — where the opportunity was found
+  categoryId: string | null; // Tasks only — same Category table journal entries use
   createdAt: string;
   updatedAt: string;
 }

@@ -156,6 +156,23 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v8: add categoryId (Tasks — reuses the same Category table journal
+    // entries use, rather than a separate tagging system).
+    this.version(8)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.categoryId = item.categoryId ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 

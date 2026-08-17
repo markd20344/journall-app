@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import type { Item, ItemStatus } from "../types";
 import { itemKindMeta, PRIORITY_META, statusLabelFor, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
-import { useAllItems } from "../hooks/useJournalData";
+import { useAllItems, useCategories } from "../hooks/useJournalData";
 import ItemKindBadge from "./ItemKindBadge";
 import Dropdown from "./Dropdown";
 
@@ -15,6 +15,8 @@ interface Props {
 export default function ItemCard({ item, onClick }: Props) {
   const meta = itemKindMeta(item.kind);
   const allItems = useAllItems();
+  const categories = useCategories();
+  const category = item.categoryId ? categories.find((c) => c.id === item.categoryId) : undefined;
   const linkedItems = item.linkedItemIds
     .map((id) => allItems.find((i) => i.id === id))
     .filter((i): i is Item => Boolean(i));
@@ -41,6 +43,11 @@ export default function ItemCard({ item, onClick }: Props) {
             {item.date}
             {item.time ? ` · ${item.time}` : ""}
           </span>
+          {category && (
+            <span className="category-pill" style={{ background: category.color }}>
+              {category.name}
+            </span>
+          )}
           {item.sourceEntryId && <span className="linked-badge">from journal</span>}
           {agingLabel && <span className="linked-badge">{agingLabel}</span>}
           {item.project && <span className="project-badge">{item.project}</span>}

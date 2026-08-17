@@ -75,7 +75,7 @@ export default function CalendarPage() {
               style={{ "--kind-color": itemKindMeta("action").color } as CSSProperties}
               onClick={() => setMode({ type: "new-item", kind: "action" })}
             >
-              + Action
+              + {itemKindMeta("action").shortLabel}
             </button>
             <button
               type="button"

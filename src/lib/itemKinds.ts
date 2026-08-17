@@ -13,6 +13,7 @@ export interface ItemKindMeta {
   hasProbabilityImpact: boolean; // separate High/Medium/Low probability + impact (Risks)
   hasProject: boolean; // free-form project/app label (Stories)
   hasApplicationFields: boolean; // Agency/Recruiter + Source fields (Job Applications)
+  hasCategory: boolean; // Category picker, reusing the same Category table journal entries use (Tasks)
   // True for kinds that are pure historical record, not a task with a
   // lifecycle (Diary, Lesson) — they never have a status to close, so
   // without this they'd sit in the Due tab forever. When true, the Due tab
@@ -30,14 +31,17 @@ export interface ItemKindMeta {
 
 // Fixed, semantic colors — unlike categories these carry meaning (risk =
 // red, decision = green) so they aren't user-customizable. Display order
-// (Action, Story, Booking, Diary, Risk, Decision, Assumption, Lesson, Job
+// (Task, Story, Booking, Diary, Risk, Decision, Assumption, Lesson, Job
 // Application) is deliberate — everywhere these kinds are listed (Log page,
-// Browse filters, spin-off buttons) follows this array's order.
+// Browse filters, spin-off buttons) follows this array's order. "Task"
+// (kind: "action") is the general-purpose to-do kind — categorized,
+// prioritized, linkable, and calendar-visible like every other kind here,
+// it's just named for what a small business actually calls it.
 export const ITEM_KINDS: ItemKindMeta[] = [
   {
     kind: "action",
-    label: "Action",
-    shortLabel: "Action",
+    label: "Task",
+    shortLabel: "Task",
     color: "#0369a1",
     codePrefix: "AC",
     statuses: ["open", "on_hold", "blocked", "closed"],
@@ -47,6 +51,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: true,
     referenceOnly: false,
   },
   {
@@ -62,6 +67,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: true,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: false,
   },
   {
@@ -77,6 +83,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: false,
   },
   {
@@ -92,6 +99,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: true,
   },
   {
@@ -107,6 +115,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: true,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: false,
   },
   {
@@ -122,6 +131,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: false,
   },
   {
@@ -137,6 +147,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: false,
   },
   {
@@ -152,6 +163,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    hasCategory: false,
     referenceOnly: true,
   },
   {
@@ -167,6 +179,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: true,
+    hasCategory: false,
     referenceOnly: false,
     statusLabels: {
       open: "Applied",
