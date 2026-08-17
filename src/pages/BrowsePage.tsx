@@ -3,10 +3,18 @@ import EntryCard from "../components/EntryCard";
 import EntryEditor from "../components/EntryEditor";
 import ItemBrowser from "../components/ItemBrowser";
 import Dropdown from "../components/Dropdown";
-import { CALENDAR_KINDS, useAllEntries, useCategories, useEnrichedEntries, useTopics } from "../hooks/useJournalData";
+import {
+  CALENDAR_KINDS,
+  LOG_ITEM_KINDS,
+  STORY_KINDS,
+  useAllEntries,
+  useCategories,
+  useEnrichedEntries,
+  useTopics,
+} from "../hooks/useJournalData";
 import type { Entry } from "../types";
 
-type Tab = "journal" | "items" | "calendar";
+type Tab = "journal" | "items" | "stories" | "calendar";
 
 export default function BrowsePage() {
   const [tab, setTab] = useState<Tab>("items");
@@ -40,6 +48,9 @@ export default function BrowsePage() {
         <button type="button" className={`browse-tab ${tab === "items" ? "active" : ""}`} onClick={() => setTab("items")}>
           Log items
         </button>
+        <button type="button" className={`browse-tab ${tab === "stories" ? "active" : ""}`} onClick={() => setTab("stories")}>
+          Stories
+        </button>
         <button type="button" className={`browse-tab ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}>
           Calendar
         </button>
@@ -49,7 +60,9 @@ export default function BrowsePage() {
       </div>
 
       {tab === "items" ? (
-        <ItemBrowser key="items" allowCreate={false} defaultStatusFilter="not-closed" />
+        <ItemBrowser key="items" allowCreate={false} kindScope={LOG_ITEM_KINDS} defaultStatusFilter="not-closed" />
+      ) : tab === "stories" ? (
+        <ItemBrowser key="stories" allowCreate={false} kindScope={STORY_KINDS} defaultStatusFilter="not-closed" />
       ) : tab === "calendar" ? (
         <ItemBrowser
           key="calendar"

@@ -48,6 +48,15 @@ export function useItemsByKind(kind: ItemKind | ""): Item[] {
 // stays a clean "what's scheduled" view rather than a second journal index.
 export const CALENDAR_KINDS: ItemKind[] = ["event", "action", "diary"];
 
+// Entries' "Log items" tab shows the plain work-item kinds only. Stories get
+// their own tab, and Bookings/Diary entries are calendar-only — Action is
+// the one kind that's dual-homed, appearing in both Log items and Calendar.
+export const LOG_ITEM_KINDS: ItemKind[] = ["action", "risk", "decision", "assumption", "lesson"];
+
+// Entries' "Stories" tab — kept out of Log items and Calendar so it reads
+// as a dedicated story backlog rather than mixed in with everything else.
+export const STORY_KINDS: ItemKind[] = ["story"];
+
 export function useCalendarItemsForDate(date: string): Item[] {
   return (
     useLiveQuery(() => db.items.where("date").equals(date).sortBy("time"), [date], []) ?? []
