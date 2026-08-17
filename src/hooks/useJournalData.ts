@@ -3,6 +3,16 @@ import { db } from "../db/db";
 import type { Category, Entry, EntryWithRefs, Item, ItemKind, Topic } from "../types";
 import { usePendingDeleteIds } from "../lib/pendingDelete";
 
+// Most-recent-first, and reliable within a single day: Dexie's own
+// orderBy("date") only sorts the date string itself, so two records logged
+// on the same day landed in whatever arbitrary order the index happened to
+// return them — not necessarily the order they were actually written.
+// createdAt is a full timestamp every record always has, so it's a
+// deterministic date-*and-time* tiebreak regardless of kind.
+function byDateThenCreatedAtDesc(a: { date: string; createdAt: string }, b: { date: string; createdAt: string }): number {
+  return a.date !== b.date ? b.date.localeCompare(a.date) : b.createdAt.localeCompare(a.createdAt);
+}
+
 export function useCategories(): Category[] {
   const categories = useLiveQuery(() => db.categories.orderBy("name").toArray(), [], []) ?? [];
   const pendingIds = usePendingDeleteIds("category");
@@ -29,15 +39,17 @@ export function useTopicsForCategory(categoryId: string | undefined): Topic[] {
 // Log, Calendar) drops the record immediately and consistently, not just
 // whichever screen happened to trigger the delete.
 export function useAllEntries(): Entry[] {
-  const entries = useLiveQuery(() => db.entries.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const entries = useLiveQuery(() => db.entries.toArray(), [], []) ?? [];
   const pendingIds = usePendingDeleteIds("entry");
-  return pendingIds.size === 0 ? entries : entries.filter((e) => !pendingIds.has(e.id));
+  const visible = pendingIds.size === 0 ? entries : entries.filter((e) => !pendingIds.has(e.id));
+  return [...visible].sort(byDateThenCreatedAtDesc);
 }
 
 export function useAllItems(): Item[] {
-  const items = useLiveQuery(() => db.items.orderBy("date").reverse().toArray(), [], []) ?? [];
+  const items = useLiveQuery(() => db.items.toArray(), [], []) ?? [];
   const pendingIds = usePendingDeleteIds("item");
-  return pendingIds.size === 0 ? items : items.filter((i) => !pendingIds.has(i.id));
+  const visible = pendingIds.size === 0 ? items : items.filter((i) => !pendingIds.has(i.id));
+  return [...visible].sort(byDateThenCreatedAtDesc);
 }
 
 export function useItemsForEntry(entryId: string | undefined): Item[] {
