@@ -12,10 +12,10 @@ import SettingsPage from "./pages/SettingsPage";
 type View = "write" | "calendar" | "log" | "browse" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
-  { id: "write", label: "Write" },
-  { id: "calendar", label: "Calendar" },
+  { id: "write", label: "Journal" },
   { id: "log", label: "Log" },
-  { id: "browse", label: "Browse" },
+  { id: "browse", label: "Entries" },
+  { id: "calendar", label: "Calendar" },
   { id: "settings", label: "Settings" },
 ];
 

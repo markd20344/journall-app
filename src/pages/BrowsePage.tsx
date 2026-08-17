@@ -34,7 +34,7 @@ export default function BrowsePage() {
 
   return (
     <div className="page browse-page">
-      <h1 className="page-title">Browse</h1>
+      <h1 className="page-title">Entries</h1>
 
       <div className="browse-tabs">
         <button type="button" className={`browse-tab ${tab === "items" ? "active" : ""}`} onClick={() => setTab("items")}>

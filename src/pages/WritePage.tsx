@@ -14,7 +14,7 @@ export default function WritePage() {
   return (
     <div className="page write-page">
       <div className="write-page-header">
-        <h1 className="page-title">Write</h1>
+        <h1 className="page-title">Journal</h1>
         {savedEntry && (
           <button type="button" className="ghost" onClick={startNewEntry}>
             + Write new entry
