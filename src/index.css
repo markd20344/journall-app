@@ -365,6 +365,12 @@ textarea {
   overflow-y: auto;
 }
 
+.dropdown-menu-up {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 4px;
+}
+
 .dropdown-option {
   display: block;
   width: 100%;

@@ -25,6 +25,11 @@ interface Props {
  */
 export default function Dropdown({ value, onChange, options, className, triggerClassName, style, triggerStyle, ...aria }: Props) {
   const [open, setOpen] = useState(false);
+  // Opens upward instead of down when there isn't enough room below the
+  // trigger (e.g. a field near the bottom of a long form) — otherwise the
+  // list opens off the bottom of the screen with no way to scroll it into
+  // view, since the overflow is on the viewport, not inside the menu.
+  const [openUpward, setOpenUpward] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards against two distinct replay hazards right after picking an
@@ -57,12 +62,22 @@ export default function Dropdown({ value, onChange, options, className, triggerC
     return Date.now() < suppressUntil.current;
   }
 
+  function decidePlacement() {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setOpenUpward(spaceBelow < 260 && spaceAbove > spaceBelow);
+  }
+
   function openNow() {
     if (suppressed()) return;
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
       closeTimer.current = null;
     }
+    decidePlacement();
     setOpen(true);
   }
 
@@ -90,6 +105,7 @@ export default function Dropdown({ value, onChange, options, className, triggerC
         style={triggerStyle}
         onClick={() => {
           if (suppressed()) return;
+          if (!open) decidePlacement();
           setOpen((o) => !o);
         }}
         aria-haspopup="listbox"
@@ -100,7 +116,7 @@ export default function Dropdown({ value, onChange, options, className, triggerC
         <span className="dropdown-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
-        <ul className="dropdown-menu" role="listbox">
+        <ul className={`dropdown-menu ${openUpward ? "dropdown-menu-up" : ""}`} role="listbox">
           {options.map((opt) => (
             <li key={opt.value} role="option" aria-selected={opt.value === value}>
               <button
