@@ -43,7 +43,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     label: "Task",
     shortLabel: "Task",
     color: "#0369a1",
-    codePrefix: "AC",
+    codePrefix: "T",
     statuses: ["open", "on_hold", "blocked", "closed"],
     hasTime: false,
     dateLabel: "Due date",
