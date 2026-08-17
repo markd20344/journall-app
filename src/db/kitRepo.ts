@@ -63,6 +63,7 @@ export async function importKitJobs(drafts: DraftKitJob[], batchDate: string): P
         postcode: d.postcode,
         phoneNumbers: d.phoneNumbers,
         rawText: d.rawText,
+        notes: d.notes,
       }),
     ),
   );
