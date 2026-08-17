@@ -85,6 +85,21 @@ export function useCalendarDatesInRange(startDate: string, endDate: string): Set
   return new Set(items.filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind)).map((i) => i.date));
 }
 
+// Powers the Calendar page's date-range view (Current week/month, Next 3/6
+// months, Next year) — same Booking/Action/Diary scope as a single day, just
+// widened to a range and sorted chronologically instead of grouped by day.
+export function useCalendarItemsInRange(startDate: string, endDate: string): Item[] {
+  const items =
+    useLiveQuery(
+      () => db.items.where("date").between(startDate, endDate, true, true).toArray(),
+      [startDate, endDate],
+      [],
+    ) ?? [];
+  return items
+    .filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind))
+    .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : (a.time || "").localeCompare(b.time || "")));
+}
+
 export function useEnrichedEntries(entries: Entry[]): EntryWithRefs[] {
   const categories = useCategories();
   const topics = useTopics();
