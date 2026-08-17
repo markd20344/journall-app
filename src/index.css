@@ -104,6 +104,21 @@ button, input, select, textarea {
   color: var(--danger);
 }
 
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.error-boundary p {
+  color: var(--text);
+  max-width: 340px;
+}
+
 .sync-banner {
   text-align: center;
   padding: 6px 12px;
@@ -122,15 +137,59 @@ button, input, select, textarea {
   left: 50%;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
   background: var(--success-bg);
   color: var(--success-text);
-  padding: 12px 22px;
+  padding: 12px 16px 12px 22px;
   border-radius: 999px;
   font-weight: 700;
   font-size: 14px;
   box-shadow: var(--shadow);
   z-index: 1000;
   white-space: nowrap;
+}
+
+.toast-action {
+  background: var(--success-text);
+  color: var(--bg-raised);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.update-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-raised);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  box-shadow: var(--shadow);
+  z-index: 1000;
+  max-width: calc(100vw - 32px);
+}
+
+.update-prompt-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.update-prompt-actions button {
+  padding: 5px 12px;
+  font-size: 13px;
 }
 
 .app-header {
@@ -155,11 +214,32 @@ button, input, select, textarea {
 }
 
 .app-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--heading);
   font-weight: 700;
   font-size: 24px;
   color: var(--accent);
   letter-spacing: -0.3px;
+}
+
+.sync-status-badge {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.sync-status-badge-error {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+  cursor: help;
 }
 
 .app-nav {
@@ -1294,4 +1374,46 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* ---------- Today dashboard ---------- */
+
+.today-page .page-title {
+  margin-bottom: 4px;
+}
+
+.today-date {
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 14px;
+  margin: 0 0 28px;
+}
+
+.today-section {
+  margin-bottom: 30px;
+}
+
+.today-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.today-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.today-section-title-overdue {
+  color: var(--danger);
+}
+
+.today-section-head button {
+  font-size: 13px;
+  padding: 4px 10px;
+  flex-shrink: 0;
 }

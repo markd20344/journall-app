@@ -2,16 +2,21 @@ import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
 import { applyStoredAccentColor } from "./lib/theme";
 import AuthGate from "./components/AuthGate";
+import ErrorBoundary from "./components/ErrorBoundary";
+import SyncStatusBadge from "./components/SyncStatusBadge";
 import ToastHost from "./components/ToastHost";
+import UpdatePrompt from "./components/UpdatePrompt";
+import TodayPage from "./pages/TodayPage";
 import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
 import SettingsPage from "./pages/SettingsPage";
 
-type View = "write" | "calendar" | "log" | "browse" | "settings";
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
+  { id: "today", label: "Today" },
   { id: "browse", label: "Entries" },
   { id: "log", label: "Log" },
   { id: "calendar", label: "Calendar" },
@@ -21,7 +26,7 @@ const NAV_ITEMS: Array<{ id: View; label: string }> = [
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>("browse");
+  const [view, setView] = useState<View>("today");
 
   useEffect(() => {
     void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
@@ -35,7 +40,10 @@ export default function App() {
     <AuthGate>
       <div className="app-shell">
         <header className="app-header">
-          <span className="app-title">Journall OS</span>
+          <span className="app-title">
+            Journall OS
+            <SyncStatusBadge />
+          </span>
           <nav className="app-nav">
             {NAV_ITEMS.map((item) => (
               <button
@@ -50,14 +58,18 @@ export default function App() {
           </nav>
         </header>
         <main className="app-main">
-          {view === "write" && <WritePage />}
-          {view === "calendar" && <CalendarPage />}
-          {view === "log" && <LogPage />}
-          {view === "browse" && <BrowsePage />}
-          {view === "settings" && <SettingsPage />}
+          <ErrorBoundary key={view}>
+            {view === "today" && <TodayPage onNavigate={setView} />}
+            {view === "write" && <WritePage />}
+            {view === "calendar" && <CalendarPage />}
+            {view === "log" && <LogPage />}
+            {view === "browse" && <BrowsePage />}
+            {view === "settings" && <SettingsPage />}
+          </ErrorBoundary>
         </main>
       </div>
       <ToastHost />
+      <UpdatePrompt />
     </AuthGate>
   );
 }

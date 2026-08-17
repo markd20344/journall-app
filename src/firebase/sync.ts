@@ -57,27 +57,72 @@ function userCollection(uid: string, table: SyncedTable) {
   return collection(firestore!, "users", uid, table);
 }
 
+// Per-write sync status: pushRecord/deleteRecord are fire-and-forget, so a
+// failed background push (a flaky connection while adding a subtask, say)
+// used to only reach console.error — invisible to the user, on a feature
+// whose entire pitch is "the same data on every device." This tracks how
+// many writes are currently in flight and the most recent failure so a
+// small status indicator can surface it instead.
+export interface SyncStatus {
+  pending: number;
+  lastError: string | null;
+}
+
+let pendingWrites = 0;
+let lastSyncError: string | null = null;
+let statusListeners: Array<(status: SyncStatus) => void> = [];
+
+function currentStatus(): SyncStatus {
+  return { pending: pendingWrites, lastError: lastSyncError };
+}
+
+function notifyStatus(): void {
+  const status = currentStatus();
+  statusListeners.forEach((l) => l(status));
+}
+
+export function subscribeSyncStatus(listener: (status: SyncStatus) => void): () => void {
+  statusListeners.push(listener);
+  listener(currentStatus());
+  return () => {
+    statusListeners = statusListeners.filter((l) => l !== listener);
+  };
+}
+
+async function trackWrite(description: string, work: () => Promise<void>): Promise<void> {
+  pendingWrites++;
+  notifyStatus();
+  try {
+    await work();
+    lastSyncError = null;
+  } catch (err) {
+    lastSyncError = err instanceof Error ? err.message : description;
+    console.error(description, err);
+  } finally {
+    pendingWrites--;
+    notifyStatus();
+  }
+}
+
 /** Push one changed record up to Firestore. Fire-and-forget; safe to call even when sync is inactive. */
 export function pushRecord(table: SyncedTable, record: Syncable): void {
   if (!activeUid || !firestore) return;
   const uid = activeUid;
-  void (async () => {
-    try {
-      const batch = writeBatch(firestore);
-      batch.set(doc(userCollection(uid, table), record.id), record as unknown as Record<string, unknown>);
-      await batch.commit();
-    } catch (err) {
-      console.error(`Firestore push failed for ${table}/${record.id}`, err);
-    }
-  })();
+  const fs = firestore;
+  void trackWrite(`Firestore push failed for ${table}/${record.id}`, async () => {
+    const batch = writeBatch(fs);
+    batch.set(doc(userCollection(uid, table), record.id), record as unknown as Record<string, unknown>);
+    await batch.commit();
+  });
 }
 
 /** Marks a record deleted in Firestore via tombstone rather than removing the doc. */
 export function deleteRecord(table: SyncedTable, id: string): void {
   if (!activeUid || !firestore) return;
+  const uid = activeUid;
   const tombstone: RemoteDoc = { id, deleted: true, updatedAt: nowIso() };
-  setDoc(doc(userCollection(activeUid, table), id), tombstone as unknown as Record<string, unknown>).catch((err) => {
-    console.error(`Firestore delete failed for ${table}/${id}`, err);
+  void trackWrite(`Firestore delete failed for ${table}/${id}`, async () => {
+    await setDoc(doc(userCollection(uid, table), id), tombstone as unknown as Record<string, unknown>);
   });
 }
 

@@ -9,7 +9,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' instead of 'autoUpdate': a background reload the instant a
+      // new deploy lands can silently discard an in-progress, unsaved
+      // journal entry or item edit (drafts live only in React state until
+      // Save is tapped). This ships new versions often enough that the
+      // silent-reload risk is real, not theoretical — UpdatePrompt.tsx lets
+      // the user choose when to pick up the new version instead.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Journall OS',
