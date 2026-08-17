@@ -53,6 +53,7 @@ body {
   background: var(--bg-gradient);
   background-attachment: fixed;
   min-height: 100svh;
+  overflow-x: hidden;
 }
 
 h1, h2, h3 {
@@ -743,6 +744,13 @@ textarea {
   gap: 4px;
   margin-bottom: 18px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.browse-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .browse-tab {
@@ -756,6 +764,15 @@ textarea {
   opacity: 0.6;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .browse-tab {
+    margin-right: 14px;
+    font-size: 14px;
+  }
 }
 
 .browse-tab:hover {
