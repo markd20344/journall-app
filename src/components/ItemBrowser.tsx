@@ -1,5 +1,19 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { addMonths, addWeeks, addYears, format } from "date-fns";
+import {
+  addMonths,
+  addWeeks,
+  addYears,
+  endOfMonth,
+  endOfWeek,
+  endOfYear,
+  format,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  subMonths,
+  subWeeks,
+  subYears,
+} from "date-fns";
 import type { Item, ItemKind, ItemStatus } from "../types";
 import { itemKindMeta, ITEM_KINDS, PRIORITY_ORDER, STATUS_META, statusLabelFor } from "../lib/itemKinds";
 import { useAllItems } from "../hooks/useJournalData";
@@ -50,6 +64,44 @@ function rangeCutoffDate(range: DateRangeValue): string | null {
   return format(cutoff, "yyyy-MM-dd");
 }
 
+// "" = no restriction. Otherwise a backward-looking calendar period —
+// used by Job Apps to review applications by when they were logged rather
+// than what's upcoming.
+type PastRangeValue = "" | "current_week" | "previous_week" | "previous_month" | "previous_6m" | "previous_year";
+
+const PAST_RANGE_OPTIONS: Array<{ value: PastRangeValue; label: string }> = [
+  { value: "", label: "All dates" },
+  { value: "current_week", label: "Current week" },
+  { value: "previous_week", label: "Previous week" },
+  { value: "previous_month", label: "Previous month" },
+  { value: "previous_6m", label: "Previous 6 months" },
+  { value: "previous_year", label: "Previous year" },
+];
+
+function pastRangeBounds(range: PastRangeValue): { start: string; end: string } | null {
+  if (!range) return null;
+  const today = new Date();
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+  if (range === "current_week") {
+    return { start: fmt(startOfWeek(today, { weekStartsOn: 1 })), end: fmt(endOfWeek(today, { weekStartsOn: 1 })) };
+  }
+  if (range === "previous_week") {
+    const lastWeek = subWeeks(today, 1);
+    return { start: fmt(startOfWeek(lastWeek, { weekStartsOn: 1 })), end: fmt(endOfWeek(lastWeek, { weekStartsOn: 1 })) };
+  }
+  if (range === "previous_month") {
+    const lastMonth = subMonths(today, 1);
+    return { start: fmt(startOfMonth(lastMonth)), end: fmt(endOfMonth(lastMonth)) };
+  }
+  if (range === "previous_6m") {
+    return { start: fmt(startOfMonth(subMonths(today, 6))), end: fmt(endOfMonth(subMonths(today, 1))) };
+  }
+  const lastYear = subYears(today, 1);
+  return { start: fmt(startOfYear(lastYear)), end: fmt(endOfYear(lastYear)) };
+}
+
+type AnyDateRangeValue = DateRangeValue | PastRangeValue;
+
 interface Props {
   // Log page creates items; Browse's "Log items" tab is view/edit-only so
   // it doesn't compete for attention with — or duplicate — the create flow
@@ -64,7 +116,12 @@ interface Props {
   // appointments view.
   sortMode?: "status" | "date";
   showDateRangeFilter?: boolean;
-  defaultDateRangeFilter?: DateRangeValue;
+  defaultDateRangeFilter?: AnyDateRangeValue;
+  // "forward" (default) offers Today/Next week/month/… looking ahead — used
+  // by Due and Calendar. "backward" offers Current week/Previous week/
+  // month/6 months/year looking back — used by Job Apps to review past
+  // applications instead of upcoming ones.
+  dateRangeDirection?: "forward" | "backward";
   // Only meaningful with sortMode="date". When true, results are grouped by
   // kindScope's order first (e.g. Booking, then Action, then Diary) before
   // sorting chronologically within each group — used by Calendar. When
@@ -86,6 +143,7 @@ export default function ItemBrowser({
   sortMode = "status",
   showDateRangeFilter = false,
   defaultDateRangeFilter = "",
+  dateRangeDirection = "forward",
   groupByKindPriority = false,
 }: Props) {
   const allItems = useAllItems();
@@ -102,7 +160,7 @@ export default function ItemBrowser({
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(defaultStatusFilter);
   const [projectFilter, setProjectFilter] = useState("");
-  const [dateRangeFilter, setDateRangeFilter] = useState<DateRangeValue>(defaultDateRangeFilter);
+  const [dateRangeFilter, setDateRangeFilter] = useState<AnyDateRangeValue>(defaultDateRangeFilter);
   const [query, setQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [creatingKind, setCreatingKind] = useState<ItemKind | null>(null);
@@ -118,7 +176,8 @@ export default function ItemBrowser({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const today = todayDateString();
-    const cutoff = rangeCutoffDate(dateRangeFilter);
+    const cutoff = dateRangeDirection === "forward" ? rangeCutoffDate(dateRangeFilter as DateRangeValue) : null;
+    const pastBounds = dateRangeDirection === "backward" ? pastRangeBounds(dateRangeFilter as PastRangeValue) : null;
     const items = scopedItems.filter((item) => {
       if (kindFilter && item.kind !== kindFilter) return false;
       if (statusFilter === "not-closed") {
@@ -128,6 +187,7 @@ export default function ItemBrowser({
       }
       if (projectFilter && item.project !== projectFilter) return false;
       if (cutoff && (item.date < today || item.date > cutoff)) return false;
+      if (pastBounds && (item.date < pastBounds.start || item.date > pastBounds.end)) return false;
       if (q && !item.title.toLowerCase().includes(q) && !item.body.toLowerCase().includes(q) && !item.code.toLowerCase().includes(q))
         return false;
       return true;
@@ -150,7 +210,18 @@ export default function ItemBrowser({
       if (aPriority !== bPriority) return aPriority - bPriority;
       return b.date.localeCompare(a.date);
     });
-  }, [scopedItems, kindFilter, statusFilter, projectFilter, dateRangeFilter, query, sortMode, kindScope, groupByKindPriority]);
+  }, [
+    scopedItems,
+    kindFilter,
+    statusFilter,
+    projectFilter,
+    dateRangeFilter,
+    dateRangeDirection,
+    query,
+    sortMode,
+    kindScope,
+    groupByKindPriority,
+  ]);
 
   if (editingItem) {
     return (
@@ -225,7 +296,11 @@ export default function ItemBrowser({
           />
         )}
         {showDateRangeFilter && (
-          <Dropdown value={dateRangeFilter} onChange={(v) => setDateRangeFilter(v as DateRangeValue)} options={DATE_RANGE_OPTIONS} />
+          <Dropdown
+            value={dateRangeFilter}
+            onChange={(v) => setDateRangeFilter(v as AnyDateRangeValue)}
+            options={dateRangeDirection === "backward" ? PAST_RANGE_OPTIONS : DATE_RANGE_OPTIONS}
+          />
         )}
       </div>
 

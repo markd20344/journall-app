@@ -56,18 +56,18 @@ export default function BrowsePage() {
         <button type="button" className={`browse-tab ${tab === "stories" ? "active" : ""}`} onClick={() => setTab("stories")}>
           Stories
         </button>
-        <button
-          type="button"
-          className={`browse-tab ${tab === "applications" ? "active" : ""}`}
-          onClick={() => setTab("applications")}
-        >
-          Applications
-        </button>
         <button type="button" className={`browse-tab ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}>
           Calendar
         </button>
         <button type="button" className={`browse-tab ${tab === "journal" ? "active" : ""}`} onClick={() => setTab("journal")}>
           Journal entries
+        </button>
+        <button
+          type="button"
+          className={`browse-tab ${tab === "applications" ? "active" : ""}`}
+          onClick={() => setTab("applications")}
+        >
+          Job Apps
         </button>
       </div>
 
@@ -86,7 +86,14 @@ export default function BrowsePage() {
       ) : tab === "stories" ? (
         <ItemBrowser key="stories" allowCreate={false} kindScope={STORY_KINDS} defaultStatusFilter="not-closed" />
       ) : tab === "applications" ? (
-        <ItemBrowser key="applications" allowCreate={false} kindScope={APPLICATION_KINDS} defaultStatusFilter="not-closed" />
+        <ItemBrowser
+          key="applications"
+          allowCreate={false}
+          kindScope={APPLICATION_KINDS}
+          defaultStatusFilter="not-closed"
+          showDateRangeFilter
+          dateRangeDirection="backward"
+        />
       ) : tab === "calendar" ? (
         <ItemBrowser
           key="calendar"

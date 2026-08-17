@@ -24,9 +24,9 @@ export interface ItemKindMeta {
 
 // Fixed, semantic colors — unlike categories these carry meaning (risk =
 // red, decision = green) so they aren't user-customizable. Display order
-// (Action, Story, Job Application, Booking, Diary, Risk, Decision,
-// Assumption, Lesson) is deliberate — everywhere these kinds are listed
-// (Log page, Browse filters, spin-off buttons) follows this array's order.
+// (Action, Story, Booking, Diary, Risk, Decision, Assumption, Lesson, Job
+// Application) is deliberate — everywhere these kinds are listed (Log page,
+// Browse filters, spin-off buttons) follows this array's order.
 export const ITEM_KINDS: ItemKindMeta[] = [
   {
     kind: "action",
@@ -55,27 +55,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: true,
     hasApplicationFields: false,
-  },
-  {
-    kind: "application",
-    label: "Job Application",
-    shortLabel: "Job App",
-    color: "#0891b2",
-    codePrefix: "JA",
-    statuses: ["open", "on_hold", "blocked", "closed"],
-    hasTime: false,
-    dateLabel: "Applied on",
-    hasPriority: false,
-    hasProbabilityImpact: false,
-    hasProject: false,
-    hasApplicationFields: true,
-    statusLabels: {
-      open: "Applied",
-      on_hold: "Interviewing",
-      blocked: "Waiting to hear back",
-      closed: "Closed",
-    },
-    notClosedLabel: "Active",
   },
   {
     kind: "event",
@@ -160,6 +139,27 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+  },
+  {
+    kind: "application",
+    label: "Job Application",
+    shortLabel: "Job App",
+    color: "#0891b2",
+    codePrefix: "JA",
+    statuses: ["open", "on_hold", "blocked", "closed"],
+    hasTime: false,
+    dateLabel: "Applied on",
+    hasPriority: false,
+    hasProbabilityImpact: false,
+    hasProject: false,
+    hasApplicationFields: true,
+    statusLabels: {
+      open: "Applied",
+      on_hold: "Interviewing",
+      blocked: "Waiting to hear back",
+      closed: "Closed",
+    },
+    notClosedLabel: "Active",
   },
 ];
 
