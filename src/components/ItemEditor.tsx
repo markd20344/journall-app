@@ -17,6 +17,7 @@ import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
 import { showToast } from "../lib/toast";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
+import Dropdown from "./Dropdown";
 
 function PriorityPicker({
   label,
@@ -216,16 +217,14 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           </label>
         )}
         {meta.statuses.length > 0 && (
-          <label className="field">
+          <div className="field">
             <span className="field-label">Status</span>
-            <select value={status ?? ""} onChange={(e) => setStatus(e.target.value as ItemStatus)}>
-              {meta.statuses.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_META[s].label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Dropdown
+              value={status ?? ""}
+              onChange={(v) => setStatus(v as ItemStatus)}
+              options={meta.statuses.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+            />
+          </div>
         )}
       </div>
 
@@ -347,14 +346,14 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             </div>
           )}
           <div className="add-link-row">
-            <select value={linkPick} onChange={(e) => setLinkPick(e.target.value)}>
-              <option value="">Link to another item…</option>
-              {linkCandidates.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} — {c.title}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              value={linkPick}
+              onChange={setLinkPick}
+              options={[
+                { value: "", label: "Link to another item…" },
+                ...linkCandidates.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` })),
+              ]}
+            />
             <button type="button" disabled={!linkPick} onClick={() => void addLink()}>
               Add link
             </button>

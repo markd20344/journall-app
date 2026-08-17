@@ -4,6 +4,7 @@ import { ITEM_KINDS, PRIORITY_ORDER, STATUS_META } from "../lib/itemKinds";
 import { useAllItems } from "../hooks/useJournalData";
 import ItemCard from "./ItemCard";
 import ItemEditor from "./ItemEditor";
+import Dropdown from "./Dropdown";
 
 // Live first, then Blocked, then Hold, then Closed last (or not shown at all
 // by default — see StatusFilterValue below). Items with no status lifecycle
@@ -116,32 +117,26 @@ export default function ItemBrowser({ allowCreate = true, defaultStatusFilter = 
           onChange={(e) => setQuery(e.target.value)}
           className="search-input"
         />
-        <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as ItemKind | "")}>
-          <option value="">All kinds</option>
-          {ITEM_KINDS.map((k) => (
-            <option key={k.kind} value={k.kind}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}>
-          <option value="">All statuses</option>
-          <option value="not-closed">Live, Blocked &amp; Hold</option>
-          {(Object.keys(STATUS_META) as ItemStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {STATUS_META[s].label}
-            </option>
-          ))}
-        </select>
+        <Dropdown
+          value={kindFilter}
+          onChange={(v) => setKindFilter(v as ItemKind | "")}
+          options={[{ value: "", label: "All kinds" }, ...ITEM_KINDS.map((k) => ({ value: k.kind, label: k.label }))]}
+        />
+        <Dropdown
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as StatusFilterValue)}
+          options={[
+            { value: "", label: "All statuses" },
+            { value: "not-closed", label: "Live, Blocked & Hold" },
+            ...(Object.keys(STATUS_META) as ItemStatus[]).map((s) => ({ value: s, label: STATUS_META[s].label })),
+          ]}
+        />
         {knownProjects.length > 0 && (
-          <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-            <option value="">All projects</option>
-            {knownProjects.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            value={projectFilter}
+            onChange={setProjectFilter}
+            options={[{ value: "", label: "All projects" }, ...knownProjects.map((p) => ({ value: p, label: p }))]}
+          />
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Category } from "../types";
 import { upsertCategory } from "../db/repo";
+import Dropdown from "./Dropdown";
 
 const COLOR_CHOICES = [
   "#6b7280",
@@ -66,24 +67,21 @@ export default function CategorySelect({ categories, value, onChange }: Props) {
   }
 
   return (
-    <select
+    <Dropdown
       className="category-select"
       value={value}
-      onChange={(e) => {
-        if (e.target.value === "__new__") {
+      onChange={(v) => {
+        if (v === "__new__") {
           setAdding(true);
         } else {
-          onChange(e.target.value);
+          onChange(v);
         }
       }}
-    >
-      {categories.length === 0 && <option value="">No categories yet</option>}
-      {categories.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-      <option value="__new__">+ New category…</option>
-    </select>
+      options={[
+        ...(categories.length === 0 ? [{ value: "", label: "No categories yet" }] : []),
+        ...categories.map((c) => ({ value: c.id, label: c.name })),
+        { value: "__new__", label: "+ New category…" },
+      ]}
+    />
   );
 }

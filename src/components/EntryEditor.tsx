@@ -96,10 +96,10 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
           <span className="field-label">Date</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <label className="field">
+        <div className="field">
           <span className="field-label">Category</span>
           <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
-        </label>
+        </div>
       </div>
 
       {entry && (

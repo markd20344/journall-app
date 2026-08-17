@@ -313,6 +313,80 @@ textarea {
   line-height: 1.6;
 }
 
+/* ---------- Custom dropdown (opens on hover, one click to pick) ---------- */
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-raised);
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+}
+
+.dropdown-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-caret {
+  flex-shrink: 0;
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  min-width: 100%;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.dropdown-option {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.dropdown-option:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.dropdown-option.selected {
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .entry-body {
   width: 100%;
   min-height: 260px;
@@ -996,7 +1070,7 @@ textarea {
   margin-top: 10px;
 }
 
-.add-link-row select {
+.add-link-row .dropdown {
   flex: 1;
 }
 
@@ -1076,6 +1150,9 @@ textarea {
 
 .status-select {
   flex-shrink: 0;
+}
+
+.status-select .dropdown-trigger {
   font-size: 12px;
   font-weight: 600;
   padding: 5px 8px;

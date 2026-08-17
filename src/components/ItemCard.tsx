@@ -5,6 +5,7 @@ import { itemKindMeta, PRIORITY_META, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import ItemKindBadge from "./ItemKindBadge";
+import Dropdown from "./Dropdown";
 
 interface Props {
   item: Item;
@@ -78,19 +79,13 @@ export default function ItemCard({ item, onClick }: Props) {
         )}
       </button>
       {meta.statuses.length > 0 && item.status && (
-        <select
+        <Dropdown
           className="status-select"
-          style={{ color: STATUS_META[item.status].color, borderColor: STATUS_META[item.status].color }}
+          triggerStyle={{ color: STATUS_META[item.status].color, borderColor: STATUS_META[item.status].color }}
           value={item.status}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => void setItemStatus(item.id, e.target.value as ItemStatus)}
-        >
-          {meta.statuses.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_META[s].label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => void setItemStatus(item.id, v as ItemStatus)}
+          options={meta.statuses.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+        />
       )}
     </div>
   );

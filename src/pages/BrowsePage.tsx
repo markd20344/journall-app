@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import EntryCard from "../components/EntryCard";
 import EntryEditor from "../components/EntryEditor";
 import ItemBrowser from "../components/ItemBrowser";
+import Dropdown from "../components/Dropdown";
 import { useAllEntries, useCategories, useEnrichedEntries, useTopics } from "../hooks/useJournalData";
 import type { Entry } from "../types";
 
@@ -63,28 +64,19 @@ export default function BrowsePage() {
               onChange={(e) => setQuery(e.target.value)}
               className="search-input"
             />
-            <select
+            <Dropdown
               value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
+              onChange={(v) => {
+                setCategoryId(v);
                 setTopicId("");
               }}
-            >
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <select value={topicId} onChange={(e) => setTopicId(e.target.value)}>
-              <option value="">All topics</option>
-              {topicsForFilter.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+            />
+            <Dropdown
+              value={topicId}
+              onChange={setTopicId}
+              options={[{ value: "", label: "All topics" }, ...topicsForFilter.map((t) => ({ value: t.id, label: t.name }))]}
+            />
             {(query || categoryId || topicId) && (
               <button
                 type="button"
