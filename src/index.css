@@ -1066,6 +1066,7 @@ textarea {
 
 .priority-picker {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -1113,11 +1114,19 @@ textarea {
 
 .item-editor-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
 .item-editor-row .field {
   margin-bottom: 0;
+  /* flex-basis 140px with shrink/grow lets two fields share the row when
+     there's room, but wrap onto their own line rather than force the page
+     wider when they can't — a plain <input type="date"> renders at a fixed
+     minimum width on iOS that doesn't shrink to fit, so without this a
+     date field paired with anything else overflows the screen edge. */
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .item-editor-code-row {
