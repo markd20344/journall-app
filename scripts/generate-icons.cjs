@@ -50,8 +50,8 @@ function buildPng(size, draw) {
   return png;
 }
 
-const ACCENT = [124, 92, 255]; // matches --accent
-const BG = [23, 23, 27]; // matches --text-h (dark background for contrast)
+const ACCENT = [255, 255, 255]; // white glyph
+const BG = [37, 99, 235]; // matches --accent (#2563eb), the app's actual blue branding
 
 function draw(x, y, w, h) {
   const cx = w / 2;
