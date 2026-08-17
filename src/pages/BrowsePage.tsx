@@ -36,11 +36,11 @@ export default function BrowsePage() {
       <h1 className="page-title">Browse</h1>
 
       <div className="browse-tabs">
-        <button type="button" className={`browse-tab ${tab === "journal" ? "active" : ""}`} onClick={() => setTab("journal")}>
-          Journal entries
-        </button>
         <button type="button" className={`browse-tab ${tab === "items" ? "active" : ""}`} onClick={() => setTab("items")}>
           Log items
+        </button>
+        <button type="button" className={`browse-tab ${tab === "journal" ? "active" : ""}`} onClick={() => setTab("journal")}>
+          Journal entries
         </button>
       </div>
 
