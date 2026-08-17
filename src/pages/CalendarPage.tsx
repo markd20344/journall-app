@@ -35,18 +35,18 @@ export default function CalendarPage() {
               <button
                 type="button"
                 className="kind-action-btn"
-                style={{ "--kind-color": itemKindMeta("event").color } as CSSProperties}
-                onClick={() => setMode({ type: "new-item", kind: "event" })}
-              >
-                + Booking
-              </button>
-              <button
-                type="button"
-                className="kind-action-btn"
                 style={{ "--kind-color": itemKindMeta("action").color } as CSSProperties}
                 onClick={() => setMode({ type: "new-item", kind: "action" })}
               >
                 + Action
+              </button>
+              <button
+                type="button"
+                className="kind-action-btn"
+                style={{ "--kind-color": itemKindMeta("event").color } as CSSProperties}
+                onClick={() => setMode({ type: "new-item", kind: "event" })}
+              >
+                + Booking
               </button>
             </div>
           </div>
