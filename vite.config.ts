@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Journall',
-        short_name: 'Journall',
-        description: 'A private, local-first journal.',
+        name: 'Journall OS',
+        short_name: 'Journall OS',
+        description: 'A private, local-first journal, log, calendar, and job tracker.',
         theme_color: '#2563eb',
         background_color: '#eef3fc',
         display: 'standalone',

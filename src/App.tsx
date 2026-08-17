@@ -35,7 +35,7 @@ export default function App() {
     <AuthGate>
       <div className="app-shell">
         <header className="app-header">
-          <span className="app-title">Journall</span>
+          <span className="app-title">Journall OS</span>
           <nav className="app-nav">
             {NAV_ITEMS.map((item) => (
               <button

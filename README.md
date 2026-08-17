@@ -1,4 +1,4 @@
-# Journall
+# Journall OS
 
 A private, local-first journaling app. All entries are stored on your own
 device — nothing is sent to a third-party cloud service.

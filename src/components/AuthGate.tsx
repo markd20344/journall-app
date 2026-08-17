@@ -56,7 +56,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (!user) {
     return (
       <div className="auth-gate">
-        <span className="app-title">Journall</span>
+        <span className="app-title">Journall OS</span>
         <p>Sign in with Google to sync your journal across your PC and phone.</p>
         {error && <p className="auth-error">{error}</p>}
         <button
