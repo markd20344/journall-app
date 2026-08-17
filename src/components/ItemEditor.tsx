@@ -399,7 +399,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         <div className="status-row">
           <span className="status-row-label">Status</span>
           <Dropdown
-            className="status-select"
+            className="status-row-select"
             value={status ?? ""}
             onChange={(v) => setStatus(v as ItemStatus)}
             options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
@@ -463,7 +463,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
               placeholder="Add a dated status update…"
               value={newUpdateNote}
               onChange={(e) => setNewUpdateNote(e.target.value)}
-              rows={10}
+              rows={3}
             />
             <div className="add-update-row">
               <button type="button" className="primary" disabled={!newUpdateNote.trim()} onClick={() => void addUpdate()}>
