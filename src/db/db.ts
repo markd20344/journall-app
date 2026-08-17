@@ -139,6 +139,23 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v7: add agency + source (Job Applications) — plus the "application" kind.
+    this.version(7)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.agency = item.agency ?? null;
+          item.source = item.source ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 

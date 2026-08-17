@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { format } from "date-fns";
 import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate } from "../types";
-import { itemKindMeta, PRIORITY_META, PRIORITY_ORDER, STATUS_META } from "../lib/itemKinds";
+import { itemKindMeta, PRIORITY_META, PRIORITY_ORDER, statusLabelFor } from "../lib/itemKinds";
 import {
   addStatusUpdate,
   createItem,
@@ -77,6 +77,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [probability, setProbability] = useState<Priority | null>(item?.probability ?? null);
   const [impact, setImpact] = useState<Priority | null>(item?.impact ?? null);
   const [project, setProject] = useState(item?.project ?? "");
+  const [agency, setAgency] = useState(item?.agency ?? "");
+  const [source, setSource] = useState(item?.source ?? "");
   const [saving, setSaving] = useState(false);
 
   const allItems = useAllItems();
@@ -85,12 +87,26 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const knownProjects = Array.from(
     new Set(allItems.filter((i) => i.kind === "story" && i.project).map((i) => i.project as string)),
   ).sort((a, b) => a.localeCompare(b));
+  const knownSources = Array.from(
+    new Set(
+      [
+        "LinkedIn",
+        "Indeed",
+        "Company website",
+        "Recruiter / Agency",
+        "Referral",
+        ...allItems.filter((i) => i.kind === "application" && i.source).map((i) => i.source as string),
+      ],
+    ),
+  ).sort((a, b) => a.localeCompare(b));
 
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
     try {
       const trimmedProject = meta.hasProject ? project.trim() || null : null;
+      const trimmedAgency = meta.hasApplicationFields ? agency.trim() || null : null;
+      const trimmedSource = meta.hasApplicationFields ? source.trim() || null : null;
       if (item) {
         await updateItem(item.id, {
           title: title.trim(),
@@ -103,6 +119,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           probability: meta.hasProbabilityImpact ? probability : null,
           impact: meta.hasProbabilityImpact ? impact : null,
           project: trimmedProject,
+          agency: trimmedAgency,
+          source: trimmedSource,
         });
         showToast(`${meta.label} saved`);
         onSaved?.({
@@ -117,6 +135,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           probability: meta.hasProbabilityImpact ? probability : null,
           impact: meta.hasProbabilityImpact ? impact : null,
           project: trimmedProject,
+          agency: trimmedAgency,
+          source: trimmedSource,
         });
       } else {
         const created = await createItem({
@@ -131,6 +151,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           probability: meta.hasProbabilityImpact ? probability : null,
           impact: meta.hasProbabilityImpact ? impact : null,
           project: trimmedProject,
+          agency: trimmedAgency,
+          source: trimmedSource,
         });
         showToast(`${meta.label} saved`);
         onSaved?.(created);
@@ -225,7 +247,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             <Dropdown
               value={status ?? ""}
               onChange={(v) => setStatus(v as ItemStatus)}
-              options={meta.statuses.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+              options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
             />
           </div>
         )}
@@ -247,6 +269,35 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             ))}
           </datalist>
         </label>
+      )}
+
+      {meta.hasApplicationFields && (
+        <div className="item-editor-row">
+          <label className="field">
+            <span className="field-label">Agency / Recruiter</span>
+            <input
+              type="text"
+              placeholder="Who are you applying through?"
+              value={agency}
+              onChange={(e) => setAgency(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Found via</span>
+            <input
+              type="text"
+              list="source-suggestions"
+              placeholder="Where did you find this?"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            />
+            <datalist id="source-suggestions">
+              {knownSources.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </label>
+        </div>
       )}
 
       {meta.hasPriority && <PriorityPicker label="Priority" value={priority} onChange={setPriority} />}

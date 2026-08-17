@@ -4,6 +4,7 @@ import EntryEditor from "../components/EntryEditor";
 import ItemBrowser from "../components/ItemBrowser";
 import Dropdown from "../components/Dropdown";
 import {
+  APPLICATION_KINDS,
   CALENDAR_KINDS,
   DUE_TAB_KINDS,
   LOG_ITEM_KINDS,
@@ -15,7 +16,7 @@ import {
 } from "../hooks/useJournalData";
 import type { Entry } from "../types";
 
-type Tab = "journal" | "due" | "items" | "stories" | "calendar";
+type Tab = "journal" | "due" | "items" | "stories" | "applications" | "calendar";
 
 export default function BrowsePage() {
   const [tab, setTab] = useState<Tab>("due");
@@ -55,6 +56,13 @@ export default function BrowsePage() {
         <button type="button" className={`browse-tab ${tab === "stories" ? "active" : ""}`} onClick={() => setTab("stories")}>
           Stories
         </button>
+        <button
+          type="button"
+          className={`browse-tab ${tab === "applications" ? "active" : ""}`}
+          onClick={() => setTab("applications")}
+        >
+          Applications
+        </button>
         <button type="button" className={`browse-tab ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}>
           Calendar
         </button>
@@ -77,6 +85,8 @@ export default function BrowsePage() {
         <ItemBrowser key="items" allowCreate={false} kindScope={LOG_ITEM_KINDS} defaultStatusFilter="not-closed" />
       ) : tab === "stories" ? (
         <ItemBrowser key="stories" allowCreate={false} kindScope={STORY_KINDS} defaultStatusFilter="not-closed" />
+      ) : tab === "applications" ? (
+        <ItemBrowser key="applications" allowCreate={false} kindScope={APPLICATION_KINDS} defaultStatusFilter="not-closed" />
       ) : tab === "calendar" ? (
         <ItemBrowser
           key="calendar"

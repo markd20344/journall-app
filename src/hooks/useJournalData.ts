@@ -57,6 +57,11 @@ export const LOG_ITEM_KINDS: ItemKind[] = ["action", "risk", "decision", "assump
 // as a dedicated story backlog rather than mixed in with everything else.
 export const STORY_KINDS: ItemKind[] = ["story"];
 
+// Entries' "Applications" tab — job applications live only here, same
+// treatment as Stories, so tracking them doesn't clutter the general
+// work-item views.
+export const APPLICATION_KINDS: ItemKind[] = ["application"];
+
 // Entries' "Due" tab — everything with a due/logged date that isn't a Story
 // or a journal entry, so "what's due in period X" doesn't require flipping
 // between the Log items and Calendar tabs. Stories are deliberately left

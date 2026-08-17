@@ -172,6 +172,8 @@ export async function createItem(input: {
   probability?: Priority | null;
   impact?: Priority | null;
   project?: string | null;
+  agency?: string | null;
+  source?: string | null;
 }): Promise<Item> {
   const ts = nowIso();
   const meta = itemKindMeta(input.kind);
@@ -194,6 +196,8 @@ export async function createItem(input: {
     probability: input.probability ?? null,
     impact: input.impact ?? null,
     project: input.project ?? null,
+    agency: input.agency ?? null,
+    source: input.source ?? null,
     createdAt: ts,
     updatedAt: ts,
   };
@@ -205,7 +209,21 @@ export async function createItem(input: {
 export async function updateItem(
   id: string,
   changes: Partial<
-    Pick<Item, "title" | "body" | "date" | "time" | "status" | "closureNote" | "priority" | "probability" | "impact" | "project">
+    Pick<
+      Item,
+      | "title"
+      | "body"
+      | "date"
+      | "time"
+      | "status"
+      | "closureNote"
+      | "priority"
+      | "probability"
+      | "impact"
+      | "project"
+      | "agency"
+      | "source"
+    >
   >,
 ): Promise<void> {
   const ts = nowIso();

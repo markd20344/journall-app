@@ -12,13 +12,21 @@ export interface ItemKindMeta {
   hasPriority: boolean; // single High/Medium/Low priority (RAG)
   hasProbabilityImpact: boolean; // separate High/Medium/Low probability + impact (Risks)
   hasProject: boolean; // free-form project/app label (Stories)
+  hasApplicationFields: boolean; // Agency/Recruiter + Source fields (Job Applications)
+  // Per-kind display text for the shared open/on_hold/blocked/closed status
+  // values — lets a kind read as its own domain-specific lifecycle (Job
+  // Applications: Applied/Interviewing/Waiting to hear back/Closed) without
+  // introducing a second status type. Falls back to STATUS_META's generic
+  // label when a kind doesn't override it.
+  statusLabels?: Partial<Record<ItemStatus, string>>;
+  notClosedLabel?: string; // override for the "not-closed" composite filter option
 }
 
 // Fixed, semantic colors — unlike categories these carry meaning (risk =
 // red, decision = green) so they aren't user-customizable. Display order
-// (Action, Story, Booking, Diary, Risk, Decision, Assumption, Lesson) is
-// deliberate — everywhere these kinds are listed (Log page, Browse
-// filters, spin-off buttons) follows this array's order.
+// (Action, Story, Job Application, Booking, Diary, Risk, Decision,
+// Assumption, Lesson) is deliberate — everywhere these kinds are listed
+// (Log page, Browse filters, spin-off buttons) follows this array's order.
 export const ITEM_KINDS: ItemKindMeta[] = [
   {
     kind: "action",
@@ -32,6 +40,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: true,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "story",
@@ -45,6 +54,28 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: true,
     hasProbabilityImpact: false,
     hasProject: true,
+    hasApplicationFields: false,
+  },
+  {
+    kind: "application",
+    label: "Job Application",
+    shortLabel: "Job App",
+    color: "#0891b2",
+    codePrefix: "JA",
+    statuses: ["open", "on_hold", "blocked", "closed"],
+    hasTime: false,
+    dateLabel: "Applied on",
+    hasPriority: false,
+    hasProbabilityImpact: false,
+    hasProject: false,
+    hasApplicationFields: true,
+    statusLabels: {
+      open: "Applied",
+      on_hold: "Interviewing",
+      blocked: "Waiting to hear back",
+      closed: "Closed",
+    },
+    notClosedLabel: "Active",
   },
   {
     kind: "event",
@@ -58,6 +89,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: false,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "diary",
@@ -71,6 +103,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: false,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "risk",
@@ -84,6 +117,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: false,
     hasProbabilityImpact: true,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "decision",
@@ -97,6 +131,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: true,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "assumption",
@@ -110,6 +145,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: false,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
   {
     kind: "lesson",
@@ -123,6 +159,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasPriority: false,
     hasProbabilityImpact: false,
     hasProject: false,
+    hasApplicationFields: false,
   },
 ];
 
@@ -146,6 +183,12 @@ export const STATUS_META: Record<ItemStatus, StatusMeta> = {
   blocked: { status: "blocked", label: "Blocked", color: "#dc2626" },
   closed: { status: "closed", label: "Closed", color: "#16a34a" },
 };
+
+// A kind's own wording for a status value (e.g. Job Applications show
+// "Interviewing" instead of "On hold"), falling back to the generic label.
+export function statusLabelFor(kind: ItemKind, status: ItemStatus): string {
+  return itemKindMeta(kind).statusLabels?.[status] ?? STATUS_META[status].label;
+}
 
 export interface PriorityMeta {
   priority: Priority;

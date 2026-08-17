@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { addMonths, addWeeks, addYears, format } from "date-fns";
 import type { Item, ItemKind, ItemStatus } from "../types";
-import { ITEM_KINDS, PRIORITY_ORDER, STATUS_META } from "../lib/itemKinds";
+import { itemKindMeta, ITEM_KINDS, PRIORITY_ORDER, STATUS_META, statusLabelFor } from "../lib/itemKinds";
 import { useAllItems } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
 import ItemCard from "./ItemCard";
@@ -94,6 +94,10 @@ export default function ItemBrowser({
     [allItems, kindScope],
   );
   const kindOptions = kindScope ? ITEM_KINDS.filter((k) => kindScope.includes(k.kind)) : ITEM_KINDS;
+  // When scoped to exactly one kind (e.g. Stories, Applications), the status
+  // filter can use that kind's own wording (e.g. "Interviewing") instead of
+  // the generic Open/Blocked/Hold labels.
+  const singleKind = kindScope && kindScope.length === 1 ? kindScope[0] : null;
 
   const [kindFilter, setKindFilter] = useState<ItemKind | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(defaultStatusFilter);
@@ -203,8 +207,14 @@ export default function ItemBrowser({
           onChange={(v) => setStatusFilter(v as StatusFilterValue)}
           options={[
             { value: "", label: "All statuses" },
-            { value: "not-closed", label: "Live, Blocked & Hold" },
-            ...(Object.keys(STATUS_META) as ItemStatus[]).map((s) => ({ value: s, label: STATUS_META[s].label })),
+            {
+              value: "not-closed",
+              label: singleKind ? (itemKindMeta(singleKind).notClosedLabel ?? "Live, Blocked & Hold") : "Live, Blocked & Hold",
+            },
+            ...(Object.keys(STATUS_META) as ItemStatus[]).map((s) => ({
+              value: s,
+              label: singleKind ? statusLabelFor(singleKind, s) : STATUS_META[s].label,
+            })),
           ]}
         />
         {knownProjects.length > 0 && (

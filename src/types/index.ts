@@ -38,7 +38,7 @@ export interface EntryWithRefs extends Entry {
 // uses the same shape; fields that don't apply to a given kind are simply
 // left blank (e.g. `status` is null for kinds with no lifecycle, `time`
 // only matters for "event").
-export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event" | "story" | "diary";
+export type ItemKind = "lesson" | "action" | "risk" | "assumption" | "decision" | "event" | "story" | "diary" | "application";
 
 // Shared RAG scale — used as a priority on Actions/Decisions/Stories, and
 // as separate probability/impact ratings on Risks.
@@ -75,6 +75,8 @@ export interface Item {
   probability: Priority | null; // Risks only
   impact: Priority | null; // Risks only
   project: string | null; // Stories only — free-form project/app label, reused via autocomplete
+  agency: string | null; // Job Applications only — recruiter/agency applied through
+  source: string | null; // Job Applications only — where the opportunity was found
   createdAt: string;
   updatedAt: string;
 }

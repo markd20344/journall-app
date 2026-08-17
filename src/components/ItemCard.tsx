@@ -1,7 +1,7 @@
 import { differenceInCalendarDays, format } from "date-fns";
 import type { CSSProperties } from "react";
 import type { Item, ItemStatus } from "../types";
-import { itemKindMeta, PRIORITY_META, STATUS_META } from "../lib/itemKinds";
+import { itemKindMeta, PRIORITY_META, statusLabelFor, STATUS_META } from "../lib/itemKinds";
 import { setItemStatus } from "../db/repo";
 import { useAllItems } from "../hooks/useJournalData";
 import ItemKindBadge from "./ItemKindBadge";
@@ -44,6 +44,8 @@ export default function ItemCard({ item, onClick }: Props) {
           {item.sourceEntryId && <span className="linked-badge">from journal</span>}
           {agingLabel && <span className="linked-badge">{agingLabel}</span>}
           {item.project && <span className="project-badge">{item.project}</span>}
+          {item.agency && <span className="linked-badge">Agency: {item.agency}</span>}
+          {item.source && <span className="linked-badge">via {item.source}</span>}
           {item.priority && (
             <span className="rag-badge" style={{ "--rag-color": PRIORITY_META[item.priority].color } as CSSProperties}>
               {PRIORITY_META[item.priority].label}
@@ -84,7 +86,7 @@ export default function ItemCard({ item, onClick }: Props) {
           triggerStyle={{ color: STATUS_META[item.status].color, borderColor: STATUS_META[item.status].color }}
           value={item.status}
           onChange={(v) => void setItemStatus(item.id, v as ItemStatus)}
-          options={meta.statuses.map((s) => ({ value: s, label: STATUS_META[s].label }))}
+          options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(item.kind, s) }))}
         />
       )}
     </div>
