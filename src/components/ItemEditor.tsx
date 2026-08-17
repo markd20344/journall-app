@@ -16,7 +16,7 @@ import {
 } from "../db/repo";
 import { useAllItems, useCategories } from "../hooks/useJournalData";
 import { todayDateString } from "../lib/id";
-import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
+import { appendDictatedPhrase, appendDictatedSentence, ensureSentenceEnd } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
@@ -69,7 +69,11 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [title, setTitle] = useState(item?.title ?? "");
   const [body, setBody] = useState(item?.body ?? "");
   const { onTranscript: onTitleTranscript, endSession: endTitleDictation } = useDictation(setTitle, appendDictatedPhrase);
-  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(setBody, appendDictatedSentence);
+  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(
+    setBody,
+    appendDictatedSentence,
+    ensureSentenceEnd,
+  );
   const [date, setDate] = useState(item?.date ?? defaultDate ?? todayDateString());
   const [time, setTime] = useState(item?.time ?? "");
   const [status, setStatus] = useState<ItemStatus | null>(item?.status ?? (meta.statuses[0] ?? null));
@@ -286,6 +290,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         placeholder={`${meta.label} title…`}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+        autoCapitalize="sentences"
+        spellCheck
         autoFocus
       />
       <div className="field-voice-row">
@@ -298,6 +304,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           placeholder="Details…"
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          autoCapitalize="sentences"
+          spellCheck
           rows={10}
         />
         <div className="field-voice-row field-voice-row-multi">
@@ -417,6 +425,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             placeholder="What was the outcome / how was this resolved…"
             value={closureNote}
             onChange={(e) => setClosureNote(e.target.value)}
+            autoCapitalize="sentences"
+            spellCheck
             rows={4}
           />
         </label>
@@ -463,6 +473,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
               placeholder="Add a dated status update…"
               value={newUpdateNote}
               onChange={(e) => setNewUpdateNote(e.target.value)}
+              autoCapitalize="sentences"
+              spellCheck
               rows={3}
             />
             <div className="add-update-row">

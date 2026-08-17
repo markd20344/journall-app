@@ -37,3 +37,16 @@ export function appendDictatedPhrase(existing: string, chunk: string): string {
   if (!trimmedExisting) return capitalizeFirst(trimmedChunk);
   return `${trimmedExisting} ${trimmedChunk}`;
 }
+
+/**
+ * Run once when a dictation session ends (mic stopped), on prose fields
+ * only. The Web Speech API never terminates a transcript with punctuation,
+ * and appendDictatedSentence only inserts a full stop *between* chunks — so
+ * without this, the very last thing you dictated is always left hanging
+ * with no closing punctuation.
+ */
+export function ensureSentenceEnd(text: string): string {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return trimmed;
+  return ENDS_WITH_SENTENCE_STOP.test(trimmed) ? trimmed : `${trimmed}.`;
+}

@@ -6,8 +6,15 @@ import type { Dispatch, SetStateAction } from "react";
 // on every partial update (so text appears as the user speaks), then
 // replaced by the properly punctuated/capitalized version once the browser
 // finalizes that phrase. `endSession` must be called when dictation stops
-// so the next session captures a fresh base instead of replaying over it.
-export function useDictation(setValue: Dispatch<SetStateAction<string>>, appendFn: (existing: string, chunk: string) => string) {
+// so the next session captures a fresh base instead of replaying over it —
+// on prose fields it also runs `finalizeFn` (see dictation.ts's
+// ensureSentenceEnd) one last time, since the Web Speech API never leaves a
+// transcript with closing punctuation on its own.
+export function useDictation(
+  setValue: Dispatch<SetStateAction<string>>,
+  appendFn: (existing: string, chunk: string) => string,
+  finalizeFn?: (text: string) => string,
+) {
   const baseRef = useRef<string | null>(null);
   const committedRef = useRef("");
 
@@ -27,8 +34,10 @@ export function useDictation(setValue: Dispatch<SetStateAction<string>>, appendF
   }
 
   function endSession() {
+    const wasDictating = baseRef.current !== null;
     baseRef.current = null;
     committedRef.current = "";
+    if (wasDictating && finalizeFn) setValue((prev) => finalizeFn(prev));
   }
 
   return { onTranscript, endSession };

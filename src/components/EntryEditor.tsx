@@ -5,7 +5,7 @@ import { useCategories, useTopicsForCategory } from "../hooks/useJournalData";
 import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/repo";
 import { db } from "../db/db";
 import { todayDateString } from "../lib/id";
-import { appendDictatedSentence } from "../lib/dictation";
+import { appendDictatedSentence, ensureSentenceEnd } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
@@ -59,7 +59,11 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
 
-  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(setBody, appendDictatedSentence);
+  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(
+    setBody,
+    appendDictatedSentence,
+    ensureSentenceEnd,
+  );
 
   async function handleSave() {
     if (!categoryId || body.trim().length === 0) return;
@@ -122,6 +126,8 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
           placeholder="What's on your mind?"
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          autoCapitalize="sentences"
+          spellCheck
           rows={10}
           autoFocus
         />
