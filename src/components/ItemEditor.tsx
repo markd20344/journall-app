@@ -102,7 +102,13 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
 
   const allItems = useAllItems();
   const linkedItems = linkedIds.map((id) => allItems.find((i) => i.id === id)).filter((i): i is Item => Boolean(i));
-  const linkCandidates = item ? allItems.filter((i) => i.id !== item.id && !linkedIds.includes(i.id)) : [];
+  // Closed items are rarely what you meant to link to, and the list only
+  // grows — excluding them keeps it useful instead of an ever-lengthening
+  // scroll of finished work. (Kinds with no lifecycle, e.g. Diary, have a
+  // null status and are never "closed", so they stay included.)
+  const linkCandidates = item
+    ? allItems.filter((i) => i.id !== item.id && !linkedIds.includes(i.id) && i.status !== "closed")
+    : [];
   const knownProjects = Array.from(
     new Set(allItems.filter((i) => i.kind === "story" && i.project).map((i) => i.project as string)),
   ).sort((a, b) => a.localeCompare(b));
@@ -288,28 +294,12 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
         </div>
       </div>
-      <div className="item-editor-row">
-        <label className="field">
-          <span className="field-label">{meta.dateLabel}</span>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        {meta.hasTime && (
-          <label className="field">
-            <span className="field-label">Time</span>
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </label>
-        )}
-        {meta.statuses.length > 0 && (
-          <div className="field">
-            <span className="field-label">Status</span>
-            <Dropdown
-              value={status ?? ""}
-              onChange={(v) => setStatus(v as ItemStatus)}
-              options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
-            />
-          </div>
-        )}
-      </div>
+      {/* Classification first — what this is and how important it is — since
+          that's what you actually decide right after writing the entry.
+          Scheduling (due date) and status (below, existing items only) come
+          after: date defaults sensibly already, and status is something you
+          come back to change, not something you set while logging. */}
+      {meta.hasPriority && <PriorityPicker label="Priority" value={priority} onChange={setPriority} />}
 
       {meta.hasCategory && (
         <div className="field">
@@ -365,8 +355,6 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         </div>
       )}
 
-      {meta.hasPriority && <PriorityPicker label="Priority" value={priority} onChange={setPriority} />}
-
       {meta.hasProbabilityImpact && (
         <div className="item-editor-row">
           <PriorityPicker label="Probability" value={probability} onChange={setProbability} />
@@ -374,7 +362,37 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         </div>
       )}
 
+      <div className="item-editor-row">
+        <label className="field">
+          <span className="field-label">{meta.dateLabel}</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        {meta.hasTime && (
+          <label className="field">
+            <span className="field-label">Time</span>
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </label>
+        )}
+      </div>
+
       {item && <p className="entry-timestamp">Logged {format(new Date(item.createdAt), "MMM d, yyyy · h:mm a")}</p>}
+
+      {/* Status only appears once an item exists — you wouldn't set it while
+          just logging something, only later if it needs to change (blocked,
+          on hold, closed). Kept small and quiet rather than styled like the
+          fields above, but still right here, one tap from Save, so closing
+          something out doesn't take any hunting. */}
+      {item && meta.statuses.length > 0 && (
+        <div className="status-row">
+          <span className="status-row-label">Status</span>
+          <Dropdown
+            className="status-select"
+            value={status ?? ""}
+            onChange={(v) => setStatus(v as ItemStatus)}
+            options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
+          />
+        </div>
+      )}
 
       {status === "closed" && (
         <label className="field">
@@ -505,7 +523,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
       {item ? (
         <div className="link-section">
           <span className="field-label">Linked items</span>
-          {linkedItems.length > 0 && (
+          {linkedItems.length > 0 ? (
             <div className="topic-chips linked-item-chips">
               {linkedItems.map((li) => (
                 <span className="chip" key={li.id}>
@@ -522,6 +540,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
                 </span>
               ))}
             </div>
+          ) : (
+            <p className="settings-hint small">Not linked to anything yet.</p>
           )}
 
           {spinOffKind ? (
@@ -533,19 +553,21 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
             />
           ) : (
             <>
-              <span className="field-label">Spin off a new linked item</span>
-              <div className="spin-off-buttons">
-                {ITEM_KINDS.map((k) => (
-                  <button
-                    key={k.kind}
-                    type="button"
-                    className="kind-action-btn"
-                    style={{ "--kind-color": k.color } as CSSProperties}
-                    onClick={() => setSpinOffKind(k.kind)}
-                  >
-                    + {k.shortLabel}
-                  </button>
-                ))}
+              <div className="link-subsection">
+                <span className="field-label">Spin off a new linked item</span>
+                <div className="spin-off-buttons">
+                  {ITEM_KINDS.map((k) => (
+                    <button
+                      key={k.kind}
+                      type="button"
+                      className="kind-action-btn"
+                      style={{ "--kind-color": k.color } as CSSProperties}
+                      onClick={() => setSpinOffKind(k.kind)}
+                    >
+                      + {k.shortLabel}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="add-link-row">
                 <Dropdown

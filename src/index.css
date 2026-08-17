@@ -1118,6 +1118,33 @@ textarea {
   padding-top: 16px;
 }
 
+.link-subsection {
+  margin-top: 18px;
+}
+
+.link-subsection .field-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Status is something you come back to change, not something you set while
+   logging — kept visually quiet, not styled like the fields above it. */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+
+.status-row-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .closed-at {
   text-transform: none;
   font-weight: 400;
