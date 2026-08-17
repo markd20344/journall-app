@@ -749,16 +749,10 @@ textarea {
 
 .browse-tabs {
   display: flex;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 4px 0;
   margin-bottom: 18px;
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.browse-tabs::-webkit-scrollbar {
-  display: none;
 }
 
 .browse-tab {
@@ -773,7 +767,6 @@ textarea {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 @media (max-width: 480px) {
