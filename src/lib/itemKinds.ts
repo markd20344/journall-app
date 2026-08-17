@@ -14,6 +14,7 @@ export interface ItemKindMeta {
   hasProject: boolean; // free-form project/app label (Stories)
   hasApplicationFields: boolean; // Agency/Recruiter + Source fields (Job Applications)
   hasCategory: boolean; // Category picker, reusing the same Category table journal entries use (Tasks)
+  hasSubtasks: boolean; // Lightweight checklist with a ballpark % complete (Tasks)
   // True for kinds that are pure historical record, not a task with a
   // lifecycle (Diary, Lesson) — they never have a status to close, so
   // without this they'd sit in the Due tab forever. When true, the Due tab
@@ -52,6 +53,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: true,
+    hasSubtasks: true,
     referenceOnly: false,
   },
   {
@@ -68,6 +70,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: true,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
   },
   {
@@ -84,6 +87,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
   },
   {
@@ -100,6 +104,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: true,
   },
   {
@@ -116,6 +121,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
   },
   {
@@ -132,6 +138,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
   },
   {
@@ -148,6 +155,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
   },
   {
@@ -164,6 +172,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: false,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: true,
   },
   {
@@ -180,6 +189,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProject: false,
     hasApplicationFields: true,
     hasCategory: false,
+    hasSubtasks: false,
     referenceOnly: false,
     statusLabels: {
       open: "Applied",

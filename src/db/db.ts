@@ -173,6 +173,23 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v9: add subtasks (Tasks) — a lightweight checklist for a ballpark %
+    // complete, not full Items of their own.
+    this.version(9)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.subtasks = item.subtasks ?? [];
+        }
+        await tx.table("items").bulkPut(items);
+      });
   }
 }
 

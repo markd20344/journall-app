@@ -2,7 +2,7 @@
 // file-sync and Firestore sync layers can do simple last-write-wins conflict
 // resolution, and mirrors the change to Firestore (a no-op when signed out).
 import { db } from "./db";
-import type { Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Topic } from "../types";
+import type { Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Subtask, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 import { deleteRecord, pushRecord } from "../firebase/sync";
@@ -200,6 +200,7 @@ export async function createItem(input: {
     agency: input.agency ?? null,
     source: input.source ?? null,
     categoryId: input.categoryId ?? null,
+    subtasks: [],
     createdAt: ts,
     updatedAt: ts,
   };
@@ -248,15 +249,16 @@ export async function setItemStatus(id: string, status: ItemStatus): Promise<voi
   await updateItem(id, { status });
 }
 
-export async function addStatusUpdate(itemId: string, note: string): Promise<void> {
+export async function addStatusUpdate(itemId: string, note: string): Promise<StatusUpdate | null> {
   const trimmed = note.trim();
-  if (!trimmed) return;
+  if (!trimmed) return null;
   const item = await db.items.get(itemId);
-  if (!item) return;
+  if (!item) return null;
   const update: StatusUpdate = { id: newId(), note: trimmed, createdAt: nowIso() };
   await db.items.update(itemId, { statusUpdates: [...item.statusUpdates, update], updatedAt: nowIso() });
   const updated = await db.items.get(itemId);
   if (updated) pushRecord("items", updated);
+  return update;
 }
 
 export async function deleteStatusUpdate(itemId: string, updateId: string): Promise<void> {
@@ -264,6 +266,40 @@ export async function deleteStatusUpdate(itemId: string, updateId: string): Prom
   if (!item) return;
   await db.items.update(itemId, {
     statusUpdates: item.statusUpdates.filter((u) => u.id !== updateId),
+    updatedAt: nowIso(),
+  });
+  const updated = await db.items.get(itemId);
+  if (updated) pushRecord("items", updated);
+}
+
+export async function addSubtask(itemId: string, title: string): Promise<Subtask | null> {
+  const trimmed = title.trim();
+  if (!trimmed) return null;
+  const item = await db.items.get(itemId);
+  if (!item) return null;
+  const subtask: Subtask = { id: newId(), title: trimmed, done: false, createdAt: nowIso() };
+  await db.items.update(itemId, { subtasks: [...item.subtasks, subtask], updatedAt: nowIso() });
+  const updated = await db.items.get(itemId);
+  if (updated) pushRecord("items", updated);
+  return subtask;
+}
+
+export async function toggleSubtask(itemId: string, subtaskId: string, done: boolean): Promise<void> {
+  const item = await db.items.get(itemId);
+  if (!item) return;
+  await db.items.update(itemId, {
+    subtasks: item.subtasks.map((s) => (s.id === subtaskId ? { ...s, done } : s)),
+    updatedAt: nowIso(),
+  });
+  const updated = await db.items.get(itemId);
+  if (updated) pushRecord("items", updated);
+}
+
+export async function deleteSubtask(itemId: string, subtaskId: string): Promise<void> {
+  const item = await db.items.get(itemId);
+  if (!item) return;
+  await db.items.update(itemId, {
+    subtasks: item.subtasks.filter((s) => s.id !== subtaskId),
     updatedAt: nowIso(),
   });
   const updated = await db.items.get(itemId);

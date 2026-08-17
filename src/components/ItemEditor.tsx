@@ -1,18 +1,21 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { format } from "date-fns";
-import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate } from "../types";
+import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate, Subtask } from "../types";
 import { ITEM_KINDS, itemKindMeta, PRIORITY_META, PRIORITY_ORDER, statusLabelFor } from "../lib/itemKinds";
 import {
   addStatusUpdate,
+  addSubtask,
   createItem,
   deleteItem,
   deleteStatusUpdate,
+  deleteSubtask,
   linkItems,
+  toggleSubtask,
   unlinkItems,
   updateItem,
 } from "../db/repo";
 import { useAllItems, useCategories } from "../hooks/useJournalData";
-import { newId, nowIso, todayDateString } from "../lib/id";
+import { todayDateString } from "../lib/id";
 import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
 import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
@@ -75,6 +78,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [spinOffKind, setSpinOffKind] = useState<ItemKind | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>(item?.statusUpdates ?? []);
   const [newUpdateNote, setNewUpdateNote] = useState("");
+  const [subtasks, setSubtasks] = useState<Subtask[]>(item?.subtasks ?? []);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [priority, setPriority] = useState<Priority | null>(item?.priority ?? null);
   const [probability, setProbability] = useState<Priority | null>(item?.probability ?? null);
   const [impact, setImpact] = useState<Priority | null>(item?.impact ?? null);
@@ -213,8 +218,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     if (!item || !newUpdateNote.trim()) return;
     const note = newUpdateNote.trim();
     setNewUpdateNote("");
-    await addStatusUpdate(item.id, note);
-    setStatusUpdates((prev) => [...prev, { id: newId(), note, createdAt: nowIso() }]);
+    const created = await addStatusUpdate(item.id, note);
+    if (created) setStatusUpdates((prev) => [...prev, created]);
   }
 
   async function removeUpdate(updateId: string) {
@@ -222,6 +227,29 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     setStatusUpdates((prev) => prev.filter((u) => u.id !== updateId));
     await deleteStatusUpdate(item.id, updateId);
   }
+
+  async function addSubtaskRow() {
+    if (!item || !newSubtaskTitle.trim()) return;
+    const title = newSubtaskTitle.trim();
+    setNewSubtaskTitle("");
+    const created = await addSubtask(item.id, title);
+    if (created) setSubtasks((prev) => [...prev, created]);
+  }
+
+  async function toggleSubtaskRow(subtaskId: string, done: boolean) {
+    if (!item) return;
+    setSubtasks((prev) => prev.map((s) => (s.id === subtaskId ? { ...s, done } : s)));
+    await toggleSubtask(item.id, subtaskId, done);
+  }
+
+  async function removeSubtask(subtaskId: string) {
+    if (!item) return;
+    setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
+    await deleteSubtask(item.id, subtaskId);
+  }
+
+  const subtaskDoneCount = subtasks.filter((s) => s.done).length;
+  const subtaskPercent = subtasks.length > 0 ? Math.round((subtaskDoneCount / subtasks.length) * 100) : 0;
 
   return (
     <div className="item-editor">
@@ -405,6 +433,65 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
                 Add update
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {item && meta.hasSubtasks && (
+        <div className="link-section">
+          <div className="subtask-header">
+            <span className="field-label">Subtasks</span>
+            {subtasks.length > 0 && (
+              <span className="subtask-count">
+                {subtaskDoneCount}/{subtasks.length} · {subtaskPercent}%
+              </span>
+            )}
+          </div>
+          {subtasks.length > 0 && (
+            <div className="subtask-progress-track">
+              <div className="subtask-progress-fill" style={{ width: `${subtaskPercent}%` }} />
+            </div>
+          )}
+          {subtasks.length > 0 && (
+            <ul className="subtask-list">
+              {subtasks.map((s) => (
+                <li key={s.id} className={`subtask-row ${s.done ? "done" : ""}`}>
+                  <label className="subtask-check">
+                    <input
+                      type="checkbox"
+                      checked={s.done}
+                      onChange={(e) => void toggleSubtaskRow(s.id, e.target.checked)}
+                    />
+                    <span className="subtask-title">{s.title}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="chip-remove"
+                    aria-label={`Delete subtask ${s.title}`}
+                    onClick={() => void removeSubtask(s.id)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="add-link-row">
+            <input
+              type="text"
+              placeholder="Add a subtask…"
+              value={newSubtaskTitle}
+              onChange={(e) => setNewSubtaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void addSubtaskRow();
+                }
+              }}
+            />
+            <button type="button" disabled={!newSubtaskTitle.trim()} onClick={() => void addSubtaskRow()}>
+              Add subtask
+            </button>
           </div>
         </div>
       )}

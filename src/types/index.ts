@@ -57,6 +57,17 @@ export interface StatusUpdate {
   createdAt: string; // ISO timestamp
 }
 
+// A lightweight checklist item under a Task — deliberately not a full Item
+// (no date/priority/status lifecycle of its own): it exists to give a
+// ballpark sense of how much of a task is done, not to be tracked
+// independently elsewhere in the app.
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+  createdAt: string; // ISO timestamp
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;
@@ -78,6 +89,7 @@ export interface Item {
   agency: string | null; // Job Applications only — recruiter/agency applied through
   source: string | null; // Job Applications only — where the opportunity was found
   categoryId: string | null; // Tasks only — same Category table journal entries use
+  subtasks: Subtask[]; // Tasks only — lightweight checklist, drives a ballpark % complete
   createdAt: string;
   updatedAt: string;
 }
