@@ -167,6 +167,7 @@ export async function createItem(input: {
   date?: string;
   time?: string;
   sourceEntryId?: string | null;
+  status?: ItemStatus | null;
   priority?: Priority | null;
   probability?: Priority | null;
   impact?: Priority | null;
@@ -174,6 +175,7 @@ export async function createItem(input: {
 }): Promise<Item> {
   const ts = nowIso();
   const meta = itemKindMeta(input.kind);
+  const status = input.status !== undefined ? input.status : meta.statuses.length > 0 ? "open" : null;
   const item: Item = {
     id: newId(),
     kind: input.kind,
@@ -182,9 +184,9 @@ export async function createItem(input: {
     body: input.body ?? "",
     date: input.date ?? ts.slice(0, 10),
     time: input.time ?? "",
-    status: meta.statuses.length > 0 ? "open" : null,
+    status,
     statusUpdates: [],
-    closedAt: null,
+    closedAt: status === "closed" ? ts : null,
     closureNote: "",
     linkedItemIds: [],
     sourceEntryId: input.sourceEntryId ?? null,

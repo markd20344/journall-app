@@ -122,6 +122,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           date,
           time,
           sourceEntryId: sourceEntryId ?? null,
+          status,
           priority: meta.hasPriority ? priority : null,
           probability: meta.hasProbabilityImpact ? probability : null,
           impact: meta.hasProbabilityImpact ? impact : null,
