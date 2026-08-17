@@ -6,6 +6,7 @@ import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/
 import { db } from "../db/db";
 import { todayDateString } from "../lib/id";
 import { appendDictatedSentence } from "../lib/dictation";
+import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import CategorySelect from "./CategorySelect";
 import TopicTagInput from "./TopicTagInput";
@@ -57,9 +58,7 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
 
-  function appendTranscript(text: string) {
-    setBody((prev) => appendDictatedSentence(prev, text));
-  }
+  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(setBody, appendDictatedSentence);
 
   async function handleSave() {
     if (!categoryId || body.trim().length === 0) return;
@@ -112,10 +111,7 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
       </label>
 
       <div className="field">
-        <div className="field-label-row">
-          <span className="field-label">Entry</span>
-          <VoiceButton onTranscript={appendTranscript} />
-        </div>
+        <span className="field-label">Entry</span>
         <textarea
           className="entry-body"
           placeholder="What's on your mind?"
@@ -124,6 +120,9 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
           rows={10}
           autoFocus
         />
+        <div className="field-voice-row field-voice-row-end">
+          <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
+        </div>
       </div>
 
       <div className="entry-editor-actions">

@@ -14,6 +14,7 @@ import {
 import { useAllItems } from "../hooks/useJournalData";
 import { newId, nowIso, todayDateString } from "../lib/id";
 import { appendDictatedPhrase, appendDictatedSentence } from "../lib/dictation";
+import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
@@ -62,6 +63,8 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const meta = itemKindMeta(kind);
   const [title, setTitle] = useState(item?.title ?? "");
   const [body, setBody] = useState(item?.body ?? "");
+  const { onTranscript: onTitleTranscript, endSession: endTitleDictation } = useDictation(setTitle, appendDictatedPhrase);
+  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(setBody, appendDictatedSentence);
   const [date, setDate] = useState(item?.date ?? defaultDate ?? todayDateString());
   const [time, setTime] = useState(item?.time ?? "");
   const [status, setStatus] = useState<ItemStatus | null>(item?.status ?? (meta.statuses[0] ?? null));
@@ -190,7 +193,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
         autoFocus
       />
       <div className="field-voice-row">
-        <VoiceButton onTranscript={(text) => setTitle((prev) => appendDictatedPhrase(prev, text))} />
+        <VoiceButton onTranscript={onTitleTranscript} onDictationEnd={endTitleDictation} />
       </div>
       <div className="field">
         <span className="field-label">Entry</span>
@@ -202,7 +205,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
           rows={10}
         />
         <div className="field-voice-row">
-          <VoiceButton onTranscript={(text) => setBody((prev) => appendDictatedSentence(prev, text))} />
+          <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
         </div>
       </div>
       <div className="item-editor-row">

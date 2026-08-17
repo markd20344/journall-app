@@ -16,7 +16,7 @@ export interface ItemKindMeta {
 
 // Fixed, semantic colors — unlike categories these carry meaning (risk =
 // red, decision = green) so they aren't user-customizable. Display order
-// (Action, Story, Booking, Risk, Decision, Assumption, Lesson) is
+// (Action, Story, Booking, Diary, Risk, Decision, Assumption, Lesson) is
 // deliberate — everywhere these kinds are listed (Log page, Browse
 // filters, spin-off buttons) follows this array's order.
 export const ITEM_KINDS: ItemKindMeta[] = [
@@ -54,6 +54,19 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     codePrefix: "CB",
     statuses: [],
     hasTime: true,
+    dateLabel: "Date",
+    hasPriority: false,
+    hasProbabilityImpact: false,
+    hasProject: false,
+  },
+  {
+    kind: "diary",
+    label: "Diary Entry",
+    shortLabel: "Diary",
+    color: "#be185d",
+    codePrefix: "DE",
+    statuses: [],
+    hasTime: false,
     dateLabel: "Date",
     hasPriority: false,
     hasProbabilityImpact: false,
@@ -104,19 +117,6 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     shortLabel: "Lesson",
     color: "#b45309",
     codePrefix: "L",
-    statuses: [],
-    hasTime: false,
-    dateLabel: "Date",
-    hasPriority: false,
-    hasProbabilityImpact: false,
-    hasProject: false,
-  },
-  {
-    kind: "diary",
-    label: "Diary Entry",
-    shortLabel: "Diary",
-    color: "#be185d",
-    codePrefix: "DE",
     statuses: [],
     hasTime: false,
     dateLabel: "Date",

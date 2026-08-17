@@ -360,7 +360,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
-  max-height: 280px;
+  max-height: min(420px, 70vh);
   overflow-y: auto;
 }
 
@@ -511,6 +511,11 @@ textarea {
 .field-voice-row {
   margin-top: 6px;
   margin-bottom: 10px;
+}
+
+.field-voice-row-end {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .voice-btn {

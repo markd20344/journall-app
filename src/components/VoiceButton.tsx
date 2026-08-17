@@ -2,10 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { createSpeechController, isSpeechRecognitionSupported, type SpeechController } from "../lib/speech";
 
 interface Props {
-  onTranscript: (text: string) => void;
+  // Called for both interim (isFinal=false) and finalized (isFinal=true)
+  // speech results, so the caller can show text live as it's spoken.
+  onTranscript: (text: string, isFinal: boolean) => void;
+  // Fires when a dictation session ends (stop clicked, or the browser ends
+  // it on its own) — callers use this to reset their live-preview state so
+  // the next session starts from a clean base instead of replaying over it.
+  onDictationEnd?: () => void;
 }
 
-export default function VoiceButton({ onTranscript }: Props) {
+export default function VoiceButton({ onTranscript, onDictationEnd }: Props) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<SpeechController | null>(null);
@@ -26,14 +32,16 @@ export default function VoiceButton({ onTranscript }: Props) {
     setError(null);
     const controller = createSpeechController({
       onResult: (transcript, isFinal) => {
-        if (isFinal) {
-          onTranscript(transcript);
-        }
+        onTranscript(transcript, isFinal);
       },
-      onEnd: () => setListening(false),
+      onEnd: () => {
+        setListening(false);
+        onDictationEnd?.();
+      },
       onError: (message) => {
         setError(message);
         setListening(false);
+        onDictationEnd?.();
       },
     });
     if (!controller) return;

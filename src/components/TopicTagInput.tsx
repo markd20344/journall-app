@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Topic } from "../types";
 import { appendDictatedPhrase } from "../lib/dictation";
+import { useDictation } from "../hooks/useDictation";
 import VoiceButton from "./VoiceButton";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 export default function TopicTagInput({ availableTopics, selected, onChange }: Props) {
   const [draft, setDraft] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const { onTranscript: onDraftTranscript, endSession: endDraftDictation } = useDictation(setDraft, appendDictatedPhrase);
 
   const suggestions = useMemo(() => {
     const q = draft.trim().toLowerCase();
@@ -82,7 +84,7 @@ export default function TopicTagInput({ availableTopics, selected, onChange }: P
         </ul>
       )}
       <div className="field-voice-row">
-        <VoiceButton onTranscript={(text) => setDraft((prev) => appendDictatedPhrase(prev, text))} />
+        <VoiceButton onTranscript={onDraftTranscript} onDictationEnd={endDraftDictation} />
       </div>
     </div>
   );
