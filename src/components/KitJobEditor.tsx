@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { format } from "date-fns";
 import type { ContactOutcome, DoorVisitOutcome, KitCollected, KitJob } from "../types/kit";
 import {
@@ -51,6 +51,36 @@ function CountStepper({ label, value, onChange }: { label: string; value: number
       </div>
     </div>
   );
+}
+
+/** A collapsed-by-default section with a one-line summary, so the editor stays short until you actually need to log something. */
+function Section({ title, summary, children }: { title: string; summary: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="kit-section">
+      <button type="button" className="kit-section-toggle" onClick={() => setOpen((o) => !o)}>
+        <span className="kit-section-title">{title}</span>
+        <span className="kit-section-right">
+          {!open && <span className="kit-section-summary">{summary}</span>}
+          <span className="kit-section-chevron">{open ? "▾" : "▸"}</span>
+        </span>
+      </button>
+      {open && <div className="kit-section-body">{children}</div>}
+    </div>
+  );
+}
+
+function kitCollectedSummary(kit: Omit<KitCollected, "loggedAt"> | null): string {
+  if (!kit) return "Not yet";
+  const parts: string[] = [];
+  if (kit.rucksack) parts.push("Rucksack");
+  if (kit.tablets > 0) parts.push(`${kit.tablets} tablet${kit.tablets === 1 ? "" : "s"}`);
+  if (kit.phones > 0) parts.push(`${kit.phones} phone${kit.phones === 1 ? "" : "s"}`);
+  if (kit.fuelCards > 0) parts.push(`${kit.fuelCards} fuel card${kit.fuelCards === 1 ? "" : "s"}`);
+  if (kit.idCards > 0) parts.push(`${kit.idCards} ID card${kit.idCards === 1 ? "" : "s"}`);
+  if (kit.numberPlates > 0) parts.push(`${kit.numberPlates} plate${kit.numberPlates === 1 ? "" : "s"}`);
+  if (kit.other) parts.push(kit.other);
+  return parts.length > 0 ? parts.join(", ") : "Nothing";
 }
 
 export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
@@ -184,6 +214,14 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     }
   }
 
+  const contactSummary =
+    contactAttempts.length === 0
+      ? "None yet"
+      : `${contactAttempts.length} · ${CONTACT_OUTCOME_META[contactAttempts[contactAttempts.length - 1].outcome].label}`;
+  const visitSummary =
+    visits.length === 0 ? "Not visited" : `${visits.length} · ${DOOR_VISIT_OUTCOME_META[visits[visits.length - 1].outcome].label}`;
+  const lifecycleSummary = `${officeEmailedAt ? "Emailed" : "Not emailed"} · ${droppedOffAt ? "Dropped off" : "Not dropped off"}`;
+
   return (
     <div className="item-editor kit-job-editor">
       <div className="kit-job-editor-header">
@@ -193,54 +231,46 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         </span>
       </div>
 
-      <label className="field">
-        <span className="field-label">Job number</span>
-        <input type="text" value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field-label">Name</span>
-        <input type="text" className="item-title-input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="field-label">Address</span>
-        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-      </label>
-      <div className="item-editor-row">
-        <label className="field">
-          <span className="field-label">Postcode</span>
-          <input type="text" value={postcode} onChange={(e) => setPostcode(e.target.value)} />
-        </label>
-        <label className="field">
-          <span className="field-label">Visit date</span>
-          <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
-        </label>
-      </div>
-      {(address || postcode) && (
-        <a className="kit-maps-link" href={mapsHref} target="_blank" rel="noreferrer">
-          📍 Open in Maps
-        </a>
-      )}
+      <input
+        type="text"
+        className="item-title-input"
+        placeholder="Name"
+        value={customerName}
+        onChange={(e) => setCustomerName(e.target.value)}
+      />
 
-      <div className="field">
-        <span className="field-label">Phone numbers</span>
-        {phoneNumbers.length > 0 && (
-          <div className="chip-row">
-            {phoneNumbers.map((phone) => (
-              <span key={phone} className="chip">
-                <a href={`tel:${phone}`}>{phone}</a>
-                <a href={`sms:${phone}`} className="kit-text-link">
-                  text
-                </a>
-                <button type="button" className="chip-remove" aria-label={`Remove ${phone}`} onClick={() => removePhone(phone)}>
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+      <div className="kit-address-row">
+        <input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
         <input
           type="text"
-          placeholder="Add a phone number and press Enter"
+          className="kit-postcode-input"
+          placeholder="Postcode"
+          value={postcode}
+          onChange={(e) => setPostcode(e.target.value)}
+        />
+        {(address || postcode) && (
+          <a className="kit-maps-icon-btn" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Open in Maps">
+            📍
+          </a>
+        )}
+      </div>
+
+      <div className="kit-phone-row">
+        {phoneNumbers.map((phone) => (
+          <span key={phone} className="chip">
+            <a href={`tel:${phone}`}>{phone}</a>
+            <a href={`sms:${phone}`} className="kit-text-link">
+              text
+            </a>
+            <button type="button" className="chip-remove" aria-label={`Remove ${phone}`} onClick={() => removePhone(phone)}>
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          className="kit-add-phone-input"
+          placeholder="+ phone"
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
             e.preventDefault();
@@ -250,14 +280,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         />
       </div>
 
-      <label className="field">
-        <span className="field-label">Notes</span>
-        <textarea className="entry-body" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
-      </label>
-
       <div className="entry-editor-actions">
         <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
-          Save details
+          Save
         </button>
         <button type="button" className="ghost" onClick={onClose}>
           Close
@@ -267,9 +292,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         </button>
       </div>
 
-      {/* --- Contact log --- */}
-      <div className="link-section">
-        <span className="field-label">Contact attempts</span>
+      <Section title="Contact attempts" summary={contactSummary}>
         {contactAttempts.length > 0 && (
           <ul className="status-update-list">
             {contactAttempts.map((a) => (
@@ -312,11 +335,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             Log attempt
           </button>
         </div>
-      </div>
+      </Section>
 
-      {/* --- Door visit log --- */}
-      <div className="link-section">
-        <span className="field-label">Door visits</span>
+      <Section title="Door visits" summary={visitSummary}>
         {visits.length > 0 && (
           <ul className="status-update-list">
             {visits.map((v) => (
@@ -361,11 +382,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             Log visit
           </button>
         </div>
-      </div>
+      </Section>
 
-      {/* --- Kit collected --- */}
-      <div className="link-section">
-        <span className="field-label">Kit collected</span>
+      <Section title="Kit collected" summary={kitCollected ? kitCollectedSummary(kitCollected) : "Not yet"}>
         {!editingKit && kitCollected ? (
           <div className="kit-summary-box">
             <ul className="kit-summary-list">
@@ -426,10 +445,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             </div>
           </div>
         )}
-      </div>
+      </Section>
 
-      {/* --- Office email + drop-off --- */}
-      <div className="link-section kit-lifecycle-toggles">
+      <Section title="Office email & drop-off" summary={lifecycleSummary}>
         <label className="kit-toggle-row">
           <input type="checkbox" checked={Boolean(officeEmailedAt)} onChange={() => void toggleOfficeEmailed()} />
           <span>
@@ -444,7 +462,29 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             {droppedOffAt && <span className="entry-timestamp"> — {format(new Date(droppedOffAt), "MMM d, h:mm a")}</span>}
           </span>
         </label>
-      </div>
+      </Section>
+
+      <Section title="Details" summary={`${jobNumber || "no job #"} · ${batchDate}`}>
+        <div className="item-editor-row">
+          <label className="field">
+            <span className="field-label">Job number</span>
+            <input type="text" value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="field-label">Visit date</span>
+            <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
+          </label>
+        </div>
+        <label className="field">
+          <span className="field-label">Notes</span>
+          <textarea className="entry-body" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        </label>
+        <div className="entry-editor-actions">
+          <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
+            Save
+          </button>
+        </div>
+      </Section>
     </div>
   );
 }

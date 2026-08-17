@@ -1,7 +1,14 @@
 import { useState, type DragEvent } from "react";
 import type { KitJob } from "../types/kit";
 import { applyRouteOrder, setJobGeo, setRouteOrder } from "../db/kitRepo";
-import { geocodePostcodes, geocodeSinglePostcode, getCurrentLocation, nearestNeighborOrder, type GeoPoint } from "../lib/kitRoute";
+import {
+  geocodePostcodes,
+  geocodeSinglePostcode,
+  getCurrentLocation,
+  nearestNeighborOrder,
+  orderByRoadTrip,
+  type GeoPoint,
+} from "../lib/kitRoute";
 import { useKitJobsForDate } from "../hooks/useKitData";
 import { showToast } from "../lib/toast";
 import KitJobCard from "./KitJobCard";
@@ -69,16 +76,26 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
       const skipped = jobs.filter((j) => !pointById.has(j.id));
       if (stops.length === 0) throw new Error("None of these jobs have a postcode that could be found — check them and try again");
 
-      const orderedIds = nearestNeighborOrder(start, stops);
+      // Real road distance/duration first (petrol, mileage, time actually
+      // driven) — the public routing service is best-effort, so fall back
+      // to straight-line ordering if it's unavailable rather than failing.
+      const roadTrip = await orderByRoadTrip(start, stops);
+      const orderedIds = roadTrip?.order ?? nearestNeighborOrder(start, stops);
       await applyRouteOrder(orderedIds);
       if (skipped.length > 0) {
         await Promise.all(skipped.map((j) => setRouteOrder(j.id, null)));
       }
-      showToast(
-        skipped.length > 0
-          ? `Ordered ${orderedIds.length} stops — ${skipped.length} couldn't be found by postcode`
-          : `Ordered ${orderedIds.length} stops`,
-      );
+
+      const skippedNote = skipped.length > 0 ? ` — ${skipped.length} couldn't be found by postcode` : "";
+      if (roadTrip) {
+        const miles = roadTrip.distanceMiles.toFixed(1);
+        const hours = Math.floor(roadTrip.durationMinutes / 60);
+        const mins = Math.round(roadTrip.durationMinutes % 60);
+        const duration = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        showToast(`Ordered ${orderedIds.length} stops — approx ${miles} mi, ${duration} driving${skippedNote}`);
+      } else {
+        showToast(`Ordered ${orderedIds.length} stops by straight-line distance (road routing unavailable)${skippedNote}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't plan the route");
     } finally {
