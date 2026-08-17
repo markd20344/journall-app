@@ -1591,35 +1591,82 @@ textarea {
   font-size: 13px;
 }
 
-.kit-draft-card {
+.kit-draft-table-wrap {
+  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 14px 16px;
   margin-bottom: 14px;
+}
+
+.kit-draft-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 720px;
+}
+
+.kit-draft-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  opacity: 0.7;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.kit-draft-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.kit-draft-table tr:last-child td {
+  border-bottom: none;
+}
+
+.kit-draft-table input[type="text"] {
+  width: 100%;
+  min-width: 90px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 6px;
+  border-radius: 6px;
+}
+
+.kit-draft-table input[type="text"]:hover,
+.kit-draft-table input[type="text"]:focus {
+  border-color: var(--border);
   background: var(--bg-raised);
 }
 
-.kit-draft-row {
+.kit-draft-postcode-input {
+  min-width: 70px !important;
+  text-transform: uppercase;
+}
+
+.kit-draft-actions-cell {
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.kit-draft-row .field {
-  flex: 1;
+.kit-draft-raw-cell {
+  background: var(--bg);
 }
 
-.kit-draft-raw {
-  margin-top: 8px;
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.kit-draft-raw pre {
+.kit-draft-raw-cell pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 11px;
+  opacity: 0.75;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 /* ---------- Kit job editor ---------- */
