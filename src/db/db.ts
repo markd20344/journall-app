@@ -195,6 +195,32 @@ class JournalDB extends Dexie {
 
 export const db = new JournalDB();
 
+// Backfills every field the Item schema has grown over time with the same
+// defaults the version migrations above use. Records created through
+// repo.ts's createItem() always have every field already, but records that
+// arrive from *outside* that path — a Firestore sync pull, or a JSON import
+// of an older export — go straight into Dexie via `.put()` and skip the
+// migrations entirely (those only run once, against whatever was already in
+// this browser's IndexedDB, at schema-version-bump time). Without this, an
+// old record missing a newer field (e.g. `subtasks`) crashes any component
+// that assumes the field is always present.
+export function normalizeItem(raw: Item): Item {
+  return {
+    ...raw,
+    statusUpdates: raw.statusUpdates ?? [],
+    closedAt: raw.closedAt ?? null,
+    closureNote: raw.closureNote ?? "",
+    priority: raw.priority ?? null,
+    probability: raw.probability ?? null,
+    impact: raw.impact ?? null,
+    project: raw.project ?? null,
+    agency: raw.agency ?? null,
+    source: raw.source ?? null,
+    categoryId: raw.categoryId ?? null,
+    subtasks: raw.subtasks ?? [],
+  };
+}
+
 // Seed a small default category list on first run so the app isn't empty.
 // Runs inside a transaction with a "seeded" flag so concurrent calls (e.g.
 // React StrictMode double-invoking effects, or two tabs opening at once)

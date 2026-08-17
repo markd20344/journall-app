@@ -255,7 +255,7 @@ export async function addStatusUpdate(itemId: string, note: string): Promise<Sta
   const item = await db.items.get(itemId);
   if (!item) return null;
   const update: StatusUpdate = { id: newId(), note: trimmed, createdAt: nowIso() };
-  await db.items.update(itemId, { statusUpdates: [...item.statusUpdates, update], updatedAt: nowIso() });
+  await db.items.update(itemId, { statusUpdates: [...(item.statusUpdates ?? []), update], updatedAt: nowIso() });
   const updated = await db.items.get(itemId);
   if (updated) pushRecord("items", updated);
   return update;
@@ -265,7 +265,7 @@ export async function deleteStatusUpdate(itemId: string, updateId: string): Prom
   const item = await db.items.get(itemId);
   if (!item) return;
   await db.items.update(itemId, {
-    statusUpdates: item.statusUpdates.filter((u) => u.id !== updateId),
+    statusUpdates: (item.statusUpdates ?? []).filter((u) => u.id !== updateId),
     updatedAt: nowIso(),
   });
   const updated = await db.items.get(itemId);
@@ -278,7 +278,7 @@ export async function addSubtask(itemId: string, title: string): Promise<Subtask
   const item = await db.items.get(itemId);
   if (!item) return null;
   const subtask: Subtask = { id: newId(), title: trimmed, done: false, createdAt: nowIso() };
-  await db.items.update(itemId, { subtasks: [...item.subtasks, subtask], updatedAt: nowIso() });
+  await db.items.update(itemId, { subtasks: [...(item.subtasks ?? []), subtask], updatedAt: nowIso() });
   const updated = await db.items.get(itemId);
   if (updated) pushRecord("items", updated);
   return subtask;
@@ -288,7 +288,7 @@ export async function toggleSubtask(itemId: string, subtaskId: string, done: boo
   const item = await db.items.get(itemId);
   if (!item) return;
   await db.items.update(itemId, {
-    subtasks: item.subtasks.map((s) => (s.id === subtaskId ? { ...s, done } : s)),
+    subtasks: (item.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, done } : s)),
     updatedAt: nowIso(),
   });
   const updated = await db.items.get(itemId);
@@ -299,7 +299,7 @@ export async function deleteSubtask(itemId: string, subtaskId: string): Promise<
   const item = await db.items.get(itemId);
   if (!item) return;
   await db.items.update(itemId, {
-    subtasks: item.subtasks.filter((s) => s.id !== subtaskId),
+    subtasks: (item.subtasks ?? []).filter((s) => s.id !== subtaskId),
     updatedAt: nowIso(),
   });
   const updated = await db.items.get(itemId);

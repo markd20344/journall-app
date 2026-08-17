@@ -21,8 +21,11 @@ export default function ItemCard({ item, onClick }: Props) {
     .map((id) => allItems.find((i) => i.id === id))
     .filter((i): i is Item => Boolean(i));
   const latestUpdate = item.statusUpdates.length > 0 ? item.statusUpdates[item.statusUpdates.length - 1] : null;
-  const subtaskDoneCount = item.subtasks.filter((s) => s.done).length;
-  const subtaskPercent = item.subtasks.length > 0 ? Math.round((subtaskDoneCount / item.subtasks.length) * 100) : 0;
+  // Defensive: records synced from another device or an older export may
+  // predate this field and arrive without it.
+  const subtasks = item.subtasks ?? [];
+  const subtaskDoneCount = subtasks.filter((s) => s.done).length;
+  const subtaskPercent = subtasks.length > 0 ? Math.round((subtaskDoneCount / subtasks.length) * 100) : 0;
 
   // Days open (since logged) and how far before/after the due date we are —
   // measured against the closure time once closed, otherwise today.
@@ -50,9 +53,9 @@ export default function ItemCard({ item, onClick }: Props) {
               {category.name}
             </span>
           )}
-          {item.subtasks.length > 0 && (
+          {subtasks.length > 0 && (
             <span className="linked-badge">
-              {subtaskDoneCount}/{item.subtasks.length} subtasks · {subtaskPercent}%
+              {subtaskDoneCount}/{subtasks.length} subtasks · {subtaskPercent}%
             </span>
           )}
           {item.sourceEntryId && <span className="linked-badge">from journal</span>}
@@ -77,7 +80,7 @@ export default function ItemCard({ item, onClick }: Props) {
           )}
         </div>
         <p className="entry-card-body item-card-title">{item.title}</p>
-        {item.subtasks.length > 0 && (
+        {subtasks.length > 0 && (
           <div className="subtask-progress-track card-progress">
             <div className="subtask-progress-fill" style={{ width: `${subtaskPercent}%` }} />
           </div>

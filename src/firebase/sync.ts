@@ -21,9 +21,10 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "../db/db";
+import { db, normalizeItem } from "../db/db";
 import { firestore } from "./config";
 import { nowIso } from "../lib/id";
+import type { Item } from "../types";
 
 const SYNCED_TABLES = ["categories", "topics", "entries", "items"] as const;
 type SyncedTable = (typeof SYNCED_TABLES)[number];
@@ -34,6 +35,16 @@ interface Syncable {
 }
 
 type RemoteDoc = Syncable & { deleted?: boolean };
+
+// Remote records reflect whatever schema version wrote them — possibly an
+// older client, or an older local record just pushed as-is. Only "items"
+// currently has fields that have grown over time (see normalizeItem);
+// normalizing here (not just in the local Dexie migrations) keeps a record
+// synced down from another device from crashing a component that assumes a
+// newer field is always present.
+function normalizeForTable(table: SyncedTable, record: RemoteDoc): RemoteDoc {
+  return table === "items" ? (normalizeItem(record as unknown as Item) as unknown as RemoteDoc) : record;
+}
 
 let activeUid: string | null = null;
 let unsubscribers: Unsubscribe[] = [];
@@ -102,7 +113,7 @@ async function fullMerge(uid: string): Promise<void> {
         continue;
       }
       if (!local || remote.updatedAt > local.updatedAt) {
-        await db.table(table).put(remote);
+        await db.table(table).put(normalizeForTable(table, remote));
       }
     }
   }
@@ -128,7 +139,7 @@ function startListeners(uid: string): void {
               continue;
             }
             if (!local || remote.updatedAt >= local.updatedAt) {
-              await db.table(table).put(remote);
+              await db.table(table).put(normalizeForTable(table, remote));
             }
           }
         })();

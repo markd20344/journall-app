@@ -1,4 +1,4 @@
-import { db } from "../db/db";
+import { db, normalizeItem } from "../db/db";
 import type { Category, Entry, Item, Topic } from "../types";
 import { itemKindMeta, STATUS_META } from "./itemKinds";
 
@@ -134,8 +134,11 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
         updated++;
       }
     }
-    // dump.items may be absent in exports taken before Log items existed.
-    for (const item of dump.items ?? []) {
+    // dump.items may be absent in exports taken before Log items existed,
+    // and items within it may predate later fields (e.g. subtasks) —
+    // normalize before writing so an old export can't crash newer code.
+    for (const rawItem of dump.items ?? []) {
+      const item = normalizeItem(rawItem);
       const existing = await db.items.get(item.id);
       if (!existing) {
         await db.items.put(item);
