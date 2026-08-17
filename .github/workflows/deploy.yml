@@ -24,6 +24,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npx playwright install --with-deps chromium
+      # Runs against a build with no Firebase secrets in scope (see
+      # playwright.config.ts), so the app comes up in local-only mode —
+      # deterministic and offline. A failure here blocks the deploy below.
+      - run: npm run test:e2e
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
