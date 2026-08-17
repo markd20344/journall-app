@@ -1467,3 +1467,320 @@ textarea {
   padding: 4px 10px;
   flex-shrink: 0;
 }
+
+/* ---------- Kit Runs ---------- */
+
+.kit-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.kit-dropoff-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.kit-date-row {
+  margin-bottom: 16px;
+}
+
+.kit-date-chip {
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.kit-date-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kit-stage-badge,
+.kit-outcome-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--stage-color);
+  background: color-mix(in srgb, var(--stage-color) 14%, transparent);
+  white-space: nowrap;
+}
+
+/* ---------- Kit job card ---------- */
+
+.kit-job-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--bg-raised);
+}
+
+.kit-route-position {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.kit-job-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.kit-job-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.kit-job-card-name {
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 2px;
+  overflow-wrap: anywhere;
+}
+
+.kit-job-card-address {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* ---------- Kit import ---------- */
+
+.kit-import-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.kit-import-textarea {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+.kit-draft-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--bg-raised);
+}
+
+.kit-draft-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.kit-draft-row .field {
+  flex: 1;
+}
+
+.kit-draft-raw {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.kit-draft-raw pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+/* ---------- Kit job editor ---------- */
+
+.kit-job-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.kit-maps-link,
+.kit-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 9px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+  color: inherit;
+  width: fit-content;
+  margin-bottom: 16px;
+}
+
+.kit-maps-link:hover,
+.kit-photo-btn:hover {
+  background: var(--accent-bg);
+}
+
+.kit-text-link {
+  font-size: 11px;
+  text-decoration: underline;
+  opacity: 0.75;
+}
+
+.kit-log-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.kit-log-form input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.kit-visit-row {
+  flex-wrap: wrap;
+}
+
+.kit-visit-photo {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+/* ---------- Kit collected ---------- */
+
+.kit-collected-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.kit-rucksack-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.kit-count-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kit-count-label {
+  font-weight: 500;
+}
+
+.kit-count-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kit-count-controls button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
+  border-radius: 50%;
+}
+
+.kit-count-value {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.kit-summary-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.kit-summary-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+/* ---------- Kit lifecycle toggles ---------- */
+
+.kit-lifecycle-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kit-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+/* ---------- Kit route planning ---------- */
+
+.kit-route-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.kit-route-controls input[type="text"] {
+  min-width: 140px;
+}
+
+.kit-route-drag-row {
+  cursor: grab;
+}
+
+.kit-route-drag-row.dragging {
+  opacity: 0.4;
+}
