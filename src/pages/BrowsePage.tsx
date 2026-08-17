@@ -80,6 +80,7 @@ export default function BrowsePage() {
           showDateRangeFilter
           defaultDateRangeFilter="today"
           defaultStatusFilter="not-closed"
+          hideStaleReferenceItems
         />
       ) : tab === "items" ? (
         <ItemBrowser key="items" allowCreate={false} kindScope={LOG_ITEM_KINDS} defaultStatusFilter="not-closed" />

@@ -128,6 +128,12 @@ interface Props {
   // false (default), "date" is a flat chronological sort mixing every kind
   // together — used by "Due" so today's items surface regardless of kind.
   groupByKindPriority?: boolean;
+  // When true, reference-only kinds (Diary, Lesson — see referenceOnly on
+  // ItemKindMeta) are hidden unless they have at least one linked item
+  // that's still open. They have no status of their own to close, so
+  // without this they'd sit in view forever — used by Due, not by Calendar
+  // or Log items, where reference material should always stay browsable.
+  hideStaleReferenceItems?: boolean;
 }
 
 /**
@@ -145,6 +151,7 @@ export default function ItemBrowser({
   defaultDateRangeFilter = "",
   dateRangeDirection = "forward",
   groupByKindPriority = false,
+  hideStaleReferenceItems = false,
 }: Props) {
   const allItems = useAllItems();
   const scopedItems = useMemo(
@@ -173,6 +180,8 @@ export default function ItemBrowser({
     [scopedItems],
   );
 
+  const itemsById = useMemo(() => new Map(allItems.map((i) => [i.id, i])), [allItems]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const today = todayDateString();
@@ -180,6 +189,13 @@ export default function ItemBrowser({
     const pastBounds = dateRangeDirection === "backward" ? pastRangeBounds(dateRangeFilter as PastRangeValue) : null;
     const items = scopedItems.filter((item) => {
       if (kindFilter && item.kind !== kindFilter) return false;
+      if (hideStaleReferenceItems && itemKindMeta(item.kind).referenceOnly) {
+        const hasActiveLink = item.linkedItemIds.some((id) => {
+          const linked = itemsById.get(id);
+          return linked && linked.status !== "closed";
+        });
+        if (!hasActiveLink) return false;
+      }
       if (statusFilter === "not-closed") {
         if (item.status === "closed") return false;
       } else if (statusFilter && item.status !== statusFilter) {
@@ -221,6 +237,8 @@ export default function ItemBrowser({
     sortMode,
     kindScope,
     groupByKindPriority,
+    hideStaleReferenceItems,
+    itemsById,
   ]);
 
   if (editingItem) {

@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { format } from "date-fns";
 import type { Item, ItemKind, ItemStatus, Priority, StatusUpdate } from "../types";
-import { itemKindMeta, PRIORITY_META, PRIORITY_ORDER, statusLabelFor } from "../lib/itemKinds";
+import { ITEM_KINDS, itemKindMeta, PRIORITY_META, PRIORITY_ORDER, statusLabelFor } from "../lib/itemKinds";
 import {
   addStatusUpdate,
   createItem,
@@ -71,6 +71,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [closureNote, setClosureNote] = useState(item?.closureNote ?? "");
   const [linkedIds, setLinkedIds] = useState<string[]>(item?.linkedItemIds ?? []);
   const [linkPick, setLinkPick] = useState("");
+  const [spinOffKind, setSpinOffKind] = useState<ItemKind | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>(item?.statusUpdates ?? []);
   const [newUpdateNote, setNewUpdateNote] = useState("");
   const [priority, setPriority] = useState<Priority | null>(item?.priority ?? null);
@@ -183,6 +184,13 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
     if (!item) return;
     setLinkedIds((prev) => prev.filter((id) => id !== otherId));
     await unlinkItems(item.id, otherId);
+  }
+
+  async function handleSpinOffSaved(newItem: Item) {
+    if (!item) return;
+    await linkItems(item.id, newItem.id);
+    setLinkedIds((prev) => [...prev, newItem.id]);
+    setSpinOffKind(null);
   }
 
   async function addUpdate() {
@@ -399,19 +407,45 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
               ))}
             </div>
           )}
-          <div className="add-link-row">
-            <Dropdown
-              value={linkPick}
-              onChange={setLinkPick}
-              options={[
-                { value: "", label: "Link to another item…" },
-                ...linkCandidates.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` })),
-              ]}
+
+          {spinOffKind ? (
+            <ItemEditor
+              kind={spinOffKind}
+              defaultDate={item.date}
+              onSaved={(newItem) => void handleSpinOffSaved(newItem)}
+              onCancel={() => setSpinOffKind(null)}
             />
-            <button type="button" disabled={!linkPick} onClick={() => void addLink()}>
-              Add link
-            </button>
-          </div>
+          ) : (
+            <>
+              <span className="field-label">Spin off a new linked item</span>
+              <div className="spin-off-buttons">
+                {ITEM_KINDS.map((k) => (
+                  <button
+                    key={k.kind}
+                    type="button"
+                    className="kind-action-btn"
+                    style={{ "--kind-color": k.color } as CSSProperties}
+                    onClick={() => setSpinOffKind(k.kind)}
+                  >
+                    + {k.shortLabel}
+                  </button>
+                ))}
+              </div>
+              <div className="add-link-row">
+                <Dropdown
+                  value={linkPick}
+                  onChange={setLinkPick}
+                  options={[
+                    { value: "", label: "Link to another item…" },
+                    ...linkCandidates.map((c) => ({ value: c.id, label: `${c.code} — ${c.title}` })),
+                  ]}
+                />
+                <button type="button" disabled={!linkPick} onClick={() => void addLink()}>
+                  Add link
+                </button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <p className="settings-hint small">Save this {meta.label.toLowerCase()} first to link it to other items.</p>

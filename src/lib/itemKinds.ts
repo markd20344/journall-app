@@ -13,6 +13,12 @@ export interface ItemKindMeta {
   hasProbabilityImpact: boolean; // separate High/Medium/Low probability + impact (Risks)
   hasProject: boolean; // free-form project/app label (Stories)
   hasApplicationFields: boolean; // Agency/Recruiter + Source fields (Job Applications)
+  // True for kinds that are pure historical record, not a task with a
+  // lifecycle (Diary, Lesson) — they never have a status to close, so
+  // without this they'd sit in the Due tab forever. When true, the Due tab
+  // only shows the item while it has a linked item that's still open;
+  // Calendar and other views are unaffected and always show them.
+  referenceOnly: boolean;
   // Per-kind display text for the shared open/on_hold/blocked/closed status
   // values — lets a kind read as its own domain-specific lifecycle (Job
   // Applications: Applied/Interviewing/Waiting to hear back/Closed) without
@@ -41,6 +47,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "story",
@@ -55,6 +62,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: true,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "event",
@@ -69,6 +77,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "diary",
@@ -83,6 +92,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: true,
   },
   {
     kind: "risk",
@@ -97,6 +107,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: true,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "decision",
@@ -111,6 +122,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "assumption",
@@ -125,6 +137,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: false,
   },
   {
     kind: "lesson",
@@ -139,6 +152,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: false,
+    referenceOnly: true,
   },
   {
     kind: "application",
@@ -153,6 +167,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasProbabilityImpact: false,
     hasProject: false,
     hasApplicationFields: true,
+    referenceOnly: false,
     statusLabels: {
       open: "Applied",
       on_hold: "Interviewing",
