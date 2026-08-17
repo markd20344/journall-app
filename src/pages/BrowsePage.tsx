@@ -8,7 +8,7 @@ import type { Entry } from "../types";
 type Tab = "journal" | "items";
 
 export default function BrowsePage() {
-  const [tab, setTab] = useState<Tab>("journal");
+  const [tab, setTab] = useState<Tab>("items");
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [topicId, setTopicId] = useState("");
