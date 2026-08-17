@@ -85,8 +85,10 @@ export interface RoutePoint {
 
 /**
  * Orders stops by always jumping to whichever remaining stop is closest to
- * wherever the route currently is, starting from `start`. Returns stop ids
- * in visiting order.
+ * wherever the route currently is, starting from `start`. Straight-line
+ * distance only — used as the fallback when road routing (below) isn't
+ * available, and good enough for that: it's a last resort, not the primary
+ * path.
  */
 export function nearestNeighborOrder(start: GeoPoint, stops: RoutePoint[]): string[] {
   const remaining = [...stops];
@@ -107,4 +109,49 @@ export function nearestNeighborOrder(start: GeoPoint, stops: RoutePoint[]): stri
     current = next.point;
   }
   return order;
+}
+
+export interface RoadTripResult {
+  order: string[]; // stop ids, visiting order
+  distanceMiles: number;
+  durationMinutes: number;
+}
+
+/**
+ * Orders stops by real road distance/duration rather than straight-line —
+ * "best economical route" means miles and minutes actually driven, not as
+ * the crow flies. Uses OSRM's public routing demo (router.project-osrm.org),
+ * a free, key-less service with a "Trip" endpoint that solves exactly this
+ * (approximate travelling-salesman over the real road network) in one call.
+ *
+ * That demo server is a best-effort public service, not something to
+ * depend on being up — this returns null on any failure (network, rate
+ * limit, an unrecognized profile) so the caller can fall back to the
+ * straight-line nearestNeighborOrder above rather than the route planner
+ * just breaking.
+ */
+export async function orderByRoadTrip(start: GeoPoint, stops: RoutePoint[]): Promise<RoadTripResult | null> {
+  if (stops.length === 0) return null;
+  try {
+    const coords = [start, ...stops.map((s) => s.point)].map((p) => `${p.lng},${p.lat}`).join(";");
+    const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&destination=any&roundtrip=false&overview=false`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.code !== "Ok" || !Array.isArray(data.waypoints) || !Array.isArray(data.trips) || data.trips.length === 0) {
+      return null;
+    }
+    const waypoints = data.waypoints as Array<{ waypoint_index: number }>;
+    // waypoints[0] is the start point (source=first pins it to trip position 0);
+    // waypoints[1..] correspond 1:1 with `stops`, each carrying its position
+    // in the optimized trip — sort by that to get the visiting order.
+    const ordered = stops
+      .map((stop, i) => ({ id: stop.id, position: waypoints[i + 1]?.waypoint_index ?? Number.MAX_SAFE_INTEGER }))
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.id);
+    const trip = data.trips[0] as { distance: number; duration: number };
+    return { order: ordered, distanceMiles: trip.distance / 1609.344, durationMinutes: trip.duration / 60 };
+  } catch {
+    return null;
+  }
 }
