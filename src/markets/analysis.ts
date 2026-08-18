@@ -1,6 +1,6 @@
 // Stacey Burke-style setup detection, plus ADR and TDI, computed purely off
 // daily OHLC bars — no indicator library, just plain functions over Candle[].
-import { getISOWeek, getISOWeekYear } from "date-fns";
+import { getISODay, getISOWeek, getISOWeekYear } from "date-fns";
 import type {
   BreakoutResult,
   BreakoutState,
@@ -9,8 +9,13 @@ import type {
   DayResult,
   FirstDaySignal,
   InsideDayResult,
+  KeyLevels,
   PairAnalysis,
+  RangeStatus,
+  StatusSummary,
+  StatusTone,
   TdiResult,
+  WeekLetterRow,
 } from "../types/markets";
 import { excludeWeekends } from "./dates";
 import { pipSize } from "./pairs";
@@ -88,16 +93,34 @@ export function detectInsideOutsideDay(candles: Candle[]): InsideDayResult {
   };
 }
 
-// Range = the high/low of the `lookbackDays` days *before* today. A daily
-// bar's own high/low already tells us whether price pierced that range
-// intrabar even if it closed back inside — that's what "wicked through and
-// failed" (failed-breakout-*) captures, without needing intraday data.
-export function detectBreakout(candles: Candle[], lookbackDays = 3): BreakoutResult | null {
-  if (candles.length < lookbackDays + 1) return null;
+// Auto-detects the range today broke out of, rather than checking a fixed
+// lookback: starting from yesterday's own high/low, walk further back one
+// day at a time for as long as each earlier day's range sits entirely
+// inside the range accumulated so far (i.e. it was coiling, not expanding
+// it). `rangeDays` ends up being the actual length of that consolidation,
+// and the label is rangeDays + today = "Day 2 Breakout" for a single prior
+// range day, "Day 3" for two, and so on — matching how these are commonly
+// read off a chart, instead of a rigid one-size lookback.
+//
+// A daily bar's own high/low already tells us whether price pierced the
+// range intrabar even if it closed back inside — that's what "wicked
+// through and failed" (failed-breakout-*) captures, no intraday data needed.
+export function detectBreakout(candles: Candle[], maxLookback = 10): BreakoutResult | null {
+  if (candles.length < 3) return null;
   const today = candles[candles.length - 1];
-  const rangeCandles = candles.slice(candles.length - 1 - lookbackDays, candles.length - 1);
-  const rangeHigh = Math.max(...rangeCandles.map((c) => c.high));
-  const rangeLow = Math.min(...rangeCandles.map((c) => c.low));
+
+  let rangeHigh = candles[candles.length - 2].high;
+  let rangeLow = candles[candles.length - 2].low;
+  let rangeDays = 1;
+
+  for (let i = candles.length - 3; i >= 0 && rangeDays < maxLookback; i--) {
+    const c = candles[i];
+    if (c.high <= rangeHigh && c.low >= rangeLow) {
+      rangeDays++;
+    } else {
+      break;
+    }
+  }
 
   let state: BreakoutState = "none";
   if (today.close > rangeHigh) state = "closed-breakout-up";
@@ -105,7 +128,73 @@ export function detectBreakout(candles: Candle[], lookbackDays = 3): BreakoutRes
   else if (today.high > rangeHigh) state = "failed-breakout-up";
   else if (today.low < rangeLow) state = "failed-breakout-down";
 
-  return { state, rangeHigh, rangeLow, lookbackDays };
+  return { state, rangeHigh, rangeLow, lookbackDays: rangeDays + 1 };
+}
+
+// What yesterday itself did, relative to what preceded it — used for the
+// Key Levels panel's "Prev Day" row ("Breakout High", "Inside Day", ...).
+function classifyDayOutcome(slice: Candle[]): string {
+  const inside = detectInsideOutsideDay(slice);
+  if (inside.isInsideDay) return "Inside Day";
+  if (inside.isOutsideDay) return "Outside Day";
+  const breakout = detectBreakout(slice);
+  if (breakout) {
+    if (breakout.state === "closed-breakout-up" || breakout.state === "failed-breakout-up") return "Breakout High";
+    if (breakout.state === "closed-breakout-down" || breakout.state === "failed-breakout-down") return "Breakout Low";
+  }
+  return "Normal Day";
+}
+
+export function describePrevDay(candles: Candle[]): string | null {
+  if (candles.length < 4) return null;
+  return classifyDayOutcome(candles.slice(0, -1));
+}
+
+export interface PdhPdlStatus {
+  pdhBroken: boolean;
+  pdlBroken: boolean;
+}
+
+// Wick-based (not close-based): a print through the prior day's high/low
+// counts as "broken" even without a close beyond it, which is the usual
+// trader's definition of PDH/PDL getting taken out.
+export function detectPdhPdlStatus(candles: Candle[]): PdhPdlStatus | null {
+  if (candles.length < 2) return null;
+  const today = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  return { pdhBroken: today.high > prev.high, pdlBroken: today.low < prev.low };
+}
+
+function weekCandles(candles: Candle[], key: string): Candle[] {
+  return candles.filter((c) => isoWeekKey(c.date) === key);
+}
+
+// Is today still within the range Monday (this week's first trading day)
+// set, or has it broken above/below it?
+export function detectMondayRangeStatus(candles: Candle[]): RangeStatus | null {
+  if (candles.length === 0) return null;
+  const today = candles[candles.length - 1];
+  const monday = weekCandles(candles, isoWeekKey(today.date))[0];
+  if (!monday) return null;
+  if (today.high > monday.high) return "broke-high";
+  if (today.low < monday.low) return "broke-low";
+  return "within";
+}
+
+// Same idea against last week's full high/low range.
+export function detectPriorWeekRangeStatus(candles: Candle[]): RangeStatus | null {
+  if (candles.length === 0) return null;
+  const today = candles[candles.length - 1];
+  const thisWeekKey = isoWeekKey(today.date);
+  const priorCandles = candles.filter((c) => isoWeekKey(c.date) !== thisWeekKey);
+  if (priorCandles.length === 0) return null;
+  const priorWeek = weekCandles(candles, isoWeekKey(priorCandles[priorCandles.length - 1].date));
+  if (priorWeek.length === 0) return null;
+  const priorHigh = Math.max(...priorWeek.map((c) => c.high));
+  const priorLow = Math.min(...priorWeek.map((c) => c.low));
+  if (today.high > priorHigh) return "broke-high";
+  if (today.low < priorLow) return "broke-low";
+  return "within";
 }
 
 export function averageDailyRangePips(pair: string, candles: Candle[], lookback = 14): number | null {
@@ -119,6 +208,119 @@ export function todayRangePips(pair: string, candles: Candle[]): number | null {
   if (candles.length === 0) return null;
   const today = candles[candles.length - 1];
   return (today.high - today.low) / pipSize(pair);
+}
+
+// How much of the average daily range today has already covered, as a %.
+export function adrUsedPct(pair: string, candles: Candle[], lookback = 14): number | null {
+  const adr = averageDailyRangePips(pair, candles, lookback);
+  const today = todayRangePips(pair, candles);
+  if (adr === null || today === null || adr === 0) return null;
+  return (today / adr) * 100;
+}
+
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+// "Day 2 - Tuesday" — today's position within the trading week.
+export function buildDayLabel(candles: Candle[]): string | null {
+  if (candles.length === 0) return null;
+  const today = candles[candles.length - 1];
+  const isoDay = getISODay(new Date(today.date + "T00:00:00Z"));
+  if (isoDay < 1 || isoDay > 5) return null;
+  return `Day ${isoDay} - ${WEEKDAY_NAMES[isoDay - 1]}`;
+}
+
+// "3 Green Days (thru yesterday)" — the streak leading into today, read as
+// of yesterday's close (today's own bar may still be in progress).
+export function buildDayColorSummary(candles: Candle[]): string | null {
+  if (candles.length < 2) return null;
+  const colors = candles.map(dayColor);
+  const yestIdx = colors.length - 2;
+  const yestColor = colors[yestIdx];
+  if (yestColor === "flat") return "Flat (thru yesterday)";
+  let streak = 0;
+  let i = yestIdx;
+  while (i >= 0 && colors[i] === yestColor) {
+    streak++;
+    i--;
+  }
+  const label = yestColor === "green" ? "Green" : "Red";
+  return `${streak} ${label} Day${streak === 1 ? "" : "s"} (thru yesterday)`;
+}
+
+// M-F letter-grid over the last `weeks` calendar weeks (default 2, matching
+// a "Last Wk / This Wk" view) — missing days (holidays, or days later this
+// week that haven't happened yet) render as a blank cell.
+export function buildWeekLetterGrid(candles: Candle[], weeks = 2): WeekLetterRow[] {
+  if (candles.length === 0) return [];
+  const byWeek = new Map<string, Candle[]>();
+  for (const c of candles) {
+    const key = isoWeekKey(c.date);
+    if (!byWeek.has(key)) byWeek.set(key, []);
+    byWeek.get(key)!.push(c);
+  }
+  const weekKeysAsc = Array.from(byWeek.keys());
+  const selected = weekKeysAsc.slice(-weeks);
+
+  return selected.map((key, idx) => {
+    const weeksAgo = selected.length - 1 - idx;
+    const label = weeksAgo === 0 ? "This Wk" : weeksAgo === 1 ? "Last Wk" : `${weeksAgo} Wks Ago`;
+    const byIsoDay = new Map<number, Candle>();
+    for (const c of byWeek.get(key)!) byIsoDay.set(getISODay(new Date(c.date + "T00:00:00Z")), c);
+    const days = [1, 2, 3, 4, 5].map((isoDay) => {
+      const c = byIsoDay.get(isoDay);
+      return { color: c ? dayColor(c) : null };
+    });
+    return { label, days };
+  });
+}
+
+// The compact combined status line shown per row, e.g. "Inside Day + First
+// Red Day" — inside/outside first, then the FRD/FGD flip, then breakout,
+// each overriding the displayed color (tone) with its own when present, so
+// a directional signal always wins over the neutral "Inside Day" amber.
+export function buildStatusSummary(a: Pick<PairAnalysis, "firstDay" | "insideDay" | "breakout">): StatusSummary | null {
+  const parts: string[] = [];
+  let tone: StatusTone | null = null;
+
+  if (a.insideDay.isInsideDay) {
+    parts.push("Inside Day");
+    tone = "amber";
+  } else if (a.insideDay.isOutsideDay) {
+    parts.push("Outside Day");
+    tone = "amber";
+  }
+
+  if (a.firstDay) {
+    parts.push(a.firstDay.type === "FRD" ? "First Red Day" : "First Green Day");
+    tone = a.firstDay.type === "FRD" ? "red" : "green";
+  }
+
+  if (a.breakout && a.breakout.state !== "none") {
+    const isUp = a.breakout.state.endsWith("up");
+    const failed = a.breakout.state.startsWith("failed");
+    parts.push(`Day ${a.breakout.lookbackDays} Breakout ${isUp ? "↑" : "↓"}${failed ? " (failed)" : ""}`);
+    tone = isUp ? "green" : "red";
+  }
+
+  if (parts.length === 0) return null;
+  return { text: parts.join(" + "), tone: tone ?? "amber" };
+}
+
+function buildKeyLevels(pair: string, candles: Candle[]): KeyLevels | null {
+  if (candles.length < 3) return null;
+  return {
+    dayLabel: buildDayLabel(candles),
+    dayColorSummary: buildDayColorSummary(candles),
+    insideDay: detectInsideOutsideDay(candles).isInsideDay,
+    pdhBroken: detectPdhPdlStatus(candles)?.pdhBroken ?? false,
+    pdlBroken: detectPdhPdlStatus(candles)?.pdlBroken ?? false,
+    prevDaySummary: describePrevDay(candles),
+    mondayRange: detectMondayRangeStatus(candles),
+    priorWeekRange: detectPriorWeekRangeStatus(candles),
+    adrPips: averageDailyRangePips(pair, candles, 14),
+    adrUsedPct: adrUsedPct(pair, candles, 14),
+    tdiLevel: computeTdi(candles)?.rsi ?? null,
+  };
 }
 
 // --- TDI (Traders Dynamic Index): RSI(13) + a fast/slow smoothing of it,
@@ -216,13 +418,15 @@ export function analyzePair(pair: string, rawCandles: Candle[]): PairAnalysis {
   return {
     pair,
     candles,
-    history: buildHistory(candles, 4),
+    history: buildHistory(candles, 3),
+    weekGrid: buildWeekLetterGrid(candles, 2),
     firstDay: detectFirstDaySignal(candles),
     insideDay: detectInsideOutsideDay(candles),
-    breakout: detectBreakout(candles, 3),
+    breakout: detectBreakout(candles),
     adrPips: averageDailyRangePips(pair, candles, 14),
     todayRangePips: todayRangePips(pair, candles),
     tdi: computeTdi(candles),
+    keyLevels: buildKeyLevels(pair, candles),
     lastClose: candles.length ? candles[candles.length - 1].close : null,
     lastUpdated: candles.length ? candles[candles.length - 1].date : null,
   };
