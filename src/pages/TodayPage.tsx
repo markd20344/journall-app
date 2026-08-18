@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { addDays, format } from "date-fns";
-import type { Item } from "../types";
+import type { Book, Item } from "../types";
 import type { View } from "../App";
-import { CALENDAR_KINDS, DUE_TAB_KINDS, useAllItems } from "../hooks/useJournalData";
+import { CALENDAR_KINDS, DUE_TAB_KINDS, useAllBooks, useAllItems } from "../hooks/useJournalData";
 import { itemKindMeta } from "../lib/itemKinds";
 import { todayDateString } from "../lib/id";
 import ItemCard from "../components/ItemCard";
 import ItemEditor from "../components/ItemEditor";
+import BookCard from "../components/BookCard";
+import BookEditor from "../components/BookEditor";
 
 interface Props {
   onNavigate: (view: View) => void;
@@ -23,7 +25,10 @@ function sortByDate(a: Item, b: Item): number {
 // than by kind.
 export default function TodayPage({ onNavigate }: Props) {
   const allItems = useAllItems();
+  const allBooks = useAllBooks();
+  const currentlyReading = useMemo(() => allBooks.filter((b) => b.status === "reading"), [allBooks]);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
   const today = todayDateString();
   const weekAhead = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
@@ -75,6 +80,17 @@ export default function TodayPage({ onNavigate }: Props) {
     );
   }
 
+  if (editingBook) {
+    return (
+      <BookEditor
+        book={editingBook}
+        onSaved={() => setEditingBook(null)}
+        onCancel={() => setEditingBook(null)}
+        onDeleted={() => setEditingBook(null)}
+      />
+    );
+  }
+
   const nothingToShow = overdue.length === 0 && dueToday.length === 0 && comingUp.length === 0 && highPriority.length === 0;
 
   return (
@@ -83,6 +99,20 @@ export default function TodayPage({ onNavigate }: Props) {
       <p className="today-date">{format(new Date(), "EEEE, MMMM d")}</p>
 
       {nothingToShow && <p className="empty-hint">Nothing overdue, due, or coming up this week.</p>}
+
+      {currentlyReading.length > 0 && (
+        <section className="today-section">
+          <div className="today-section-head">
+            <h2 className="today-section-title">Currently reading · {currentlyReading.length}</h2>
+            <button type="button" className="ghost" onClick={() => onNavigate("books")}>
+              View all books
+            </button>
+          </div>
+          {currentlyReading.map((book) => (
+            <BookCard key={book.id} book={book} onClick={() => setEditingBook(book)} />
+          ))}
+        </section>
+      )}
 
       {overdue.length > 0 && (
         <section className="today-section">

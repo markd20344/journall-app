@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemKind, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -21,6 +21,7 @@ class JournalDB extends Dexie {
   topics!: Table<Topic, string>;
   settings!: Table<SettingRecord, string>;
   items!: Table<Item, string>;
+  books!: Table<Book, string>;
 
   constructor() {
     super("journall-db");
@@ -190,6 +191,16 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v10: add the books table (want-to-read / reading / finished tracking)
+    // — brand new table, no existing data to migrate.
+    this.version(10).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      books: "id, title, author, series, status, format, updatedAt",
+    });
   }
 }
 

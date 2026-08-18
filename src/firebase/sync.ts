@@ -26,7 +26,7 @@ import { firestore } from "./config";
 import { nowIso } from "../lib/id";
 import type { Item } from "../types";
 
-const SYNCED_TABLES = ["categories", "topics", "entries", "items"] as const;
+const SYNCED_TABLES = ["categories", "topics", "entries", "items", "books"] as const;
 type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 interface Syncable {
