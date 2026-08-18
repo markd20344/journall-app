@@ -1,5 +1,6 @@
 // Stacey Burke-style setup detection, plus ADR and TDI, computed purely off
 // daily OHLC bars — no indicator library, just plain functions over Candle[].
+import { getISOWeek, getISOWeekYear } from "date-fns";
 import type {
   BreakoutResult,
   BreakoutState,
@@ -20,8 +21,28 @@ export function dayColor(candle: Candle): DayColor {
   return "flat";
 }
 
-export function buildHistory(candles: Candle[], days = 20): DayResult[] {
-  return candles.slice(-days).map((c) => ({ date: c.date, color: dayColor(c) }));
+function isoWeekKey(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  return `${getISOWeekYear(d)}-${getISOWeek(d)}`;
+}
+
+// Aligned on calendar weeks rather than a fixed count of trading days — a
+// fixed "last 20 candles" slice rarely lands on a Monday, so the oldest
+// week it covers gets arbitrarily truncated (e.g. 3 days instead of 5).
+// Walking back by distinct ISO week instead means every week except the
+// current (still in-progress) one keeps its full weekday set.
+export function buildHistory(candles: Candle[], weeks = 4): DayResult[] {
+  if (candles.length === 0) return [];
+  const weekKeysNewestFirst: string[] = [];
+  for (let i = candles.length - 1; i >= 0; i--) {
+    const key = isoWeekKey(candles[i].date);
+    if (weekKeysNewestFirst[weekKeysNewestFirst.length - 1] !== key) {
+      weekKeysNewestFirst.push(key);
+      if (weekKeysNewestFirst.length > weeks) break;
+    }
+  }
+  const allowedWeeks = new Set(weekKeysNewestFirst.slice(0, weeks));
+  return candles.filter((c) => allowedWeeks.has(isoWeekKey(c.date))).map((c) => ({ date: c.date, color: dayColor(c) }));
 }
 
 // Today is a First Red/Green Day when its color flips against yesterday's.
@@ -195,7 +216,7 @@ export function analyzePair(pair: string, rawCandles: Candle[]): PairAnalysis {
   return {
     pair,
     candles,
-    history: buildHistory(candles, 20),
+    history: buildHistory(candles, 4),
     firstDay: detectFirstDaySignal(candles),
     insideDay: detectInsideOutsideDay(candles),
     breakout: detectBreakout(candles, 3),
