@@ -2,13 +2,17 @@ import { useState, type DragEvent } from "react";
 import type { KitJob } from "../types/kit";
 import { applyRouteOrder, setJobGeo, setRouteOrder } from "../db/kitRepo";
 import {
+  computeRouteLegs,
   geocodePostcodes,
   geocodeSinglePostcode,
   getCurrentLocation,
   nearestNeighborOrder,
   orderByRoadTrip,
+  straightLineRouteLegs,
+  type FullRoutePlan,
   type GeoPoint,
 } from "../lib/kitRoute";
+import { getHomeBasePostcode, setHomeBasePostcode } from "../lib/kitHomeBase";
 import { useKitJobsForDate } from "../hooks/useKitData";
 import { showToast } from "../lib/toast";
 import KitJobCard from "./KitJobCard";
@@ -19,16 +23,34 @@ interface Props {
   onOpenJob: (job: KitJob) => void;
 }
 
-type StartMode = "location" | "postcode" | "job";
+type StartMode = "postcode" | "location" | "job";
+
+function formatDuration(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = Math.round(totalMinutes % 60);
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+}
 
 export default function KitRouteView({ batchDate, onOpenJob }: Props) {
   const jobs = useKitJobsForDate(batchDate);
-  const [startMode, setStartMode] = useState<StartMode>("location");
-  const [startPostcode, setStartPostcode] = useState("");
+  const savedHomeBase = getHomeBasePostcode();
+  const [startMode, setStartMode] = useState<StartMode>(savedHomeBase ? "postcode" : "location");
+  const [startPostcode, setStartPostcode] = useState(savedHomeBase);
   const [startJobId, setStartJobId] = useState(jobs[0]?.id ?? "");
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  // The last-computed leg-by-leg plan, and the start point it was computed
+  // from (so a manual drag-reorder can recompute legs for the new order
+  // without asking "start from" all over again).
+  const [plan, setPlan] = useState<FullRoutePlan | null>(null);
+  const [planIsEstimate, setPlanIsEstimate] = useState(false);
+  const [lastStart, setLastStart] = useState<GeoPoint | null>(null);
+
+  // Stale if the job list has changed shape since the plan was computed
+  // (a job added/removed/skipped) — legs wouldn't line up with cards.
+  const validPlan = plan && plan.legs.length === jobs.length + 1 ? plan : null;
 
   async function resolveStart(): Promise<GeoPoint> {
     if (startMode === "location") return getCurrentLocation();
@@ -44,6 +66,12 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
     if (!geo) throw new Error(`Couldn't find a postcode for ${startJob.customerName || "that job"}`);
     void setJobGeo(startJob.id, geo.lat, geo.lng);
     return geo;
+  }
+
+  function saveHomeBase() {
+    if (!startPostcode.trim()) return;
+    setHomeBasePostcode(startPostcode);
+    showToast(`Saved "${startPostcode.trim()}" as your home base`);
   }
 
   async function handleOptimize() {
@@ -84,23 +112,46 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
       await applyRouteOrder(orderedIds);
       if (skipped.length > 0) {
         await Promise.all(skipped.map((j) => setRouteOrder(j.id, null)));
+        setPlan(null);
+      } else {
+        const orderedPoints = orderedIds.map((id) => pointById.get(id)!);
+        const roadLegs = await computeRouteLegs(start, orderedPoints);
+        const finalPlan = roadLegs ?? straightLineRouteLegs(start, orderedPoints);
+        setPlan(finalPlan);
+        setPlanIsEstimate(!roadLegs);
+        setLastStart(start);
       }
 
       const skippedNote = skipped.length > 0 ? ` — ${skipped.length} couldn't be found by postcode` : "";
-      if (roadTrip) {
-        const miles = roadTrip.distanceMiles.toFixed(1);
-        const hours = Math.floor(roadTrip.durationMinutes / 60);
-        const mins = Math.round(roadTrip.durationMinutes % 60);
-        const duration = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        showToast(`Ordered ${orderedIds.length} stops — approx ${miles} mi, ${duration} driving${skippedNote}`);
-      } else {
-        showToast(`Ordered ${orderedIds.length} stops by straight-line distance (road routing unavailable)${skippedNote}`);
-      }
+      const totalsFromRoadTrip = roadTrip
+        ? `approx ${roadTrip.distanceMiles.toFixed(1)} mi, ${formatDuration(roadTrip.durationMinutes)} driving`
+        : null;
+      showToast(
+        totalsFromRoadTrip
+          ? `Ordered ${orderedIds.length} stops — ${totalsFromRoadTrip}${skippedNote}`
+          : `Ordered ${orderedIds.length} stops by straight-line distance (road routing unavailable)${skippedNote}`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't plan the route");
     } finally {
       setComputing(false);
     }
+  }
+
+  async function recomputeLegsForOrder(orderedJobs: KitJob[]) {
+    if (!lastStart) return;
+    const points: GeoPoint[] = [];
+    for (const j of orderedJobs) {
+      if (j.lat === null || j.lng === null) {
+        setPlan(null);
+        return;
+      }
+      points.push({ lat: j.lat, lng: j.lng });
+    }
+    const roadLegs = await computeRouteLegs(lastStart, points);
+    const finalPlan = roadLegs ?? straightLineRouteLegs(lastStart, points);
+    setPlan(finalPlan);
+    setPlanIsEstimate(!roadLegs);
   }
 
   function handleDragStart(index: number) {
@@ -125,6 +176,7 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
       reordered.splice(index, 0, moved);
       setDragIndex(null);
       void applyRouteOrder(reordered.map((j) => j.id));
+      void recomputeLegsForOrder(reordered);
     };
   }
 
@@ -140,18 +192,18 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
           value={startMode}
           onChange={(v) => setStartMode(v as StartMode)}
           options={[
+            { value: "postcode", label: "A postcode (your home base)" },
             { value: "location", label: "My current location" },
-            { value: "postcode", label: "A postcode" },
             { value: "job", label: "One of today's jobs" },
           ]}
         />
         {startMode === "postcode" && (
-          <input
-            type="text"
-            placeholder="e.g. NN17 1XY"
-            value={startPostcode}
-            onChange={(e) => setStartPostcode(e.target.value)}
-          />
+          <>
+            <input type="text" placeholder="e.g. NN1 1AA" value={startPostcode} onChange={(e) => setStartPostcode(e.target.value)} />
+            <button type="button" className="ghost" onClick={saveHomeBase} disabled={!startPostcode.trim()}>
+              📌 Save as home base
+            </button>
+          </>
         )}
         {startMode === "job" && (
           <Dropdown
@@ -167,6 +219,15 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
       {error && <p className="auth-error">{error}</p>}
       <p className="settings-hint small">Drag a card to reorder it by hand.</p>
 
+      {validPlan && (
+        <div className="kit-route-totals">
+          <span>
+            🚗 Total driving: {validPlan.totalDistanceMiles.toFixed(1)} mi · {formatDuration(validPlan.totalDurationMinutes)}
+            {planIsEstimate ? " (straight-line estimate)" : ""}
+          </span>
+        </div>
+      )}
+
       <div className="entry-list">
         {jobs.map((job, index) => (
           <div
@@ -177,10 +238,26 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
             onDrop={handleDrop(index)}
             className={`kit-route-drag-row ${dragIndex === index ? "dragging" : ""}`}
           >
-            <KitJobCard job={job} routePosition={index + 1} onClick={() => onOpenJob(job)} />
+            <KitJobCard
+              job={job}
+              routePosition={index + 1}
+              onClick={() => onOpenJob(job)}
+              legLabel={
+                validPlan
+                  ? `${validPlan.legs[index].distanceMiles.toFixed(1)} mi · ${formatDuration(validPlan.legs[index].durationMinutes)} from ${index === 0 ? "start" : "previous"}`
+                  : undefined
+              }
+            />
           </div>
         ))}
       </div>
+
+      {validPlan && (
+        <p className="kit-route-return-leg">
+          🏁 Return to start: {validPlan.legs[validPlan.legs.length - 1].distanceMiles.toFixed(1)} mi ·{" "}
+          {formatDuration(validPlan.legs[validPlan.legs.length - 1].durationMinutes)}
+        </p>
+      )}
     </div>
   );
 }

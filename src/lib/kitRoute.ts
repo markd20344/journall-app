@@ -78,6 +78,11 @@ function haversineKm(a: GeoPoint, b: GeoPoint): number {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
+/** Straight-line distance in miles — exported for the leg-breakdown fallback when road routing is unavailable. */
+export function straightLineMiles(a: GeoPoint, b: GeoPoint): number {
+  return (haversineKm(a, b) * 1000) / 1609.344;
+}
+
 export interface RoutePoint {
   id: string;
   point: GeoPoint;
@@ -154,4 +159,66 @@ export async function orderByRoadTrip(start: GeoPoint, stops: RoutePoint[]): Pro
   } catch {
     return null;
   }
+}
+
+export interface RouteLeg {
+  distanceMiles: number;
+  durationMinutes: number;
+}
+
+export interface FullRoutePlan {
+  // legs[0] is start → orderedStops[0]; legs[i] (0 < i < orderedStops.length)
+  // is orderedStops[i-1] → orderedStops[i]; the final entry is
+  // orderedStops[last] → start (the drive home) — one more leg than stops.
+  legs: RouteLeg[];
+  totalDistanceMiles: number;
+  totalDurationMinutes: number;
+}
+
+/**
+ * Leg-by-leg distance/duration for a *fixed* visiting order, starting and
+ * ending at `start` — used once the order is decided (by orderByRoadTrip or
+ * a manual drag-reorder) to show "how far/long from the previous stop" plus
+ * a grand total that includes the drive home, for working out timings
+ * ("leaving at 7, that's 5 hours of driving before I'm back").
+ *
+ * Uses OSRM's Route service (not Trip) since Route preserves input order
+ * and returns one leg per consecutive coordinate pair. Same best-effort
+ * contract as orderByRoadTrip: null on any failure so the caller can fall
+ * back to straight-line legs instead.
+ */
+export async function computeRouteLegs(start: GeoPoint, orderedStops: GeoPoint[]): Promise<FullRoutePlan | null> {
+  if (orderedStops.length === 0) return null;
+  try {
+    const points = [start, ...orderedStops, start];
+    const coords = points.map((p) => `${p.lng},${p.lat}`).join(";");
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=false&steps=false`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.code !== "Ok" || !Array.isArray(data.routes) || data.routes.length === 0) return null;
+    const route = data.routes[0] as { distance: number; duration: number; legs: Array<{ distance: number; duration: number }> };
+    if (!Array.isArray(route.legs) || route.legs.length !== orderedStops.length + 1) return null;
+    const legs = route.legs.map((l) => ({ distanceMiles: l.distance / 1609.344, durationMinutes: l.duration / 60 }));
+    return { legs, totalDistanceMiles: route.distance / 1609.344, totalDurationMinutes: route.duration / 60 };
+  } catch {
+    return null;
+  }
+}
+
+/** Straight-line leg breakdown — the fallback when computeRouteLegs' road-routing call is unavailable. */
+export function straightLineRouteLegs(start: GeoPoint, orderedStops: GeoPoint[]): FullRoutePlan {
+  const points = [start, ...orderedStops, start];
+  const legs: RouteLeg[] = [];
+  // No real-world speed to estimate duration from a straight line, so this
+  // assumes a flat 30mph average — a rough placeholder, clearly labeled as
+  // an estimate in the UI, not a substitute for the real road-routed figure.
+  const ASSUMED_MPH = 30;
+  for (let i = 1; i < points.length; i++) {
+    const miles = straightLineMiles(points[i - 1], points[i]);
+    legs.push({ distanceMiles: miles, durationMinutes: (miles / ASSUMED_MPH) * 60 });
+  }
+  const totalDistanceMiles = legs.reduce((sum, l) => sum + l.distanceMiles, 0);
+  const totalDurationMinutes = legs.reduce((sum, l) => sum + l.durationMinutes, 0);
+  return { legs, totalDistanceMiles, totalDurationMinutes };
 }
