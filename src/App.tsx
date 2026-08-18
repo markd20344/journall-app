@@ -11,9 +11,10 @@ import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
+import MarketsPage from "./pages/MarketsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-export type View = "today" | "write" | "calendar" | "log" | "browse" | "settings";
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "markets" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
   { id: "today", label: "Today" },
@@ -21,6 +22,7 @@ const NAV_ITEMS: Array<{ id: View; label: string }> = [
   { id: "log", label: "Log" },
   { id: "calendar", label: "Calendar" },
   { id: "write", label: "Journal" },
+  { id: "markets", label: "Markets" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -64,6 +66,7 @@ export default function App() {
             {view === "calendar" && <CalendarPage />}
             {view === "log" && <LogPage />}
             {view === "browse" && <BrowsePage />}
+            {view === "markets" && <MarketsPage />}
             {view === "settings" && <SettingsPage />}
           </ErrorBoundary>
         </main>

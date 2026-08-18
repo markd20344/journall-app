@@ -1467,3 +1467,178 @@ textarea {
   padding: 4px 10px;
   flex-shrink: 0;
 }
+
+/* Markets dashboard */
+
+.markets-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.markets-refresh-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.markets-summary {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+
+.markets-summary h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.markets-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.markets-summary-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.markets-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+}
+
+.markets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.markets-table th,
+.markets-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.markets-table th {
+  color: var(--text-h);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.markets-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.markets-row-active {
+  background: var(--accent-bg);
+}
+
+.markets-pair-cell {
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.day-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-streak-week {
+  display: flex;
+  gap: 2px;
+  padding-right: 4px;
+  border-right: 1px solid var(--border);
+}
+
+.day-streak-week:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.day-circle {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.day-circle-green {
+  background: var(--success-text);
+}
+
+.day-circle-red {
+  background: var(--danger);
+}
+
+.day-circle-flat {
+  background: var(--border);
+}
+
+.setup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.setup-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.setup-badge-green {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.setup-badge-red {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.setup-badge-warn {
+  background: rgba(217, 119, 6, 0.14);
+  color: #d97706;
+}
+
+.setup-badge-neutral {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.tdi-value {
+  font-weight: 700;
+}
+
+.tdi-overbought {
+  color: var(--danger);
+}
+
+.tdi-oversold {
+  color: var(--success-text);
+}

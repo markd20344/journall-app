@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Candle } from "../types/markets";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -21,6 +22,7 @@ class JournalDB extends Dexie {
   topics!: Table<Topic, string>;
   settings!: Table<SettingRecord, string>;
   items!: Table<Item, string>;
+  candles!: Table<Candle, [string, string]>;
 
   constructor() {
     super("journall-db");
@@ -190,6 +192,16 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v10: Markets dashboard — cached daily FX candles, keyed by pair+date
+    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    this.version(10).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      candles: "[pair+date], pair, date",
+    });
   }
 }
 
