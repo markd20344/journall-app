@@ -8,6 +8,7 @@ import KitJobCard from "../components/KitJobCard";
 import KitJobEditor from "../components/KitJobEditor";
 import KitImportPanel from "../components/KitImportPanel";
 import KitRouteView from "../components/KitRouteView";
+import KitDailySummaryPanel from "../components/KitDailySummaryPanel";
 
 type SubView = "jobs" | "route";
 
@@ -20,6 +21,7 @@ export default function KitRunsPage() {
   const [selectedDate, setSelectedDate] = useState(tomorrow());
   const [editingJob, setEditingJob] = useState<KitJob | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showingSummary, setShowingSummary] = useState(false);
 
   const jobsForDate = useKitJobsForDate(selectedDate);
   const batchDates = useKitBatchDates();
@@ -52,6 +54,14 @@ export default function KitRunsPage() {
       <div className="page">
         <h1 className="page-title">Import jobs</h1>
         <KitImportPanel onImported={() => setImporting(false)} onCancel={() => setImporting(false)} />
+      </div>
+    );
+  }
+
+  if (showingSummary) {
+    return (
+      <div className="page">
+        <KitDailySummaryPanel jobs={jobsForDate} batchDate={selectedDate} onClose={() => setShowingSummary(false)} />
       </div>
     );
   }
@@ -114,6 +124,9 @@ export default function KitRunsPage() {
             </button>
             <button type="button" className="ghost" onClick={() => void handleAddManually()}>
               + Add job manually
+            </button>
+            <button type="button" className="ghost" disabled={jobsForDate.length === 0} onClick={() => setShowingSummary(true)}>
+              📧 Generate summary email
             </button>
           </div>
           <p className="result-count">

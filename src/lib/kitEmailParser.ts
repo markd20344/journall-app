@@ -155,7 +155,12 @@ function parseDriverSheetBlock(lines: string[]): DraftKitJob {
     customerName,
     address,
     postcode,
-    phoneNumbers: phone ? [phone] : extractPhones(lines.join("\n")),
+    // Only the explicit "Collection Tel.No #:" field, never a blind scan of
+    // the whole block — the boilerplate/TelePOD trailer lines contain other
+    // phone-shaped numbers (routing numbers, coordinator lines) that aren't
+    // the customer's, and a missing field here means no number was given at
+    // all, not "search harder."
+    phoneNumbers: phone ? [phone] : [],
     notes,
     rawText: lines.join("\n"),
   };
