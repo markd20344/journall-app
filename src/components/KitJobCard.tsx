@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { KitJob } from "../types/kit";
 import { deriveStage, kitSummary, STAGE_META } from "../lib/kitStage";
-import { contactRequestMessage, smsHref } from "../lib/kitSms";
+import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
 
 interface Props {
   job: KitJob;
@@ -42,14 +42,24 @@ export default function KitJobCard({ job, onClick, routePosition }: Props) {
         </div>
       </button>
       {firstPhone && (
-        <a
-          className="kit-card-text-btn"
-          href={smsHref(firstPhone, contactRequestMessage(job.customerName))}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Text ${job.customerName || firstPhone}`}
-        >
-          💬 Text
-        </a>
+        <div className="kit-card-actions">
+          <a
+            className="kit-card-text-btn"
+            href={smsHref(firstPhone, initialContactMessage(job.customerName))}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Send initial text to ${job.customerName || firstPhone}`}
+          >
+            💬 Text
+          </a>
+          <a
+            className="kit-card-text-btn kit-card-reply-btn"
+            href={smsHref(firstPhone, followUpMessage(job.customerName))}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Reply to ${job.customerName || firstPhone}`}
+          >
+            ↩️ Reply
+          </a>
+        </div>
       )}
     </div>
   );

@@ -14,7 +14,7 @@ import {
   updateKitJob,
 } from "../db/kitRepo";
 import { compressImageToDataUrl } from "../lib/photo";
-import { contactRequestMessage, smsHref } from "../lib/kitSms";
+import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import { CONTACT_OUTCOME_META, CONTACT_OUTCOME_ORDER, deriveStage, DOOR_VISIT_OUTCOME_META, STAGE_META } from "../lib/kitStage";
@@ -261,8 +261,11 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         {phoneNumbers.map((phone) => (
           <span key={phone} className="chip">
             <a href={`tel:${phone}`}>{phone}</a>
-            <a href={smsHref(phone, contactRequestMessage(customerName))} className="kit-text-link">
+            <a href={smsHref(phone, initialContactMessage(customerName))} className="kit-text-link">
               text
+            </a>
+            <a href={smsHref(phone, followUpMessage(customerName))} className="kit-text-link">
+              reply
             </a>
             <button type="button" className="chip-remove" aria-label={`Remove ${phone}`} onClick={() => removePhone(phone)}>
               ×
