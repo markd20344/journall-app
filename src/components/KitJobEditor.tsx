@@ -239,8 +239,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         onChange={(e) => setCustomerName(e.target.value)}
       />
 
-      <div className="kit-address-row">
-        <input type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+      <input type="text" className="kit-address-input" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+
+      <div className="kit-postcode-row">
         <input
           type="text"
           className="kit-postcode-input"
@@ -250,7 +251,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         />
         {(address || postcode) && (
           <a className="kit-maps-icon-btn" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Open in Maps">
-            📍
+            📍 Open in Maps
           </a>
         )}
       </div>
