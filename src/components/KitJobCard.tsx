@@ -9,9 +9,13 @@ interface Props {
   // Shown as a leading position number when this card is part of an ordered
   // route list — omitted in the plain Jobs list, where order isn't set yet.
   routePosition?: number;
+  // "12.3 mi · 22 min from start" — the driving leg into this stop from
+  // wherever the route was at before it, shown under the address on the
+  // Route tab once a route's been planned.
+  legLabel?: string;
 }
 
-export default function KitJobCard({ job, onClick, routePosition }: Props) {
+export default function KitJobCard({ job, onClick, routePosition, legLabel }: Props) {
   const stage = STAGE_META[deriveStage(job)];
   const summary = kitSummary(job);
   const firstPhone = job.phoneNumbers[0];
@@ -39,6 +43,7 @@ export default function KitJobCard({ job, onClick, routePosition }: Props) {
             {job.postcode}
           </p>
           {summary && <p className="dependency-line">🎒 {summary}</p>}
+          {legLabel && <p className="dependency-line">🚗 {legLabel}</p>}
         </div>
       </button>
       {firstPhone && (

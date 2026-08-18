@@ -1990,3 +1990,19 @@ textarea {
 .kit-route-drag-row.dragging {
   opacity: 0.4;
 }
+
+.kit-route-totals {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.kit-route-return-leg {
+  margin: 14px 4px 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
