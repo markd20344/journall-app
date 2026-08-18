@@ -216,6 +216,30 @@ class JournalDB extends Dexie {
       kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
       candles: "[pair+date], pair, date",
     });
+    // v12: v11 shipped before candles were filtered to weekdays only —
+    // purge any Saturday/Sunday bars a refresh already cached under v11 so
+    // stale weekend rows don't linger for anyone who refreshed before this
+    // fix landed. Schema is unchanged, this version only runs the cleanup.
+    this.version(12)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+      })
+      .upgrade(async (tx) => {
+        const candles = (await tx.table("candles").toArray()) as Candle[];
+        const weekendKeys = candles
+          .filter((c) => {
+            const day = new Date(c.date + "T00:00:00Z").getUTCDay();
+            return day === 0 || day === 6;
+          })
+          .map((c): [string, string] => [c.pair, c.date]);
+        if (weekendKeys.length > 0) await tx.table("candles").bulkDelete(weekendKeys);
+      });
   }
 }
 

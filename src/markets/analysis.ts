@@ -11,6 +11,7 @@ import type {
   PairAnalysis,
   TdiResult,
 } from "../types/markets";
+import { excludeWeekends } from "./dates";
 import { pipSize } from "./pairs";
 
 export function dayColor(candle: Candle): DayColor {
@@ -190,7 +191,7 @@ export function computeTdi(candles: Candle[]): TdiResult | null {
 export const MIN_CANDLES_FOR_FULL_ANALYSIS = RSI_PERIOD + BAND_PERIOD + 5;
 
 export function analyzePair(pair: string, rawCandles: Candle[]): PairAnalysis {
-  const candles = [...rawCandles].sort((a, b) => a.date.localeCompare(b.date));
+  const candles = excludeWeekends(rawCandles).sort((a, b) => a.date.localeCompare(b.date));
   return {
     pair,
     candles,
