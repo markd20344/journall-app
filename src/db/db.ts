@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { Category, Entry, Item, ItemKind, Topic } from "../types";
 import type { Candle } from "../types/markets";
+import type { KitJob } from "../types/kit";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -23,6 +24,7 @@ class JournalDB extends Dexie {
   settings!: Table<SettingRecord, string>;
   items!: Table<Item, string>;
   candles!: Table<Candle, [string, string]>;
+  kitJobs!: Table<KitJob, string>;
 
   constructor() {
     super("journall-db");
@@ -192,14 +194,26 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
-    // v10: Markets dashboard — cached daily FX candles, keyed by pair+date
-    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    // v10: add kitJobs — the kit-collection round tracker (jobs parsed from
+    // the daily company email, route order, contact/visit logs, kit
+    // collected, and office-email/drop-off tracking).
     this.version(10).stores({
       entries: "id, date, categoryId, *topicIds, updatedAt",
       categories: "id, name",
       topics: "id, name, categoryId",
       settings: "key",
       items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+    });
+    // v11: Markets dashboard — cached daily FX candles, keyed by pair+date
+    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    this.version(11).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
       candles: "[pair+date], pair, date",
     });
   }
@@ -230,6 +244,28 @@ export function normalizeItem(raw: Item): Item {
     source: raw.source ?? null,
     categoryId: raw.categoryId ?? null,
     subtasks: raw.subtasks ?? [],
+  };
+}
+
+// Same purpose as normalizeItem above, for kitJobs: backfills fields the
+// shape has grown since a record was first written, for anything arriving
+// via a Firestore pull or JSON import rather than through kitRepo.ts.
+export function normalizeKitJob(raw: KitJob): KitJob {
+  return {
+    ...raw,
+    jobNumber: raw.jobNumber ?? "",
+    phoneNumbers: raw.phoneNumbers ?? [],
+    rawText: raw.rawText ?? "",
+    notes: raw.notes ?? "",
+    routeOrder: raw.routeOrder ?? null,
+    lat: raw.lat ?? null,
+    lng: raw.lng ?? null,
+    contactAttempts: raw.contactAttempts ?? [],
+    visits: raw.visits ?? [],
+    kitCollected: raw.kitCollected ?? null,
+    officeEmailedAt: raw.officeEmailedAt ?? null,
+    droppedOffAt: raw.droppedOffAt ?? null,
+    droppedOffBatchId: raw.droppedOffBatchId ?? null,
   };
 }
 

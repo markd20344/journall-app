@@ -1066,6 +1066,7 @@ textarea {
 
 .priority-picker {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -1113,11 +1114,19 @@ textarea {
 
 .item-editor-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
 .item-editor-row .field {
   margin-bottom: 0;
+  /* flex-basis 140px with shrink/grow lets two fields share the row when
+     there's room, but wrap onto their own line rather than force the page
+     wider when they can't — a plain <input type="date"> renders at a fixed
+     minimum width on iOS that doesn't shrink to fit, so without this a
+     date field paired with anything else overflows the screen edge. */
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .item-editor-code-row {
@@ -1458,14 +1467,543 @@ textarea {
   margin: 0;
 }
 
-.today-section-title-overdue {
-  color: var(--danger);
+
+
+/* ---------- Kit Runs ---------- */
+
+.kit-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.today-section-head button {
+.kit-dropoff-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.kit-date-row {
+  margin-bottom: 16px;
+}
+
+.kit-date-chip {
+  border-radius: 999px;
+  padding: 5px 12px;
   font-size: 13px;
-  padding: 4px 10px;
+}
+
+.kit-date-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kit-stage-badge,
+.kit-outcome-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--stage-color);
+  background: color-mix(in srgb, var(--stage-color) 14%, transparent);
+  white-space: nowrap;
+}
+
+/* ---------- Kit job card ---------- */
+
+.kit-job-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--bg-raised);
+}
+
+.kit-job-card-main {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.kit-card-actions {
   flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kit-card-text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.kit-card-text-btn:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.kit-card-reply-btn {
+  background: transparent;
+  color: var(--text);
+}
+
+.kit-card-reply-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.kit-route-position {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.kit-job-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.kit-job-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.kit-job-card-name {
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 2px;
+  overflow-wrap: anywhere;
+}
+
+.kit-job-card-address {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* ---------- Kit import ---------- */
+
+.kit-import-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.kit-import-textarea {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+}
+
+.kit-summary-textarea {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.kit-draft-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.kit-draft-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 720px;
+}
+
+.kit-draft-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  opacity: 0.7;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.kit-draft-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.kit-draft-table tr:last-child td {
+  border-bottom: none;
+}
+
+.kit-draft-table input[type="text"] {
+  width: 100%;
+  min-width: 90px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 6px;
+  border-radius: 6px;
+}
+
+.kit-draft-table input[type="text"]:hover,
+.kit-draft-table input[type="text"]:focus {
+  border-color: var(--border);
+  background: var(--bg-raised);
+}
+
+.kit-draft-postcode-input {
+  min-width: 70px !important;
+  text-transform: uppercase;
+}
+
+.kit-draft-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.kit-draft-raw-cell {
+  background: var(--bg);
+}
+
+.kit-draft-raw-cell pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  opacity: 0.75;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* ---------- Kit job editor ---------- */
+
+.kit-job-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.kit-address-input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.kit-postcode-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.kit-postcode-input {
+  flex: 0 1 130px;
+  min-width: 90px;
+  text-transform: uppercase;
+}
+
+.kit-maps-icon-btn {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kit-maps-icon-btn:hover {
+  background: var(--accent-bg);
+}
+
+.kit-phone-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+
+.kit-add-phone-input {
+  flex: 1;
+  min-width: 90px;
+  border: 1px dashed var(--border) !important;
+  background: transparent !important;
+  padding: 5px 10px !important;
+}
+
+.kit-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 9px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+  color: inherit;
+  width: fit-content;
+}
+
+.kit-photo-btn:hover {
+  background: var(--accent-bg);
+}
+
+/* ---------- Collapsible sections ---------- */
+
+.kit-section {
+  border-top: 1px solid var(--border);
+}
+
+.kit-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 0;
+  padding: 14px 0;
+  text-align: left;
+}
+
+.kit-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.kit-section-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kit-section-summary {
+  font-size: 13px;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 46vw;
+}
+
+.kit-section-chevron {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.kit-section-body {
+  padding-bottom: 16px;
+}
+
+.kit-text-link {
+  font-size: 11px;
+  text-decoration: underline;
+  opacity: 0.75;
+}
+
+.kit-log-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.kit-log-form input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.kit-visit-row {
+  flex-wrap: wrap;
+}
+
+.kit-visit-photo {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+/* ---------- Kit collected ---------- */
+
+.kit-collected-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.kit-rucksack-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.kit-count-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kit-count-label {
+  font-weight: 500;
+}
+
+.kit-count-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kit-count-controls button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
+  border-radius: 50%;
+}
+
+.kit-count-value {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.kit-summary-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.kit-summary-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+/* ---------- Kit lifecycle toggles ---------- */
+
+.kit-lifecycle-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kit-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+/* ---------- Kit route planning ---------- */
+
+.kit-route-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.kit-route-controls input[type="text"] {
+  min-width: 140px;
+}
+
+.kit-route-drag-row {
+  cursor: grab;
+}
+
+.kit-route-drag-row.dragging {
+  opacity: 0.4;
+}
+
+.kit-route-totals {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.kit-route-return-leg {
+  margin: 14px 4px 0;
+  font-size: 13px;
+  opacity: 0.75;
 }
 
 /* Markets dashboard */
