@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Candle } from "../types/markets";
 import type { KitJob } from "../types/kit";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
@@ -22,6 +23,7 @@ class JournalDB extends Dexie {
   topics!: Table<Topic, string>;
   settings!: Table<SettingRecord, string>;
   items!: Table<Item, string>;
+  candles!: Table<Candle, [string, string]>;
   kitJobs!: Table<KitJob, string>;
 
   constructor() {
@@ -202,6 +204,17 @@ class JournalDB extends Dexie {
       settings: "key",
       items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
       kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+    });
+    // v11: Markets dashboard — cached daily FX candles, keyed by pair+date
+    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    this.version(11).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
     });
   }
 }
