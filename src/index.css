@@ -2063,7 +2063,8 @@ textarea {
 
 .markets-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -2097,22 +2098,37 @@ textarea {
   color: var(--text-h);
 }
 
+/* Keep the Pair column visible while the rest of the wide table scrolls
+   horizontally, so you always know which row you're looking at. */
+.markets-table th:first-child,
+.markets-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-raised);
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.markets-table thead th:first-child {
+  z-index: 2;
+}
+
+.markets-row-active td:first-child {
+  background: var(--accent-bg);
+}
+
+/* One row per week (oldest on top, this week on the bottom) instead of one
+   long horizontal line — keeps the column narrow regardless of how many
+   weeks of history it covers. */
 .day-streak {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .day-streak-week {
   display: flex;
-  gap: 2px;
-  padding-right: 4px;
-  border-right: 1px solid var(--border);
-}
-
-.day-streak-week:last-child {
-  border-right: none;
-  padding-right: 0;
+  gap: 3px;
 }
 
 .day-circle {

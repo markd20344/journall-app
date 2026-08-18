@@ -114,8 +114,7 @@ export default function MarketsPage() {
               <th>Pair</th>
               <th>Last 4 weeks</th>
               <th>Setups</th>
-              <th>ADR (14d)</th>
-              <th>Today's range</th>
+              <th>ADR (14d) / Today</th>
               <th>TDI (RSI 13)</th>
             </tr>
           </thead>
@@ -125,8 +124,12 @@ export default function MarketsPage() {
                 <td className="markets-pair-cell">{formatPair(a.pair)}</td>
                 <td>{a.candles.length > 0 ? <DayStreak history={a.history} /> : <span className="settings-hint small">No data</span>}</td>
                 <td><SetupBadges analysis={a} /></td>
-                <td>{a.adrPips !== null ? `${a.adrPips.toFixed(1)} pips` : "—"}</td>
-                <td>{a.todayRangePips !== null ? `${a.todayRangePips.toFixed(1)} pips` : "—"}</td>
+                <td>
+                  <div>{a.adrPips !== null ? `${a.adrPips.toFixed(1)} pips` : "—"}</div>
+                  <div className="settings-hint small">
+                    {a.todayRangePips !== null ? `Today: ${a.todayRangePips.toFixed(1)} pips` : ""}
+                  </div>
+                </td>
                 <td>
                   {a.tdi ? (
                     <span className={`tdi-value tdi-${a.tdi.zone}`} title={`Price line ${a.tdi.priceLine.toFixed(1)} / Signal ${a.tdi.signalLine.toFixed(1)}`}>
