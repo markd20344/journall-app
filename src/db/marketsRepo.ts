@@ -2,6 +2,7 @@ import { db } from "./db";
 import type { Candle } from "../types/markets";
 import { fetchAllCandles, type RefreshProgress } from "../markets/api";
 import { MIN_CANDLES_FOR_FULL_ANALYSIS } from "../markets/analysis";
+import { excludeWeekends } from "../markets/dates";
 import { PAIRS } from "../markets/pairs";
 
 const API_KEY_SETTING = "markets:twelveDataApiKey";
@@ -67,7 +68,7 @@ export async function refreshAllCandles(onProgress?: (p: RefreshProgress) => voi
       failed.push({ pair, message: value.message });
     } else {
       succeeded.push(pair);
-      toStore.push(...value);
+      toStore.push(...excludeWeekends(value));
     }
   }
 
