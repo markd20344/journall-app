@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { addDays, format } from "date-fns";
 import type { KitJob } from "../types/kit";
 import { createKitJob, markDroppedOff } from "../db/kitRepo";
 import { useKitBatchDates, useKitJobsForDate, usePendingDropOff } from "../hooks/useKitData";
 import { showToast } from "../lib/toast";
+import { todayDateString } from "../lib/id";
 import KitJobCard from "../components/KitJobCard";
 import KitJobEditor from "../components/KitJobEditor";
 import KitImportPanel from "../components/KitImportPanel";
@@ -12,13 +12,14 @@ import KitDailySummaryPanel from "../components/KitDailySummaryPanel";
 
 type SubView = "jobs" | "route";
 
-function tomorrow(): string {
-  return format(addDays(new Date(), 1), "yyyy-MM-dd");
-}
-
 export default function KitRunsPage() {
   const [subView, setSubView] = useState<SubView>("jobs");
-  const [selectedDate, setSelectedDate] = useState(tomorrow());
+  // Today, not tomorrow: the jobs you need to work, update, and report on
+  // any given day are the ones you imported and texted the evening before
+  // — by the time you're viewing this, "today" is that batch. Defaulting
+  // to tomorrow instead meant reopening the app on the actual visit day
+  // landed on an empty day with nothing imported into it yet.
+  const [selectedDate, setSelectedDate] = useState(todayDateString());
   const [editingJob, setEditingJob] = useState<KitJob | null>(null);
   const [importing, setImporting] = useState(false);
   const [showingSummary, setShowingSummary] = useState(false);
@@ -53,7 +54,13 @@ export default function KitRunsPage() {
     return (
       <div className="page">
         <h1 className="page-title">Import jobs</h1>
-        <KitImportPanel onImported={() => setImporting(false)} onCancel={() => setImporting(false)} />
+        <KitImportPanel
+          onImported={(importedBatchDate) => {
+            setImporting(false);
+            setSelectedDate(importedBatchDate);
+          }}
+          onCancel={() => setImporting(false)}
+        />
       </div>
     );
   }
