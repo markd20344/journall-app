@@ -2029,55 +2029,94 @@ textarea {
 
 /* Compact Symbol/Status list — the primary Markets view. Each row is a
    button so the whole row is clickable to open its Key Levels panel. */
-.markets-compact-table {
-  display: flex;
-  flex-direction: column;
+.markets-table-wrap {
+  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
   background: var(--bg-raised);
   box-shadow: var(--shadow);
 }
 
-.markets-compact-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.markets-table {
   width: 100%;
-  padding: 10px 14px;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-  font-size: 13.5px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
-.markets-compact-table .markets-compact-row:last-child {
+.markets-table th,
+.markets-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.markets-table th {
+  /* A muted color rather than `opacity` on the cell — opacity would make
+     the sticky Pair header's own background see-through too, letting the
+     column scrolling underneath it bleed into view. */
+  color: var(--text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.markets-table tbody tr {
+  cursor: pointer;
+}
+
+.markets-table tbody tr:hover {
+  background: var(--accent-bg);
+}
+
+.markets-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.markets-compact-row:hover:not(:disabled) {
-  background: var(--accent-bg);
-  border-color: var(--border);
-}
-
-.markets-compact-row-selected {
+.markets-row-selected {
   background: var(--accent-bg);
 }
 
-.markets-compact-symbol {
+.markets-pair-cell {
   font-weight: 700;
   color: var(--text-h);
-  flex-shrink: 0;
-  min-width: 84px;
+}
+
+/* Keep the Pair column visible while the rest of the wide table scrolls
+   horizontally, so you always know which row you're looking at. */
+.markets-table th:first-child,
+.markets-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-raised);
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.markets-table thead th:first-child {
+  z-index: 2;
+}
+
+.markets-row-selected td:first-child {
+  background: var(--accent-bg);
+}
+
+.tdi-value {
+  font-weight: 700;
+}
+
+.tdi-overbought {
+  color: var(--danger);
+}
+
+.tdi-oversold {
+  color: var(--success-text);
 }
 
 .status-text {
   font-weight: 600;
-  text-align: right;
-  flex: 1;
 }
 
 .status-text-red {
