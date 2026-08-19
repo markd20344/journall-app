@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Book, BookStatus } from "../types";
 import { BOOK_FORMATS, BOOK_STATUSES } from "../lib/bookMeta";
 import { createBook, deleteBook, updateBook } from "../db/repo";
-import { useAllBooks } from "../hooks/useJournalData";
+import { useAllBooks, useCategories } from "../hooks/useJournalData";
 import { resizeImageFile } from "../lib/image";
 import { todayDateString } from "../lib/id";
 import { appendDictatedSentence, ensureSentenceEnd } from "../lib/dictation";
@@ -12,6 +12,7 @@ import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete
 import BookCover from "./BookCover";
 import VoiceButton from "./VoiceButton";
 import Dropdown from "./Dropdown";
+import ItemEditor from "./ItemEditor";
 
 interface Props {
   book?: Book;
@@ -47,12 +48,22 @@ export default function BookEditor({ book, defaultStatus, onSaved, onCancel, onD
   const [dateStarted, setDateStarted] = useState(book?.dateStarted ?? "");
   const [dateFinished, setDateFinished] = useState(book?.dateFinished ?? "");
   const [saving, setSaving] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const allBooks = useAllBooks();
   const knownSeries = Array.from(new Set(allBooks.filter((b) => b.series).map((b) => b.series as string))).sort((a, b) =>
     a.localeCompare(b),
   );
+
+  // Tasks aren't a book-specific record — they're a normal Task (Item), just
+  // pre-tagged with the "Books" category (see ensureDomainCategories) so
+  // they read as book-related wherever Tasks show up (Log, Today, a colored
+  // pill on the card) without a separate task system to maintain. Falls
+  // back to no default if that category was renamed/deleted — the picker
+  // in ItemEditor still works, just without the pre-fill.
+  const categories = useCategories();
+  const booksCategoryId = categories.find((c) => c.name.toLowerCase() === "books")?.id;
 
   async function handleCoverPicked(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -142,21 +153,37 @@ export default function BookEditor({ book, defaultStatus, onSaved, onCancel, onD
     onDeleted?.();
   }
 
+  if (addingTask && book) {
+    return (
+      <ItemEditor
+        kind="action"
+        defaultDate={todayDateString()}
+        defaultTitle={`Re: ${book.title}`}
+        defaultCategoryId={booksCategoryId}
+        onSaved={() => setAddingTask(false)}
+        onCancel={() => setAddingTask(false)}
+      />
+    );
+  }
+
   return (
     <div className="item-editor book-editor">
       <div className="book-editor-cover-row">
         <BookCover title={title} coverImage={coverImage} size="lg" />
         <div className="book-editor-cover-actions">
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void handleCoverPicked(e)} />
+          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={(e) => void handleCoverPicked(e)} />
           <button type="button" disabled={coverBusy} onClick={() => fileInputRef.current?.click()}>
-            {coverBusy ? "Processing…" : coverImage ? "📷 Retake cover" : "📷 Snap cover"}
+            {coverBusy ? "Processing…" : coverImage ? "🖼️ Change cover" : "🖼️ Add cover"}
           </button>
           {coverImage && (
             <button type="button" className="ghost" onClick={() => setCoverImage(null)}>
               Remove
             </button>
           )}
-          <p className="settings-hint small">Photo the cover, or a TikTok/Instagram screenshot — whatever's fastest.</p>
+          <p className="settings-hint small">
+            Take a new photo, or pick one already on your phone — a cover shot, a TikTok/Instagram screenshot, or a
+            screenshot of an e-book's cover from your reading app.
+          </p>
         </div>
       </div>
 
@@ -292,6 +319,21 @@ export default function BookEditor({ book, defaultStatus, onSaved, onCancel, onD
           </button>
         )}
       </div>
+
+      {book ? (
+        <div className="link-section">
+          <span className="field-label">Tasks</span>
+          <p className="settings-hint small">
+            A normal task, tagged "Books" so it's easy to spot in Log/Today — e.g. return it to the library, chase up
+            a preorder, or post a review.
+          </p>
+          <button type="button" onClick={() => setAddingTask(true)}>
+            + Add a task for this book
+          </button>
+        </div>
+      ) : (
+        <p className="settings-hint small">Save this book first to add a task for it.</p>
+      )}
     </div>
   );
 }

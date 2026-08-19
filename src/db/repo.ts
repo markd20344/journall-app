@@ -52,6 +52,18 @@ export async function upsertCategory(name: string, color: string): Promise<Categ
   return category;
 }
 
+/**
+ * Ensures the "Books" and "Kit Runs" categories exist so Tasks can be
+ * tagged by domain the same way "Trading" already covers Markets-related
+ * tasks — idempotent (upsertCategory dedupes by name) and safe to call on
+ * every app load, including on devices that were seeded long before these
+ * categories existed.
+ */
+export async function ensureDomainCategories(): Promise<void> {
+  await upsertCategory("Books", "#7c3aed");
+  await upsertCategory("Kit Runs", "#0d9488");
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   // Keep entries/topics around (orphaned category ref) rather than cascading
   // deletes silently — journaling data should never disappear unexpectedly.
