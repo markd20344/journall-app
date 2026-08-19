@@ -6,7 +6,7 @@ import { useEffect, useReducer } from "react";
 // List views filter out staged ids via usePendingDeleteIds so the record
 // disappears immediately, the same as before, while still being fully
 // recoverable until the timer fires.
-export type PendingKind = "entry" | "item" | "category" | "book";
+export type PendingKind = "entry" | "item" | "category" | "kitJob" | "book";
 
 interface Pending {
   timer: ReturnType<typeof setTimeout>;
