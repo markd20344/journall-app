@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
+import { ensureDomainCategories } from "./db/repo";
 import { applyStoredAccentColor } from "./lib/theme";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -11,16 +12,18 @@ import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
+import BooksPage from "./pages/BooksPage";
 import KitRunsPage from "./pages/KitRunsPage";
 import MarketsPage from "./pages/MarketsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-export type View = "today" | "write" | "calendar" | "log" | "browse" | "kit" | "markets" | "settings";
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "kit" | "markets" | "settings";
 
 const NAV_ITEMS: Array<{ id: View; label: string }> = [
   { id: "today", label: "Today" },
   { id: "browse", label: "Entries" },
   { id: "log", label: "Log" },
+  { id: "books", label: "Books" },
   { id: "calendar", label: "Calendar" },
   { id: "write", label: "Journal" },
   { id: "kit", label: "Kit Runs" },
@@ -33,7 +36,7 @@ export default function App() {
   const [view, setView] = useState<View>("today");
 
   useEffect(() => {
-    void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
+    void Promise.all([ensureSeeded().then(ensureDomainCategories), applyStoredAccentColor()]).then(() => setReady(true));
   }, []);
 
   if (!ready) {
@@ -68,6 +71,7 @@ export default function App() {
             {view === "calendar" && <CalendarPage />}
             {view === "log" && <LogPage />}
             {view === "browse" && <BrowsePage />}
+            {view === "books" && <BooksPage />}
             {view === "kit" && <KitRunsPage />}
             {view === "markets" && <MarketsPage />}
             {view === "settings" && <SettingsPage />}
