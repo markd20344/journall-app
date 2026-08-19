@@ -5,7 +5,7 @@ import { importKitJobs } from "../db/kitRepo";
 import { showToast } from "../lib/toast";
 
 interface Props {
-  onImported: () => void;
+  onImported: (batchDate: string) => void;
   onCancel: () => void;
 }
 
@@ -66,7 +66,7 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
     try {
       await importKitJobs(usable, batchDate);
       showToast(`Imported ${usable.length} job${usable.length === 1 ? "" : "s"} for ${batchDate}`);
-      onImported();
+      onImported(batchDate);
     } finally {
       setImporting(false);
     }
