@@ -1,6 +1,7 @@
 import { db, normalizeItem } from "../db/db";
-import type { Category, Entry, Item, Topic } from "../types";
+import type { Book, Category, Entry, Item, Topic } from "../types";
 import { itemKindMeta, STATUS_META } from "./itemKinds";
+import { bookStatusMeta } from "./bookMeta";
 
 export interface JournalDump {
   exportedAt: string;
@@ -8,16 +9,18 @@ export interface JournalDump {
   topics: Topic[];
   entries: Entry[];
   items: Item[];
+  books: Book[];
 }
 
 export async function buildDump(): Promise<JournalDump> {
-  const [categories, topics, entries, items] = await Promise.all([
+  const [categories, topics, entries, items, books] = await Promise.all([
     db.categories.toArray(),
     db.topics.toArray(),
     db.entries.toArray(),
     db.items.toArray(),
+    db.books.toArray(),
   ]);
-  return { exportedAt: new Date().toISOString(), categories, topics, entries, items };
+  return { exportedAt: new Date().toISOString(), categories, topics, entries, items, books };
 }
 
 function download(filename: string, content: string, mime: string) {
@@ -90,6 +93,20 @@ export async function exportAsMarkdown(): Promise<void> {
     }
   }
 
+  if (dump.books.length > 0) {
+    const sortedBooks = [...dump.books].sort((a, b) => a.dateAdded.localeCompare(b.dateAdded));
+    lines.push(`## Books`, "");
+    for (const book of sortedBooks) {
+      const statusLabel = bookStatusMeta(book.status).label;
+      lines.push(`### ${book.title || "Untitled"}${book.author ? ` — ${book.author}` : ""}`, "");
+      const metaParts = [statusLabel, book.series ? `${book.series}${book.seriesOrder != null ? ` #${book.seriesOrder}` : ""}` : null].filter(
+        Boolean,
+      );
+      lines.push(`_${metaParts.join(" · ")}_`, "");
+      if (book.notes) lines.push(book.notes, "");
+    }
+  }
+
   const stamp = new Date().toISOString().slice(0, 10);
   download(`journal-export-${stamp}.md`, lines.join("\n"), "text/markdown");
 }
@@ -103,7 +120,7 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
   let added = 0;
   let updated = 0;
 
-  await db.transaction("rw", db.categories, db.topics, db.entries, db.items, async () => {
+  await db.transaction("rw", db.categories, db.topics, db.entries, db.items, db.books, async () => {
     for (const category of dump.categories) {
       const existing = await db.categories.get(category.id);
       if (!existing) {
@@ -145,6 +162,17 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
         added++;
       } else if (item.updatedAt > existing.updatedAt) {
         await db.items.put(item);
+        updated++;
+      }
+    }
+    // dump.books may be absent in exports taken before Books existed.
+    for (const book of dump.books ?? []) {
+      const existing = await db.books.get(book.id);
+      if (!existing) {
+        await db.books.put(book);
+        added++;
+      } else if (book.updatedAt > existing.updatedAt) {
+        await db.books.put(book);
         updated++;
       }
     }

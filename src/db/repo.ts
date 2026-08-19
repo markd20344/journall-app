@@ -2,7 +2,7 @@
 // file-sync and Firestore sync layers can do simple last-write-wins conflict
 // resolution, and mirrors the change to Firestore (a no-op when signed out).
 import { db } from "./db";
-import type { Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Subtask, Topic } from "../types";
+import type { Book, BookFormat, BookStatus, Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Subtask, Topic } from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 import { deleteRecord, pushRecord } from "../firebase/sync";
@@ -400,6 +400,95 @@ export async function dedupeCategoriesAndTopics(): Promise<void> {
       deleteRecord("topics", dupe.id);
     }
   }
+}
+
+export async function createBook(input: {
+  title: string;
+  author?: string;
+  series?: string | null;
+  seriesOrder?: number | null;
+  status?: BookStatus;
+  format?: BookFormat;
+  coverImage?: string | null;
+  notes?: string;
+  dateAdded?: string;
+}): Promise<Book> {
+  const ts = nowIso();
+  const status = input.status ?? "wishlist";
+  const today = ts.slice(0, 10);
+  const book: Book = {
+    id: newId(),
+    title: input.title,
+    author: input.author?.trim() ?? "",
+    series: input.series?.trim() || null,
+    seriesOrder: input.seriesOrder ?? null,
+    status,
+    format: input.format ?? "physical",
+    coverImage: input.coverImage ?? null,
+    rating: null,
+    notes: input.notes ?? "",
+    dateAdded: input.dateAdded ?? today,
+    dateStarted: status === "reading" || status === "finished" || status === "on_hold" ? today : null,
+    dateFinished: status === "finished" ? today : null,
+    createdAt: ts,
+    updatedAt: ts,
+  };
+  await db.books.add(book);
+  pushRecord("books", book);
+  return book;
+}
+
+/**
+ * Updates a book. Setting `status` to "reading" or "finished" auto-fills the
+ * matching date (dateStarted/dateFinished) the *first* time it happens —
+ * same pattern as Item's auto-set closedAt — so moving a book along its
+ * lifecycle from the card's quick status dropdown doesn't require opening
+ * the full editor just to log when it happened. An explicit date passed in
+ * `changes` always wins.
+ */
+export async function updateBook(
+  id: string,
+  changes: Partial<
+    Pick<
+      Book,
+      | "title"
+      | "author"
+      | "series"
+      | "seriesOrder"
+      | "status"
+      | "format"
+      | "coverImage"
+      | "rating"
+      | "notes"
+      | "dateAdded"
+      | "dateStarted"
+      | "dateFinished"
+    >
+  >,
+): Promise<void> {
+  const ts = nowIso();
+  const finalChanges: Partial<Book> = { ...changes, updatedAt: ts };
+  if (changes.status !== undefined) {
+    const current = await db.books.get(id);
+    if (changes.status === "reading" && !current?.dateStarted && changes.dateStarted === undefined) {
+      finalChanges.dateStarted = ts.slice(0, 10);
+    }
+    if (changes.status === "finished" && !current?.dateFinished && changes.dateFinished === undefined) {
+      finalChanges.dateFinished = ts.slice(0, 10);
+    }
+  }
+  await db.books.update(id, finalChanges);
+  const updated = await db.books.get(id);
+  if (updated) pushRecord("books", updated);
+}
+
+export async function setBookStatus(id: string, status: BookStatus): Promise<void> {
+  await updateBook(id, { status });
+}
+
+export async function deleteBook(id: string): Promise<void> {
+  await db.books.delete(id);
+  deleteRecord("books", id);
 }
 
 export async function deleteItem(id: string): Promise<void> {

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemKind, Topic } from "../types";
 import type { Candle } from "../types/markets";
 import type { KitJob } from "../types/kit";
 import { newId, nowIso } from "../lib/id";
@@ -25,6 +25,7 @@ class JournalDB extends Dexie {
   items!: Table<Item, string>;
   candles!: Table<Candle, [string, string]>;
   kitJobs!: Table<KitJob, string>;
+  books!: Table<Book, string>;
 
   constructor() {
     super("journall-db");
@@ -240,6 +241,18 @@ class JournalDB extends Dexie {
           .map((c): [string, string] => [c.pair, c.date]);
         if (weekendKeys.length > 0) await tx.table("candles").bulkDelete(weekendKeys);
       });
+    // v13: add the books table (want-to-read / reading / finished tracking)
+    // — brand new table, no existing data to migrate.
+    this.version(13).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+    });
   }
 }
 

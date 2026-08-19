@@ -10,12 +10,14 @@
 //   <folder>/topics.json
 //   <folder>/entries/<date>__<id>.json
 //   <folder>/items/<date>__<id>.json
+//   <folder>/books/<dateAdded>__<id>.json
 //
-// Each entries/*.json and items/*.json file is fully self-describing (includes
-// category/topic names or linked-item ids, not just internal ids) so it stays
+// Each entries/*.json, items/*.json and books/*.json file is fully
+// self-describing (includes category/topic names, linked-item ids, or the
+// resized cover image inline, not just internal ids) so it stays
 // human-readable and useful even without this app.
 import { db } from "../db/db";
-import type { Category, Entry, Item, Topic } from "../types";
+import type { Book, Category, Entry, Item, Topic } from "../types";
 import { importDump, type JournalDump } from "./exportImport";
 
 const SETTINGS_KEY = "syncDirectoryHandle";
@@ -79,6 +81,10 @@ function itemFileName(item: Item): string {
   return `${item.date}__${item.id}.json`;
 }
 
+function bookFileName(book: Book): string {
+  return `${book.dateAdded}__${book.id}.json`;
+}
+
 /** Pull: read the folder's contents and merge them into the local database. */
 export async function pullFromFolder(root: FileSystemDirectoryHandle): Promise<{ added: number; updated: number }> {
   const categories = (await readJsonFile<Category[]>(root, "categories.json")) ?? [];
@@ -116,17 +122,34 @@ export async function pullFromFolder(root: FileSystemDirectoryHandle): Promise<{
     // No items/ subdirectory yet — nothing to pull.
   }
 
-  const dump: JournalDump = { exportedAt: new Date().toISOString(), categories, topics, entries, items };
+  const books: Book[] = [];
+  try {
+    const booksDir = await root.getDirectoryHandle("books");
+    for await (const [name, handle] of booksDir.entries()) {
+      if (handle.kind !== "file" || !name.endsWith(".json")) continue;
+      const file = await handle.getFile();
+      try {
+        books.push(JSON.parse(await file.text()) as Book);
+      } catch {
+        // Skip unreadable/corrupt files rather than aborting the whole sync.
+      }
+    }
+  } catch {
+    // No books/ subdirectory yet — nothing to pull.
+  }
+
+  const dump: JournalDump = { exportedAt: new Date().toISOString(), categories, topics, entries, items, books };
   return importDump(dump);
 }
 
 /** Push: write the full local database out to the folder as individual files. */
 export async function pushToFolder(root: FileSystemDirectoryHandle): Promise<void> {
-  const [categories, topics, entries, items] = await Promise.all([
+  const [categories, topics, entries, items, books] = await Promise.all([
     db.categories.toArray(),
     db.topics.toArray(),
     db.entries.toArray(),
     db.items.toArray(),
+    db.books.toArray(),
   ]);
 
   await writeJsonFile(root, "categories.json", categories);
@@ -145,6 +168,14 @@ export async function pushToFolder(root: FileSystemDirectoryHandle): Promise<voi
     const fileHandle = await itemsDir.getFileHandle(itemFileName(item), { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(item, null, 2));
+    await writable.close();
+  }
+
+  const booksDir = await root.getDirectoryHandle("books", { create: true });
+  for (const book of books) {
+    const fileHandle = await booksDir.getFileHandle(bookFileName(book), { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(book, null, 2));
     await writable.close();
   }
 }

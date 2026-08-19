@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
-import type { Category, Entry, EntryWithRefs, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, EntryWithRefs, Item, ItemKind, Topic } from "../types";
 import { usePendingDeleteIds } from "../lib/pendingDelete";
 
 // Most-recent-first, and reliable within a single day: Dexie's own
@@ -126,6 +126,13 @@ export function useCalendarItemsInRange(startDate: string, endDate: string): Ite
   return items
     .filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind) && !pendingIds.has(i.id))
     .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : (a.time || "").localeCompare(b.time || "")));
+}
+
+export function useAllBooks(): Book[] {
+  const books = useLiveQuery(() => db.books.toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("book");
+  const visible = pendingIds.size === 0 ? books : books.filter((b) => !pendingIds.has(b.id));
+  return [...visible].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function useEnrichedEntries(entries: Entry[]): EntryWithRefs[] {

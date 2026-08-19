@@ -2267,3 +2267,157 @@ textarea {
 .day-circle-flat {
   background: var(--border);
 }
+
+/* ---------- Books ---------- */
+
+.book-cover {
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.book-cover-sm {
+  width: 44px;
+  height: 60px;
+}
+
+.book-cover-lg {
+  width: 88px;
+  height: 120px;
+}
+
+.book-cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.book-cover-placeholder.book-cover-sm {
+  font-size: 18px;
+}
+
+.book-cover-placeholder.book-cover-lg {
+  font-size: 32px;
+}
+
+.book-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: var(--bg-raised);
+}
+
+.book-card-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 0;
+  min-width: 0;
+}
+
+.book-card-body {
+  min-width: 0;
+}
+
+.book-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.book-card-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}
+
+.book-card-author {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.format-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.series-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.rating-badge {
+  font-size: 12px;
+  color: #d97706;
+  letter-spacing: 1px;
+}
+
+.book-editor-cover-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.book-editor-cover-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.book-series-order-field {
+  max-width: 100px;
+}
+
+.book-notes {
+  min-height: 100px;
+}
+
+.star-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.star-btn {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 24px;
+  line-height: 1;
+  color: #d97706;
+}
+
+.star-btn:hover:not(:disabled) {
+  border-color: transparent;
+  opacity: 0.8;
+}
