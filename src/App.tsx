@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
+import { ensureDomainCategories } from "./db/repo";
 import { applyStoredAccentColor } from "./lib/theme";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -35,7 +36,7 @@ export default function App() {
   const [view, setView] = useState<View>("today");
 
   useEffect(() => {
-    void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
+    void Promise.all([ensureSeeded().then(ensureDomainCategories), applyStoredAccentColor()]).then(() => setReady(true));
   }, []);
 
   if (!ready) {

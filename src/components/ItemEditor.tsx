@@ -59,14 +59,30 @@ interface Props {
   item?: Item;
   sourceEntryId?: string | null;
   defaultDate?: string;
+  // Pre-fills a new task's title/category — used by other domain pages
+  // (e.g. the Books editor's "+ Add a task for this book") so a quick,
+  // pre-scoped task doesn't need retyping or re-picking on top of what's
+  // already known from context. No-ops once `item` (editing) is set.
+  defaultTitle?: string;
+  defaultCategoryId?: string;
   onSaved?: (item: Item) => void;
   onCancel?: () => void;
   onDeleted?: () => void;
 }
 
-export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onSaved, onCancel, onDeleted }: Props) {
+export default function ItemEditor({
+  kind,
+  item,
+  sourceEntryId,
+  defaultDate,
+  defaultTitle,
+  defaultCategoryId,
+  onSaved,
+  onCancel,
+  onDeleted,
+}: Props) {
   const meta = itemKindMeta(kind);
-  const [title, setTitle] = useState(item?.title ?? "");
+  const [title, setTitle] = useState(item?.title ?? defaultTitle ?? "");
   const [body, setBody] = useState(item?.body ?? "");
   const { onTranscript: onTitleTranscript, endSession: endTitleDictation } = useDictation(setTitle, appendDictatedPhrase);
   const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(
@@ -91,7 +107,7 @@ export default function ItemEditor({ kind, item, sourceEntryId, defaultDate, onS
   const [project, setProject] = useState(item?.project ?? "");
   const [agency, setAgency] = useState(item?.agency ?? "");
   const [source, setSource] = useState(item?.source ?? "");
-  const [categoryId, setCategoryId] = useState(item?.categoryId ?? "");
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? defaultCategoryId ?? "");
   const [saving, setSaving] = useState(false);
 
   const categories = useCategories();
