@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
 import { applyStoredAccentColor } from "./lib/theme";
+import { getStoredView, setStoredView } from "./lib/lastView";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SyncStatusBadge from "./components/SyncStatusBadge";
@@ -26,11 +27,22 @@ const NAV_ITEMS: Array<{ id: View; label: string }> = [
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>("today");
+  const [view, setViewState] = useState<View>("today");
 
   useEffect(() => {
-    void Promise.all([ensureSeeded(), applyStoredAccentColor()]).then(() => setReady(true));
+    void Promise.all([ensureSeeded(), applyStoredAccentColor(), getStoredView()]).then(([, , lastView]) => {
+      setViewState(lastView);
+      setReady(true);
+    });
   }, []);
+
+  // Reopening on the tab you last had open — not just wherever "today" was
+  // showing — needs to be a device-local preference, so this persists on
+  // every switch, not just at some scheduled "save" point.
+  function setView(next: View): void {
+    setViewState(next);
+    void setStoredView(next);
+  }
 
   if (!ready) {
     return <div className="app-loading">Loading your journal…</div>;
