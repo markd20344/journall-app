@@ -68,6 +68,36 @@ export interface Subtask {
   createdAt: string; // ISO timestamp
 }
 
+// A book you're tracking — wishlist ("saw it on TikTok"), currently reading
+// (any number at once — fiction, mental health, technical... whatever's on
+// the go), or finished. Deliberately its own shape rather than another Item
+// kind: books carry fields (author, series, cover image, rating) that don't
+// map onto Item's status/priority/RAG model at all.
+export type BookStatus = "wishlist" | "reading" | "on_hold" | "finished" | "abandoned";
+
+// Where you're actually consuming it — matters because the same person
+// reads PDFs, listens on Audible, and watches full-book readalongs on
+// YouTube, often for different books at once.
+export type BookFormat = "physical" | "ebook" | "pdf" | "audiobook" | "youtube";
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string; // "" if unknown — not required, so a quick cover-photo add isn't blocked on it
+  series: string | null; // reused via autocomplete across books, like Topics
+  seriesOrder: number | null; // book # within the series, if known
+  status: BookStatus;
+  format: BookFormat;
+  coverImage: string | null; // small JPEG data URL, resized client-side — a snapped cover or TikTok screenshot
+  rating: number | null; // 1-5, optional, usually set once finished
+  notes: string;
+  dateAdded: string; // YYYY-MM-DD, when it went on the list
+  dateStarted: string | null; // YYYY-MM-DD, auto-set the first time status becomes "reading"
+  dateFinished: string | null; // YYYY-MM-DD, auto-set the first time status becomes "finished"
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;

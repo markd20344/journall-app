@@ -1,5 +1,7 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Candle } from "../types/markets";
+import type { KitJob } from "../types/kit";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -21,6 +23,9 @@ class JournalDB extends Dexie {
   topics!: Table<Topic, string>;
   settings!: Table<SettingRecord, string>;
   items!: Table<Item, string>;
+  candles!: Table<Candle, [string, string]>;
+  kitJobs!: Table<KitJob, string>;
+  books!: Table<Book, string>;
 
   constructor() {
     super("journall-db");
@@ -190,6 +195,64 @@ class JournalDB extends Dexie {
         }
         await tx.table("items").bulkPut(items);
       });
+    // v10: add kitJobs — the kit-collection round tracker (jobs parsed from
+    // the daily company email, route order, contact/visit logs, kit
+    // collected, and office-email/drop-off tracking).
+    this.version(10).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+    });
+    // v11: Markets dashboard — cached daily FX candles, keyed by pair+date
+    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    this.version(11).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+    });
+    // v12: v11 shipped before candles were filtered to weekdays only —
+    // purge any Saturday/Sunday bars a refresh already cached under v11 so
+    // stale weekend rows don't linger for anyone who refreshed before this
+    // fix landed. Schema is unchanged, this version only runs the cleanup.
+    this.version(12)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+      })
+      .upgrade(async (tx) => {
+        const candles = (await tx.table("candles").toArray()) as Candle[];
+        const weekendKeys = candles
+          .filter((c) => {
+            const day = new Date(c.date + "T00:00:00Z").getUTCDay();
+            return day === 0 || day === 6;
+          })
+          .map((c): [string, string] => [c.pair, c.date]);
+        if (weekendKeys.length > 0) await tx.table("candles").bulkDelete(weekendKeys);
+      });
+    // v13: add the books table (want-to-read / reading / finished tracking)
+    // — brand new table, no existing data to migrate.
+    this.version(13).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+    });
   }
 }
 
@@ -218,6 +281,28 @@ export function normalizeItem(raw: Item): Item {
     source: raw.source ?? null,
     categoryId: raw.categoryId ?? null,
     subtasks: raw.subtasks ?? [],
+  };
+}
+
+// Same purpose as normalizeItem above, for kitJobs: backfills fields the
+// shape has grown since a record was first written, for anything arriving
+// via a Firestore pull or JSON import rather than through kitRepo.ts.
+export function normalizeKitJob(raw: KitJob): KitJob {
+  return {
+    ...raw,
+    jobNumber: raw.jobNumber ?? "",
+    phoneNumbers: raw.phoneNumbers ?? [],
+    rawText: raw.rawText ?? "",
+    notes: raw.notes ?? "",
+    routeOrder: raw.routeOrder ?? null,
+    lat: raw.lat ?? null,
+    lng: raw.lng ?? null,
+    contactAttempts: raw.contactAttempts ?? [],
+    visits: raw.visits ?? [],
+    kitCollected: raw.kitCollected ?? null,
+    officeEmailedAt: raw.officeEmailedAt ?? null,
+    droppedOffAt: raw.droppedOffAt ?? null,
+    droppedOffBatchId: raw.droppedOffBatchId ?? null,
   };
 }
 

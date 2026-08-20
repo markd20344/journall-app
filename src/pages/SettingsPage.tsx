@@ -9,6 +9,7 @@ import { firebaseEnabled } from "../firebase/config";
 import { refreshNow } from "../firebase/sync";
 import { showToast } from "../lib/toast";
 import { cancelPendingDelete, schedulePendingDelete } from "../lib/pendingDelete";
+import { getApiKey, setApiKey } from "../db/marketsRepo";
 import {
   forgetDirectoryHandle,
   getSavedDirectoryHandle,
@@ -36,13 +37,27 @@ export default function SettingsPage() {
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
 
+  const [twelveDataKey, setTwelveDataKey] = useState("");
+  const [twelveDataKeyDraft, setTwelveDataKeyDraft] = useState("");
+  const [twelveDataStatus, setTwelveDataStatus] = useState<string | null>(null);
+
   useEffect(() => {
     void getSavedDirectoryHandle().then((handle) => {
       if (handle) setSyncFolderName(handle.name);
     });
     void getStoredAccentColor().then(setAccentColor);
+    void getApiKey().then((key) => {
+      setTwelveDataKey(key);
+      setTwelveDataKeyDraft(key);
+    });
     return watchAuthState(setAccount);
   }, []);
+
+  async function handleSaveApiKey() {
+    await setApiKey(twelveDataKeyDraft);
+    setTwelveDataKey(twelveDataKeyDraft.trim());
+    setTwelveDataStatus("Saved.");
+  }
 
   async function handleCloudSyncNow() {
     setCloudSyncing(true);
@@ -201,6 +216,29 @@ export default function SettingsPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="settings-section">
+        <h2>Market data</h2>
+        <p className="settings-hint">
+          The Markets dashboard pulls daily FX prices from{" "}
+          <a href="https://twelvedata.com" target="_blank" rel="noreferrer">Twelve Data</a>. Sign up for a free API
+          key there and paste it below — it's stored only in this browser and sent only to Twelve Data, never
+          committed anywhere.
+        </p>
+        <div className="settings-actions">
+          <input
+            type="password"
+            placeholder="Twelve Data API key"
+            value={twelveDataKeyDraft}
+            onChange={(e) => setTwelveDataKeyDraft(e.target.value)}
+            style={{ minWidth: "16rem" }}
+          />
+          <button type="button" onClick={() => void handleSaveApiKey()} disabled={twelveDataKeyDraft.trim() === twelveDataKey}>
+            Save key
+          </button>
+        </div>
+        {twelveDataStatus && <p className="settings-status">{twelveDataStatus}</p>}
       </section>
 
       <section className="settings-section">

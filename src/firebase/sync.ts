@@ -21,12 +21,13 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db, normalizeItem } from "../db/db";
+import { db, normalizeItem, normalizeKitJob } from "../db/db";
 import { firestore } from "./config";
 import { nowIso } from "../lib/id";
 import type { Item } from "../types";
+import type { KitJob } from "../types/kit";
 
-const SYNCED_TABLES = ["categories", "topics", "entries", "items"] as const;
+const SYNCED_TABLES = ["categories", "topics", "entries", "items", "kitJobs", "books"] as const;
 type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 interface Syncable {
@@ -43,7 +44,9 @@ type RemoteDoc = Syncable & { deleted?: boolean };
 // synced down from another device from crashing a component that assumes a
 // newer field is always present.
 function normalizeForTable(table: SyncedTable, record: RemoteDoc): RemoteDoc {
-  return table === "items" ? (normalizeItem(record as unknown as Item) as unknown as RemoteDoc) : record;
+  if (table === "items") return normalizeItem(record as unknown as Item) as unknown as RemoteDoc;
+  if (table === "kitJobs") return normalizeKitJob(record as unknown as KitJob) as unknown as RemoteDoc;
+  return record;
 }
 
 let activeUid: string | null = null;

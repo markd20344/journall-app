@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
+import { ensureDomainCategories } from "./db/repo";
 import { applyStoredAccentColor } from "./lib/theme";
 import { getStoredView, setStoredView } from "./lib/lastView";
+import { NAV_ITEMS } from "./lib/navItems";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SyncStatusBadge from "./components/SyncStatusBadge";
@@ -12,28 +14,24 @@ import WritePage from "./pages/WritePage";
 import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
+import BooksPage from "./pages/BooksPage";
+import KitRunsPage from "./pages/KitRunsPage";
+import MarketsPage from "./pages/MarketsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-export type View = "today" | "write" | "calendar" | "log" | "browse" | "settings";
-
-const NAV_ITEMS: Array<{ id: View; label: string }> = [
-  { id: "today", label: "Today" },
-  { id: "browse", label: "Entries" },
-  { id: "log", label: "Log" },
-  { id: "calendar", label: "Calendar" },
-  { id: "write", label: "Journal" },
-  { id: "settings", label: "Settings" },
-];
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "kit" | "markets" | "settings";
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [view, setViewState] = useState<View>("today");
 
   useEffect(() => {
-    void Promise.all([ensureSeeded(), applyStoredAccentColor(), getStoredView()]).then(([, , lastView]) => {
-      setViewState(lastView);
-      setReady(true);
-    });
+    void Promise.all([ensureSeeded().then(ensureDomainCategories), applyStoredAccentColor(), getStoredView()]).then(
+      ([, , lastView]) => {
+        setViewState(lastView);
+        setReady(true);
+      },
+    );
   }, []);
 
   // Reopening on the tab you last had open — not just wherever "today" was
@@ -76,6 +74,9 @@ export default function App() {
             {view === "calendar" && <CalendarPage />}
             {view === "log" && <LogPage />}
             {view === "browse" && <BrowsePage />}
+            {view === "books" && <BooksPage />}
+            {view === "kit" && <KitRunsPage />}
+            {view === "markets" && <MarketsPage />}
             {view === "settings" && <SettingsPage />}
           </ErrorBoundary>
         </main>

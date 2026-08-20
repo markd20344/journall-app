@@ -109,16 +109,50 @@ Google Calendar integration — that
 would need an OAuth connection to Google's servers, which is a reasonable
 phase-2 addition but a separate piece of work from the local-first core.
 
+## Kit Runs
+
+A separate module (nav item "Kit Runs") for tracking a daily kit-collection
+round: each day a company email lists people to visit and collect kit back
+from, and this module takes it from "paste the email" through to "kit
+dropped off at BCA Corby."
+
+- **Import** — paste the raw email into the Jobs tab. `lib/kitEmailParser.ts`
+  heuristically splits it into one draft per job (preferring "Job Number:" /
+  "Ref:" markers as block boundaries where present, falling back to
+  postcode-based grouping otherwise) and extracts name/address/postcode/phone
+  numbers. Every draft is shown in an editable review step — nothing is
+  saved until you confirm — so an imperfect split is a quick fix, not a bad
+  record.
+- **Route** — the Route tab orders a day's jobs by nearest-neighbor from a
+  chosen start point (your current GPS location, a typed postcode, or one of
+  the day's own jobs), geocoding postcodes via the free
+  [postcodes.io](https://postcodes.io) API. Cards can also be dragged to
+  reorder by hand.
+- **Per-job tracking** (`KitJobEditor`) — a dated log of contact attempts
+  (per phone number: no response / disconnected / delivered no reply /
+  replied) and door visits (answered / no answer, with an optional
+  compressed evidence photo), a kit-collected form (rucksack, and counts for
+  tablets/phones/fuel cards/ID cards/number plates, since any of those can
+  come back in varying quantities), and toggles for "included in tonight's
+  office email" and "dropped off at BCA Corby." A job's life-cycle stage
+  (New → Contacted → Visited → Kit collected → Office emailed → Dropped off)
+  is always derived from these fields (`lib/kitStage.ts`), never stored
+  separately, so it can't drift out of sync with what's actually logged.
+- Data lives in its own `kitJobs` Dexie table and syncs through the same
+  Firestore layer as journal entries — see `types/kit.ts`, `db/kitRepo.ts`.
+
 ## Project structure
 
 ```
 src/
-  types/            Domain types (Entry, Category, Topic)
+  types/            Domain types (Entry, Category, Topic; kit.ts — KitJob)
   db/
     db.ts           Dexie schema + first-run category seeding
     repo.ts         CRUD helpers (createEntry, findOrCreateTopic, ...)
+    kitRepo.ts      CRUD helpers for the Kit Runs module
   hooks/
     useJournalData.ts   Live-query React hooks (Dexie reactive queries)
+    useKitData.ts       Live-query hooks for kit jobs
   lib/
     id.ts               uuid / date helpers
     speech.ts           Web Speech API wrapper (voice dictation)
@@ -126,15 +160,21 @@ src/
     fileSync.ts          File System Access API folder sync
     itemKinds.ts          Spin-off item kind metadata (labels/colors)
     theme.ts               Accent color presets + runtime CSS var application
+    kitEmailParser.ts       Splits a pasted job email into draft jobs
+    kitRoute.ts             postcodes.io geocoding + nearest-neighbor ordering
+    kitStage.ts             Kit job life-cycle stage + outcome metadata
+    photo.ts                Downscale/compress a photo to a small data URL
   components/
     CategorySelect.tsx, TopicTagInput.tsx, VoiceButton.tsx,
     EntryEditor.tsx, EntryCard.tsx, CalendarView.tsx,
-    ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx
+    ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx,
+    KitJobCard.tsx, KitImportPanel.tsx, KitJobEditor.tsx, KitRouteView.tsx
   pages/
     WritePage.tsx        Default landing view — fastest path to writing
     CalendarPage.tsx      Month calendar + per-day bookings only
     LogPage.tsx             Browse/filter spin-off items by kind
     BrowsePage.tsx           Chronological list + search + category/topic filter
+    KitRunsPage.tsx           Kit-collection round: Jobs + Route tabs
     SettingsPage.tsx          Appearance, categories, backup, folder sync
   App.tsx             Nav shell / view switcher
 scripts/
