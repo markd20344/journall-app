@@ -2084,6 +2084,18 @@ textarea {
   color: var(--text-h);
 }
 
+.markets-pair-cell > div:first-child {
+  margin-bottom: 6px;
+}
+
+/* Status can be a long combined line ("First Green Day + Day 2 Breakout
+   ↑") — letting it wrap onto two lines instead of forcing the table's
+   global nowrap keeps this column from pushing ADR/TDI off the edge. */
+.markets-status-cell {
+  white-space: normal;
+  max-width: 220px;
+}
+
 /* Keep the Pair column visible while the rest of the wide table scrolls
    horizontally, so you always know which row you're looking at. */
 .markets-table th:first-child,

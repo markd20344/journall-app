@@ -83,8 +83,7 @@ export default function MarketsPage() {
         <table className="markets-table">
           <thead>
             <tr>
-              <th>Pair</th>
-              <th>Last 3 weeks</th>
+              <th>Pair / last 3 weeks</th>
               <th>Status</th>
               <th>ADR (14d) / Today</th>
               <th>TDI (RSI 13)</th>
@@ -99,15 +98,15 @@ export default function MarketsPage() {
                   className={selectedPair === a.pair ? "markets-row-selected" : ""}
                   onClick={() => setSelectedPair(a.pair === selectedPair ? null : a.pair)}
                 >
-                  <td className="markets-pair-cell">{formatPair(a.pair)}</td>
-                  <td>
+                  <td className="markets-pair-cell">
+                    <div>{formatPair(a.pair)}</div>
                     {a.candles.length > 0 ? (
                       <DayStreak history={a.history} />
                     ) : (
                       <span className="settings-hint small">No data</span>
                     )}
                   </td>
-                  <td>
+                  <td className="markets-status-cell">
                     <span className={`status-text ${summary ? `status-text-${summary.tone}` : "status-text-empty"}`}>
                       {a.candles.length === 0 ? "—" : (summary?.text ?? "—")}
                     </span>
