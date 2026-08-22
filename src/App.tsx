@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { ensureSeeded } from "./db/db";
 import { ensureDomainCategories } from "./db/repo";
 import { applyStoredAccentColor } from "./lib/theme";
+import { getStoredView, setStoredView } from "./lib/lastView";
+import { NAV_ITEMS } from "./lib/navItems";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SyncStatusBadge from "./components/SyncStatusBadge";
@@ -19,25 +21,26 @@ import SettingsPage from "./pages/SettingsPage";
 
 export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "kit" | "markets" | "settings";
 
-const NAV_ITEMS: Array<{ id: View; label: string }> = [
-  { id: "today", label: "Today" },
-  { id: "browse", label: "Entries" },
-  { id: "log", label: "Log" },
-  { id: "books", label: "Books" },
-  { id: "calendar", label: "Calendar" },
-  { id: "write", label: "Journal" },
-  { id: "kit", label: "Kit Runs" },
-  { id: "markets", label: "Markets" },
-  { id: "settings", label: "Settings" },
-];
-
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>("today");
+  const [view, setViewState] = useState<View>("today");
 
   useEffect(() => {
-    void Promise.all([ensureSeeded().then(ensureDomainCategories), applyStoredAccentColor()]).then(() => setReady(true));
+    void Promise.all([ensureSeeded().then(ensureDomainCategories), applyStoredAccentColor(), getStoredView()]).then(
+      ([, , lastView]) => {
+        setViewState(lastView);
+        setReady(true);
+      },
+    );
   }, []);
+
+  // Reopening on the tab you last had open — not just wherever "today" was
+  // showing — needs to be a device-local preference, so this persists on
+  // every switch, not just at some scheduled "save" point.
+  function setView(next: View): void {
+    setViewState(next);
+    void setStoredView(next);
+  }
 
   if (!ready) {
     return <div className="app-loading">Loading your journal…</div>;

@@ -297,6 +297,26 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         </button>
       </div>
 
+      <Section title="Notes (in report)" summary={notes.trim() ? notes.trim() : "None"}>
+        <p className="settings-hint small">
+          Anything worth flagging for this person — a duplicate number, a different person answering, "not back until
+          Christmas," etc. Works whether or not they have a phone number on file, and is included in the daily summary
+          email.
+        </p>
+        <textarea
+          className="entry-body"
+          placeholder="e.g. Different person answered this number — may be a duplicate with another job today."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+        />
+        <div className="entry-editor-actions">
+          <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
+            Save note
+          </button>
+        </div>
+      </Section>
+
       <Section title="Contact attempts" summary={contactSummary}>
         {contactAttempts.length > 0 && (
           <ul className="status-update-list">
@@ -480,10 +500,6 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)} />
           </label>
         </div>
-        <label className="field">
-          <span className="field-label">Notes</span>
-          <textarea className="entry-body" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-        </label>
         <div className="entry-editor-actions">
           <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
             Save

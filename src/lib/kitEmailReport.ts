@@ -73,6 +73,15 @@ function jobBlock(job: KitJob): string {
     lines.push(`Collection Outcome: ${outcomeNarrative(job)}`);
   }
 
+  // Anomalies flagged by hand — a duplicate number, a different person
+  // answering, "not back until Christmas" — apply regardless of whether
+  // kit was collected, and regardless of whether this contact has a phone
+  // number on file, so they're appended unconditionally rather than folded
+  // into outcomeNarrative (which only runs when there's no kit collected).
+  if (job.notes.trim()) {
+    lines.push(`Note: ${job.notes.trim()}`);
+  }
+
   return lines.join("\n");
 }
 
