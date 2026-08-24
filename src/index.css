@@ -1632,6 +1632,27 @@ textarea {
   opacity: 0.8;
 }
 
+.kit-status-icon {
+  font-size: 14px;
+  opacity: 0.3;
+  line-height: 1;
+}
+
+.kit-status-icon.active {
+  opacity: 1;
+}
+
+.kit-note-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--amber);
+  background: var(--amber-bg);
+  border-radius: 6px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Kit import ---------- */
 
 .kit-import-panel {

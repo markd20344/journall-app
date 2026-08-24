@@ -63,7 +63,14 @@ export async function importKitJobs(drafts: DraftKitJob[], batchDate: string): P
         postcode: d.postcode,
         phoneNumbers: d.phoneNumbers,
         rawText: d.rawText,
-        notes: d.notes,
+        // Deliberately not d.notes: the Notes field on a job is now the
+        // report-facing "flag an anomaly for this person" box (duplicate
+        // number, "away until Christmas", etc.) — it should start empty on
+        // import, not pre-filled with parser artifacts like "LEAVERS · PA/
+        // BW327 CALL NIGHT BEFORE". That context is still fully visible via
+        // the job's "Original text" (rawText), just not sitting in the box
+        // that gets copied into the office email.
+        notes: "",
       }),
     ),
   );
