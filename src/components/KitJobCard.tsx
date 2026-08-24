@@ -37,12 +37,20 @@ function doorStatus(job: KitJob): StatusIcon {
   return { icon: "🚪", state: "muted", label: "Not visited yet" };
 }
 
+// Once a job is done — kit's collected, it's marked not-going, or it's
+// already dropped off — there's nothing left to text anyone about, so the
+// Text/Reply buttons just add clutter to an already-settled card.
+function isFinished(job: KitJob): boolean {
+  return Boolean(job.kitCollected) || job.noVisitNeeded || Boolean(job.droppedOffAt);
+}
+
 export default function KitJobCard({ job, onClick, routePosition, legLabel }: Props) {
   const stage = STAGE_META[deriveStage(job)];
   const summary = kitSummary(job);
   const firstPhone = job.phoneNumbers[0];
   const phone = phoneStatus(job);
   const door = doorStatus(job);
+  const finished = isFinished(job);
 
   return (
     <div className="kit-job-card">
@@ -54,11 +62,12 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
             <span className="kit-stage-badge" style={{ "--stage-color": stage.color } as CSSProperties}>
               {stage.label}
             </span>
-            {job.phoneNumbers.length > 0 && (
-              <span className="linked-badge">
-                {job.phoneNumbers.length} phone{job.phoneNumbers.length === 1 ? "" : "s"}
+            {job.needsReschedule && (
+              <span className="kit-stage-badge" style={{ "--stage-color": "#ea580c" } as CSSProperties}>
+                🔁 Reschedule
               </span>
             )}
+            {job.phoneNumbers.length === 0 && <span className="linked-badge">No phone</span>}
             <span className={`kit-status-icon state-${phone.state}`} title={phone.label} aria-label={phone.label}>
               {phone.icon}
             </span>
@@ -78,7 +87,7 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
           {legLabel && <p className="dependency-line">🚗 {legLabel}</p>}
         </div>
       </button>
-      {firstPhone && (
+      {firstPhone && !finished && (
         <div className="kit-card-actions">
           <a
             className="kit-card-text-btn"
