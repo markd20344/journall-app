@@ -36,7 +36,7 @@ export default function KitDailySummaryPanel({ jobs, batchDate, onClose }: Props
       <h1 className="page-title">Daily summary — {batchDate}</h1>
       <p className="settings-hint">
         Covers {includedJobs.length} job{includedJobs.length === 1 ? "" : "s"} for this date
-        {excludedCount > 0 ? ` (${excludedCount} marked "no visit needed" left out)` : ""}. Copy it into your email to
+        {excludedCount > 0 ? ` (${excludedCount} marked "not going" left out)` : ""}. Copy it into your email to
         the office — copying also marks every job here as included in today's office email.
       </p>
       <textarea className="entry-body kit-summary-textarea" readOnly value={emailText} rows={20} />

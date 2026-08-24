@@ -2049,6 +2049,21 @@ textarea {
   font-weight: 600;
 }
 
+.kit-reschedule-toggle {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-reschedule-toggle.active {
+  border-color: #ea580c;
+  background: color-mix(in srgb, #ea580c 12%, transparent);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
 /* ---------- Kit route planning ---------- */
 
 .kit-route-controls {

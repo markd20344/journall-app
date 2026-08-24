@@ -15,7 +15,11 @@ export interface ContactAttempt {
   createdAt: string; // ISO timestamp
 }
 
-export type DoorVisitOutcome = "answered" | "no_answer";
+// "answered_not_home" covers the very common case of someone else (mother,
+// brother, whoever) answering the door while the actual contact isn't in —
+// distinct from nobody answering at all, and worded differently in the
+// report either way.
+export type DoorVisitOutcome = "answered" | "answered_not_home" | "no_answer";
 
 // A knock on the door. photoDataUrl holds the "nobody answered" evidence
 // photo as a small compressed JPEG data URL — see lib/photo.ts.
@@ -75,6 +79,10 @@ export interface KitJob {
   // out of route planning and the office email — see kitStage.deriveStage,
   // KitRouteView, and kitEmailReport.buildDailySummaryEmail.
   noVisitNeeded: boolean;
+  // A visit that came up empty (no answer, no kit) sometimes just needs
+  // another attempt rather than being abandoned — this keeps that flagged
+  // for a follow-up rather than the job silently going stale.
+  needsReschedule: boolean;
   contactAttempts: ContactAttempt[];
   visits: DoorVisit[];
   kitCollected: KitCollected | null; // null until logged
