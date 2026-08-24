@@ -17,22 +17,21 @@ interface Props {
 
 interface StatusIcon {
   icon: string;
-  active: boolean;
-  color?: string;
+  state: "muted" | "texted" | "replied" | "visited";
   label: string;
 }
 
 function phoneStatus(job: KitJob): StatusIcon {
   const replied = job.contactAttempts.some((a) => a.outcome === "replied");
   const texted = job.contactAttempts.length > 0;
-  if (replied) return { icon: "📱", active: true, color: "var(--success-text)", label: "Replied to text" };
-  if (texted) return { icon: "📱", active: true, color: "var(--accent)", label: "Texted — no reply yet" };
-  return { icon: "📱", active: false, label: "Not texted yet" };
+  if (replied) return { icon: "📱", state: "replied", label: "Replied to text" };
+  if (texted) return { icon: "📱", state: "texted", label: "Texted — no reply yet" };
+  return { icon: "📱", state: "muted", label: "Not texted yet" };
 }
 
 function doorStatus(job: KitJob): StatusIcon {
-  if (job.visits.length > 0) return { icon: "🚪", active: true, color: "var(--accent)", label: "Been to the door" };
-  return { icon: "🚪", active: false, label: "Not visited yet" };
+  if (job.visits.length > 0) return { icon: "🚪", state: "visited", label: "Been to the door" };
+  return { icon: "🚪", state: "muted", label: "Not visited yet" };
 }
 
 export default function KitJobCard({ job, onClick, routePosition, legLabel }: Props) {
@@ -57,20 +56,10 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
                 {job.phoneNumbers.length} phone{job.phoneNumbers.length === 1 ? "" : "s"}
               </span>
             )}
-            <span
-              className={`kit-status-icon ${phone.active ? "active" : ""}`}
-              style={phone.color ? ({ color: phone.color } as CSSProperties) : undefined}
-              title={phone.label}
-              aria-label={phone.label}
-            >
+            <span className={`kit-status-icon state-${phone.state}`} title={phone.label} aria-label={phone.label}>
               {phone.icon}
             </span>
-            <span
-              className={`kit-status-icon ${door.active ? "active" : ""}`}
-              style={door.color ? ({ color: door.color } as CSSProperties) : undefined}
-              title={door.label}
-              aria-label={door.label}
-            >
+            <span className={`kit-status-icon state-${door.state}`} title={door.label} aria-label={door.label}>
               {door.icon}
             </span>
           </div>
