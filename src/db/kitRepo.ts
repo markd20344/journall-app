@@ -41,6 +41,7 @@ export async function createKitJob(input: {
     respondedAt: null,
     responseNote: "",
     noVisitNeeded: false,
+    needsReschedule: false,
     contactAttempts: [],
     visits: [],
     kitCollected: null,
@@ -135,6 +136,11 @@ export async function setResponse(jobId: string, note: string): Promise<void> {
 
 export async function setNoVisitNeeded(jobId: string, value: boolean): Promise<void> {
   await db.kitJobs.update(jobId, { noVisitNeeded: value, updatedAt: nowIso() });
+  await persist(jobId);
+}
+
+export async function setNeedsReschedule(jobId: string, value: boolean): Promise<void> {
+  await db.kitJobs.update(jobId, { needsReschedule: value, updatedAt: nowIso() });
   await persist(jobId);
 }
 

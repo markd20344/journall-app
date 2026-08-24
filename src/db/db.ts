@@ -304,6 +304,25 @@ class JournalDB extends Dexie {
         }
         if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
       });
+    // v16: add needsReschedule (a job visited with no answer/no kit that
+    // needs a follow-up) — schema unchanged, backfills the new field for
+    // the same reason v15 backfilled its fields.
+    this.version(16)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) job.needsReschedule = job.needsReschedule ?? false;
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
   }
 }
 
@@ -352,6 +371,7 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     respondedAt: raw.respondedAt ?? null,
     responseNote: raw.responseNote ?? "",
     noVisitNeeded: raw.noVisitNeeded ?? false,
+    needsReschedule: raw.needsReschedule ?? false,
     contactAttempts: raw.contactAttempts ?? [],
     visits: raw.visits ?? [],
     kitCollected: raw.kitCollected ?? null,

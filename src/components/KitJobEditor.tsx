@@ -10,6 +10,7 @@ import {
   markDroppedOff,
   markTexted,
   setKitCollected as saveKitCollected,
+  setNeedsReschedule as saveNeedsReschedule,
   setNoVisitNeeded as saveNoVisitNeeded,
   setOfficeEmailed,
   setResponse,
@@ -20,7 +21,13 @@ import { compressImageToDataUrl } from "../lib/photo";
 import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
-import { CONTACT_OUTCOME_META, deriveStage, DOOR_VISIT_OUTCOME_META, STAGE_META } from "../lib/kitStage";
+import {
+  CONTACT_OUTCOME_META,
+  deriveStage,
+  DOOR_VISIT_OUTCOME_META,
+  DOOR_VISIT_OUTCOME_ORDER,
+  STAGE_META,
+} from "../lib/kitStage";
 import { nowIso } from "../lib/id";
 import Dropdown from "./Dropdown";
 
@@ -105,6 +112,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   const [respondedAt, setRespondedAt] = useState(job.respondedAt);
   const [responseNote, setResponseNote] = useState(job.responseNote);
   const [noVisitNeeded, setNoVisitNeeded] = useState(job.noVisitNeeded);
+  const [needsReschedule, setNeedsReschedule] = useState(job.needsReschedule);
 
   const [visits, setVisits] = useState(job.visits);
   const [visitOutcome, setVisitOutcome] = useState<DoorVisitOutcome>("no_answer");
@@ -198,6 +206,12 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     const next = !noVisitNeeded;
     setNoVisitNeeded(next);
     await saveNoVisitNeeded(job.id, next);
+  }
+
+  async function handleToggleNeedsReschedule() {
+    const next = !needsReschedule;
+    setNeedsReschedule(next);
+    await saveNeedsReschedule(job.id, next);
   }
 
   async function handlePhotoSelected(file: File | undefined) {
@@ -319,7 +333,15 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
 
       <label className={`kit-toggle-row kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
         <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
-        <span>No visit needed — they said not to come. Stays on your list here, but is left out of the route and the office email.</span>
+        <span>
+          Not going — they said not to come, the info here looks wrong, or you've decided not to. Stays on your list
+          here, but is left out of the route and the office email.
+        </span>
+      </label>
+
+      <label className={`kit-toggle-row kit-reschedule-toggle ${needsReschedule ? "active" : ""}`}>
+        <input type="checkbox" checked={needsReschedule} onChange={() => void handleToggleNeedsReschedule()} />
+        <span>Needs rescheduling — visited but no answer, or no kit came back. Noted in the office email.</span>
       </label>
 
       <div className="entry-editor-actions">
@@ -441,10 +463,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           <Dropdown
             value={visitOutcome}
             onChange={(v) => setVisitOutcome(v as DoorVisitOutcome)}
-            options={[
-              { value: "answered", label: "Answered" },
-              { value: "no_answer", label: "No answer" },
-            ]}
+            options={DOOR_VISIT_OUTCOME_ORDER.map((o) => ({ value: o, label: DOOR_VISIT_OUTCOME_META[o].label }))}
           />
           <input type="text" placeholder="Note (optional)" value={visitNote} onChange={(e) => setVisitNote(e.target.value)} />
           <label className="kit-photo-btn">
