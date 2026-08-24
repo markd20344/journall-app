@@ -317,6 +317,11 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         />
       </div>
 
+      <label className={`kit-toggle-row kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
+        <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
+        <span>No visit needed — they said not to come. Stays on your list here, but is left out of the route and the office email.</span>
+      </label>
+
       <div className="entry-editor-actions">
         <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
           Save
@@ -383,11 +388,6 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             Save response
           </button>
         </div>
-
-        <label className="kit-toggle-row">
-          <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
-          <span>No visit needed — stays on this list, but is left out of the route and the office email.</span>
-        </label>
 
         {contactAttempts.length > 0 && (
           <div className="kit-legacy-attempts">

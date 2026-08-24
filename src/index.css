@@ -2034,6 +2034,21 @@ textarea {
   font-size: 14px;
 }
 
+.kit-no-visit-toggle {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-no-visit-toggle.active {
+  border-color: var(--amber);
+  background: var(--amber-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
 /* ---------- Kit route planning ---------- */
 
 .kit-route-controls {
