@@ -9,11 +9,14 @@ import type { ContactOutcome, DoorVisitOutcome, JobStage, KitJob } from "../type
  * attempt) — this just reports the furthest stage reached.
  */
 export function deriveStage(job: KitJob): JobStage {
+  // A manual override — checked first since it means the rest of the
+  // pipeline simply doesn't apply to this job anymore.
+  if (job.noVisitNeeded) return "no_visit_needed";
   if (job.droppedOffAt) return "dropped_off";
   if (job.officeEmailedAt) return "emailed";
   if (job.kitCollected) return "collected";
   if (job.visits.length > 0) return "visited";
-  if (job.contactAttempts.length > 0) return "contacted";
+  if (job.textedAt || job.respondedAt || job.contactAttempts.length > 0) return "contacted";
   return "new";
 }
 
@@ -30,11 +33,12 @@ export const STAGE_META: Record<JobStage, StageMeta> = {
   collected: { stage: "collected", label: "Kit collected", color: "#16a34a" },
   emailed: { stage: "emailed", label: "Office emailed", color: "#0d9488" },
   dropped_off: { stage: "dropped_off", label: "Dropped off", color: "#15803d" },
+  no_visit_needed: { stage: "no_visit_needed", label: "No visit needed", color: "#9ca3af" },
 };
 
 // Display order for stage-grouped views — earliest-in-the-pipeline first,
 // same convention as ITEM_KINDS' fixed display order.
-export const STAGE_ORDER: JobStage[] = ["new", "contacted", "visited", "collected", "emailed", "dropped_off"];
+export const STAGE_ORDER: JobStage[] = ["new", "contacted", "visited", "collected", "emailed", "dropped_off", "no_visit_needed"];
 
 export interface ContactOutcomeMeta {
   outcome: ContactOutcome;

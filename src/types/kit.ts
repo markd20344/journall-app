@@ -46,7 +46,7 @@ export interface KitCollected {
 // lib/kitStage.ts's deriveStage) rather than stored — that keeps it
 // impossible for a stage to drift out of sync with the events that are
 // supposed to have produced it, on this device or another one after a sync.
-export type JobStage = "new" | "contacted" | "visited" | "collected" | "emailed" | "dropped_off";
+export type JobStage = "no_visit_needed" | "new" | "contacted" | "visited" | "collected" | "emailed" | "dropped_off";
 
 export interface KitJob {
   id: string;
@@ -61,6 +61,20 @@ export interface KitJob {
   routeOrder: number | null; // this job's position in batchDate's route; null = not yet ordered
   lat: number | null; // geocoded from postcode via postcodes.io
   lng: number | null;
+  // Set the moment "Text"/"Reply" is tapped (from the Jobs list or the
+  // editor's phone row) — deliberately just a fact ("I've sent them
+  // something"), not tied to any particular outcome, since a text sent from
+  // the phone's own Messages app can't be paired with whatever comes back.
+  textedAt: string | null;
+  // What they said back, logged separately once/if a reply actually shows
+  // up — respondedAt is null until responseNote is saved non-empty.
+  respondedAt: string | null;
+  responseNote: string;
+  // Ticked when a response says a visit isn't needed after all. Keeps the
+  // job visible here (so it's still "on the list" to review) but pulls it
+  // out of route planning and the office email — see kitStage.deriveStage,
+  // KitRouteView, and kitEmailReport.buildDailySummaryEmail.
+  noVisitNeeded: boolean;
   contactAttempts: ContactAttempt[];
   visits: DoorVisit[];
   kitCollected: KitCollected | null; // null until logged

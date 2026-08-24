@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { KitJob } from "../types/kit";
 import { deriveStage, kitSummary, STAGE_META } from "../lib/kitStage";
 import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
+import { markTexted } from "../db/kitRepo";
 
 interface Props {
   job: KitJob;
@@ -22,9 +23,11 @@ interface StatusIcon {
 }
 
 function phoneStatus(job: KitJob): StatusIcon {
-  const replied = job.contactAttempts.some((a) => a.outcome === "replied");
-  const texted = job.contactAttempts.length > 0;
-  if (replied) return { icon: "📱", state: "replied", label: "Replied to text" };
+  // Legacy contactAttempts fall back for jobs logged before texted/response
+  // replaced per-attempt outcome tracking.
+  const replied = Boolean(job.respondedAt) || job.contactAttempts.some((a) => a.outcome === "replied");
+  const texted = Boolean(job.textedAt) || job.contactAttempts.length > 0;
+  if (replied) return { icon: "📱", state: "replied", label: "Replied" };
   if (texted) return { icon: "📱", state: "texted", label: "Texted — no reply yet" };
   return { icon: "📱", state: "muted", label: "Not texted yet" };
 }
@@ -70,6 +73,7 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
             {job.postcode}
           </p>
           {job.notes.trim() && <p className="kit-note-preview">📝 {job.notes.trim()}</p>}
+          {job.responseNote.trim() && <p className="kit-response-preview">💬 {job.responseNote.trim()}</p>}
           {summary && <p className="dependency-line">🎒 {summary}</p>}
           {legLabel && <p className="dependency-line">🚗 {legLabel}</p>}
         </div>
@@ -79,7 +83,10 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
           <a
             className="kit-card-text-btn"
             href={smsHref(firstPhone, initialContactMessage(job.customerName))}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void markTexted(job.id);
+            }}
             aria-label={`Send initial text to ${job.customerName || firstPhone}`}
           >
             💬 Text
@@ -87,7 +94,10 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
           <a
             className="kit-card-text-btn kit-card-reply-btn"
             href={smsHref(firstPhone, followUpMessage(job.customerName))}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              void markTexted(job.id);
+            }}
             aria-label={`Reply to ${job.customerName || firstPhone}`}
           >
             ↩️ Reply
