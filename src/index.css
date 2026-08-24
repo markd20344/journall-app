@@ -2117,6 +2117,17 @@ textarea {
   opacity: 0.3;
 }
 
+.kit-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.kit-primary-actions button {
+  width: 100%;
+}
+
 .kit-route-totals {
   background: var(--accent-bg);
   color: var(--accent);
