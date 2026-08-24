@@ -2064,11 +2064,42 @@ textarea {
 }
 
 .kit-route-drag-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
   cursor: grab;
 }
 
 .kit-route-drag-row.dragging {
   opacity: 0.4;
+}
+
+.kit-route-drag-row .kit-job-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.kit-reorder-btns {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.kit-reorder-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.kit-reorder-btn:disabled {
+  opacity: 0.3;
 }
 
 .kit-route-totals {
