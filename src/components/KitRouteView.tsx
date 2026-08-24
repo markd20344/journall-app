@@ -32,7 +32,11 @@ function formatDuration(totalMinutes: number): string {
 }
 
 export default function KitRouteView({ batchDate, onOpenJob }: Props) {
-  const jobs = useKitJobsForDate(batchDate);
+  const allJobs = useKitJobsForDate(batchDate);
+  // Jobs marked "no visit needed" don't belong in the route at all — they
+  // stay visible on the Jobs tab, but there's nowhere to drive to.
+  const jobs = allJobs.filter((j) => !j.noVisitNeeded);
+  const excludedCount = allJobs.length - jobs.length;
   const savedHomeBase = getHomeBasePostcode();
   const [startMode, setStartMode] = useState<StartMode>(savedHomeBase ? "postcode" : "location");
   const [startPostcode, setStartPostcode] = useState(savedHomeBase);
@@ -180,8 +184,11 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
     };
   }
 
-  if (jobs.length === 0) {
+  if (allJobs.length === 0) {
     return <p className="empty-hint">No jobs for {batchDate} yet — import the email or add one on the Jobs tab.</p>;
+  }
+  if (jobs.length === 0) {
+    return <p className="empty-hint">Every job for {batchDate} is marked "no visit needed" — nothing left to route.</p>;
   }
 
   return (
@@ -218,6 +225,11 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
       </div>
       {error && <p className="auth-error">{error}</p>}
       <p className="settings-hint small">Drag a card to reorder it by hand.</p>
+      {excludedCount > 0 && (
+        <p className="settings-hint small">
+          {excludedCount} job{excludedCount === 1 ? "" : "s"} marked "no visit needed" left out of the route.
+        </p>
+      )}
 
       {validPlan && (
         <div className="kit-route-totals">

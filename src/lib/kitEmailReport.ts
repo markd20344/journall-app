@@ -34,9 +34,17 @@ function outcomeNarrative(job: KitJob): string {
     }
   }
 
-  const lastAttempt = job.contactAttempts[job.contactAttempts.length - 1];
-  if (lastAttempt) {
-    parts.push(lastAttempt.note || CONTACT_OUTCOME_PHRASE[lastAttempt.outcome]);
+  if (job.respondedAt && job.responseNote.trim()) {
+    parts.push(`Replied: ${job.responseNote.trim()}`);
+  } else if (job.textedAt) {
+    parts.push("Texted, no reply yet.");
+  } else {
+    // Legacy fallback for jobs logged before texted/response replaced
+    // per-attempt outcome tracking.
+    const lastAttempt = job.contactAttempts[job.contactAttempts.length - 1];
+    if (lastAttempt) {
+      parts.push(lastAttempt.note || CONTACT_OUTCOME_PHRASE[lastAttempt.outcome]);
+    }
   }
 
   parts.push("No kit collected.");
@@ -85,10 +93,13 @@ function jobBlock(job: KitJob): string {
   return lines.join("\n");
 }
 
-/** The full plain-text email body, ready to paste, covering every job passed in. */
+/** The full plain-text email body, ready to paste, covering every job passed in — jobs marked "no visit needed" are left out entirely, since there's nothing to report on them. */
 export function buildDailySummaryEmail(jobs: KitJob[]): string {
   const intro = "Hi,\n\nPlease find below the details of today's equipment collection visits:";
-  const blocks = jobs.map(jobBlock).join("\n\n");
+  const blocks = jobs
+    .filter((j) => !j.noVisitNeeded)
+    .map(jobBlock)
+    .join("\n\n");
   const outro = "Please let me know if you have any queries.\n\nKind regards,\nMark";
   return [intro, blocks, outro].filter(Boolean).join("\n\n");
 }

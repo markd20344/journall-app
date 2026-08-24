@@ -278,6 +278,32 @@ class JournalDB extends Dexie {
         for (const job of toClear) job.notes = "";
         if (toClear.length > 0) await tx.table("kitJobs").bulkPut(toClear);
       });
+    // v15: replace per-attempt outcome logging with a simpler texted/response
+    // model on the job itself — see types/kit.ts. Backfills the new fields
+    // onto every existing kitJob so useKitData's direct `.toArray()` reads
+    // (which bypass normalizeKitJob) don't hand components an object
+    // missing them.
+    this.version(15)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) {
+          job.textedAt = job.textedAt ?? null;
+          job.respondedAt = job.respondedAt ?? null;
+          job.responseNote = job.responseNote ?? "";
+          job.noVisitNeeded = job.noVisitNeeded ?? false;
+        }
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
   }
 }
 
@@ -322,6 +348,10 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     routeOrder: raw.routeOrder ?? null,
     lat: raw.lat ?? null,
     lng: raw.lng ?? null,
+    textedAt: raw.textedAt ?? null,
+    respondedAt: raw.respondedAt ?? null,
+    responseNote: raw.responseNote ?? "",
+    noVisitNeeded: raw.noVisitNeeded ?? false,
     contactAttempts: raw.contactAttempts ?? [],
     visits: raw.visits ?? [],
     kitCollected: raw.kitCollected ?? null,

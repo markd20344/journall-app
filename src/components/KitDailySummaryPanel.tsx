@@ -13,13 +13,17 @@ interface Props {
 export default function KitDailySummaryPanel({ jobs, batchDate, onClose }: Props) {
   const emailText = useMemo(() => buildDailySummaryEmail(jobs), [jobs]);
   const [copying, setCopying] = useState(false);
+  // Jobs marked "no visit needed" are left out of the email entirely, so
+  // they shouldn't get marked as included in it either.
+  const includedJobs = jobs.filter((j) => !j.noVisitNeeded);
+  const excludedCount = jobs.length - includedJobs.length;
 
   async function handleCopy() {
     setCopying(true);
     try {
       await navigator.clipboard.writeText(emailText);
-      await Promise.all(jobs.map((j) => setOfficeEmailed(j.id, true)));
-      showToast(`Copied — ${jobs.length} job${jobs.length === 1 ? "" : "s"} marked as included in the office email`);
+      await Promise.all(includedJobs.map((j) => setOfficeEmailed(j.id, true)));
+      showToast(`Copied — ${includedJobs.length} job${includedJobs.length === 1 ? "" : "s"} marked as included in the office email`);
     } catch {
       showToast("Couldn't copy — try selecting the text manually");
     } finally {
@@ -31,8 +35,9 @@ export default function KitDailySummaryPanel({ jobs, batchDate, onClose }: Props
     <div>
       <h1 className="page-title">Daily summary — {batchDate}</h1>
       <p className="settings-hint">
-        Covers all {jobs.length} job{jobs.length === 1 ? "" : "s"} for this date. Copy it into your email to the office —
-        copying also marks every job here as included in today's office email.
+        Covers {includedJobs.length} job{includedJobs.length === 1 ? "" : "s"} for this date
+        {excludedCount > 0 ? ` (${excludedCount} marked "no visit needed" left out)` : ""}. Copy it into your email to
+        the office — copying also marks every job here as included in today's office email.
       </p>
       <textarea className="entry-body kit-summary-textarea" readOnly value={emailText} rows={20} />
       <div className="entry-editor-actions">

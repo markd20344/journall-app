@@ -37,6 +37,10 @@ export async function createKitJob(input: {
     routeOrder: null,
     lat: null,
     lng: null,
+    textedAt: null,
+    respondedAt: null,
+    responseNote: "",
+    noVisitNeeded: false,
     contactAttempts: [],
     visits: [],
     kitCollected: null,
@@ -104,6 +108,34 @@ export async function applyRouteOrder(orderedIds: string[]): Promise<void> {
     }
   });
   for (const id of orderedIds) await persist(id);
+}
+
+/** Records the fact a text was sent — deliberately not tied to any outcome, since a reply may or may not ever come. */
+export async function markTexted(jobId: string): Promise<void> {
+  await db.kitJobs.update(jobId, { textedAt: nowIso(), updatedAt: nowIso() });
+  await persist(jobId);
+}
+
+/** Undoes a mistaken tap of Text/Reply. */
+export async function clearTexted(jobId: string): Promise<void> {
+  await db.kitJobs.update(jobId, { textedAt: null, updatedAt: nowIso() });
+  await persist(jobId);
+}
+
+/** Logs what a contact said back, independent of the original text — clearing the note also clears respondedAt. */
+export async function setResponse(jobId: string, note: string): Promise<void> {
+  const trimmed = note.trim();
+  await db.kitJobs.update(jobId, {
+    responseNote: trimmed,
+    respondedAt: trimmed ? nowIso() : null,
+    updatedAt: nowIso(),
+  });
+  await persist(jobId);
+}
+
+export async function setNoVisitNeeded(jobId: string, value: boolean): Promise<void> {
+  await db.kitJobs.update(jobId, { noVisitNeeded: value, updatedAt: nowIso() });
+  await persist(jobId);
 }
 
 export async function addContactAttempt(
