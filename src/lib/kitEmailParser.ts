@@ -103,7 +103,7 @@ function looksLikeAddressNote(line: string): boolean {
   return /^[A-Z]{1,4}\//.test(line) || /\bcall\b/i.test(line) || /\bnight before\b/i.test(line);
 }
 
-function parseDriverSheetBlock(lines: string[]): DraftKitJob {
+export function parseDriverSheetBlock(lines: string[]): DraftKitJob {
   const firstLineFields = lines[0].split("\t");
   const jobNumber = (firstLineFields[1] ?? "").trim();
   const registration = (firstLineFields[2] ?? "").trim();
@@ -283,4 +283,21 @@ function parseProseEmail(rawEmailText: string): DraftKitJob[] {
 /** Splits pasted text into per-job drafts, trying the driver sheet format first and falling back to a prose-style split. */
 export function parseKitEmail(rawText: string): DraftKitJob[] {
   return parseDriverSheet(rawText) ?? parseProseEmail(rawText);
+}
+
+/**
+ * Re-derives what parseDriverSheetBlock's auto-generated `notes` (the
+ * registration code / address-note / special-instructions string, e.g.
+ * "LEAVERS · PA/BW327 CALL NIGHT BEFORE") would be for a job's stored
+ * `rawText`. Used by a one-off data migration to strip that text back out
+ * of jobs imported before notes were excluded from import — comparing
+ * against a fresh re-derivation (rather than a hardcoded pattern) means it
+ * only ever clears untouched parser output, never a note the driver
+ * actually typed.
+ */
+export function deriveLegacyAutoNotes(rawText: string): string {
+  if (!rawText.trim()) return "";
+  const lines = rawText.split(/\r\n|\r|\n/);
+  if (!JOB_ROW_START_REGEX.test(lines[0])) return "";
+  return parseDriverSheetBlock(lines).notes;
 }

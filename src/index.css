@@ -1633,12 +1633,34 @@ textarea {
 }
 
 .kit-status-icon {
-  font-size: 14px;
-  opacity: 0.3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 13px;
   line-height: 1;
+  /* Emoji glyphs render full-color regardless of the `color` property, so
+     the muted/active states have to come from filter+opacity+background,
+     not a text color swap. */
+  background: rgba(120, 130, 145, 0.14);
+  filter: grayscale(1);
+  opacity: 0.5;
 }
 
-.kit-status-icon.active {
+.kit-status-icon.state-texted,
+.kit-status-icon.state-visited {
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 1.5px var(--accent);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-status-icon.state-replied {
+  background: var(--success-bg);
+  box-shadow: 0 0 0 1.5px var(--success-text);
+  filter: none;
   opacity: 1;
 }
 
@@ -1646,9 +1668,10 @@ textarea {
   margin: 6px 0 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--amber);
+  color: var(--text-h);
   background: var(--amber-bg);
-  border-radius: 6px;
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
   padding: 4px 8px;
   overflow-wrap: anywhere;
 }

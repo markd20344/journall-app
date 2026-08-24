@@ -4,6 +4,7 @@ import type { Candle } from "../types/markets";
 import type { KitJob } from "../types/kit";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
+import { deriveLegacyAutoNotes } from "../lib/kitEmailParser";
 
 const DEFAULT_CATEGORIES: Array<Pick<Category, "name" | "color">> = [
   { name: "General", color: "#6b7280" },
@@ -253,6 +254,30 @@ class JournalDB extends Dexie {
       candles: "[pair+date], pair, date",
       books: "id, title, author, series, status, format, updatedAt",
     });
+    // v14: notes stopped being pre-filled from the parsed sheet on import
+    // (schema unchanged) — but jobs imported *before* that fix still carry
+    // the old auto-generated text ("LEAVERS · PA/BW327 CALL NIGHT BEFORE")
+    // sitting in the box meant for the driver's own anomaly flags. Clears
+    // it only where it still exactly matches what the parser would have
+    // produced from that job's rawText, so a note actually typed since
+    // import is never touched.
+    this.version(14)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        const toClear = jobs.filter((job) => job.notes && job.notes === deriveLegacyAutoNotes(job.rawText));
+        for (const job of toClear) job.notes = "";
+        if (toClear.length > 0) await tx.table("kitJobs").bulkPut(toClear);
+      });
   }
 }
 
