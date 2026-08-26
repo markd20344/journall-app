@@ -17,9 +17,10 @@ import BrowsePage from "./pages/BrowsePage";
 import BooksPage from "./pages/BooksPage";
 import KitRunsPage from "./pages/KitRunsPage";
 import MarketsPage from "./pages/MarketsPage";
+import FamilyTreePage from "./pages/FamilyTreePage";
 import SettingsPage from "./pages/SettingsPage";
 
-export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "kit" | "markets" | "settings";
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "kit" | "markets" | "family" | "settings";
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -77,6 +78,7 @@ export default function App() {
             {view === "books" && <BooksPage />}
             {view === "kit" && <KitRunsPage />}
             {view === "markets" && <MarketsPage />}
+            {view === "family" && <FamilyTreePage />}
             {view === "settings" && <SettingsPage />}
           </ErrorBoundary>
         </main>

@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type { Book, Category, Entry, Item, ItemKind, Topic } from "../types";
 import type { Candle } from "../types/markets";
 import type { KitJob } from "../types/kit";
+import type { FamilyEvent, FamilyMedia, FamilyMember, FamilyRecord, Person, Relationship } from "../types/family";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 
@@ -26,6 +27,12 @@ class JournalDB extends Dexie {
   candles!: Table<Candle, [string, string]>;
   kitJobs!: Table<KitJob, string>;
   books!: Table<Book, string>;
+  people!: Table<Person, string>;
+  relationships!: Table<Relationship, string>;
+  familyEvents!: Table<FamilyEvent, string>;
+  familyMedia!: Table<FamilyMedia, string>;
+  familyRecords!: Table<FamilyRecord, string>;
+  familyMembers!: Table<FamilyMember, string>;
 
   constructor() {
     super("journall-db");
@@ -252,6 +259,26 @@ class JournalDB extends Dexie {
       kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
       candles: "[pair+date], pair, date",
       books: "id, title, author, series, status, format, updatedAt",
+    });
+    // v14: Family Tree module — people, relationships, events, media,
+    // records and members of the shared family tree. Unlike every other
+    // table here these mirror a *shared* Firestore tree (trees/family/...),
+    // not this account's own private data — see firebase/familySync.ts.
+    this.version(14).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
     });
   }
 }

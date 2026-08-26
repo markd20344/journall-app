@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Family Tree photos and record scans — role checks mirror
+    // firestore.rules by reading the same trees/{treeId}/members doc via
+    // Storage's cross-service `firestore.get`/`firestore.exists`.
+    match /trees/{treeId}/{allPaths=**} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isMember() {
+        return isSignedIn() && firestore.exists(/databases/(default)/documents/trees/$(treeId)/members/$(request.auth.uid));
+      }
+      function role() {
+        return firestore.get(/databases/(default)/documents/trees/$(treeId)/members/$(request.auth.uid)).data.role;
+      }
+      function isContributor() {
+        return isMember() && (role() == 'contributor' || role() == 'owner');
+      }
+      function isOwner() {
+        return isMember() && role() == 'owner';
+      }
+
+      allow read: if isMember();
+      // Client-side compression targets well under this — it's a backstop
+      // against an uncompressed original slipping through, not the normal
+      // ceiling (see family/storage.ts).
+      allow write: if isContributor() && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isOwner();
+    }
+  }
+}
