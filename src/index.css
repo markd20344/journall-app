@@ -1634,6 +1634,68 @@ textarea {
   opacity: 0.8;
 }
 
+.kit-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  /* Emoji glyphs render full-color regardless of the `color` property, so
+     the muted/active states have to come from filter+opacity+background,
+     not a text color swap. */
+  background: rgba(120, 130, 145, 0.14);
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.kit-status-icon.state-texted,
+.kit-status-icon.state-visited {
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 1.5px var(--accent);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-status-icon.state-replied {
+  background: var(--success-bg);
+  box-shadow: 0 0 0 1.5px var(--success-text);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-note-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--amber-bg);
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-response-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-legacy-attempts {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
 /* ---------- Kit import ---------- */
 
 .kit-import-panel {
@@ -1974,6 +2036,36 @@ textarea {
   font-size: 14px;
 }
 
+.kit-no-visit-toggle {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-no-visit-toggle.active {
+  border-color: var(--amber);
+  background: var(--amber-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.kit-reschedule-toggle {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-reschedule-toggle.active {
+  border-color: #ea580c;
+  background: color-mix(in srgb, #ea580c 12%, transparent);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
 /* ---------- Kit route planning ---------- */
 
 .kit-route-controls {
@@ -1989,11 +2081,53 @@ textarea {
 }
 
 .kit-route-drag-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
   cursor: grab;
 }
 
 .kit-route-drag-row.dragging {
   opacity: 0.4;
+}
+
+.kit-route-drag-row .kit-job-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.kit-reorder-btns {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.kit-reorder-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.kit-reorder-btn:disabled {
+  opacity: 0.3;
+}
+
+.kit-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.kit-primary-actions button {
+  width: 100%;
 }
 
 .kit-route-totals {
@@ -2084,6 +2218,18 @@ textarea {
 .markets-pair-cell {
   font-weight: 700;
   color: var(--text-h);
+}
+
+.markets-pair-cell > div:first-child {
+  margin-bottom: 6px;
+}
+
+/* Status can be a long combined line ("First Green Day + Day 2 Breakout
+   ↑") — letting it wrap onto two lines instead of forcing the table's
+   global nowrap keeps this column from pushing ADR/TDI off the edge. */
+.markets-status-cell {
+  white-space: normal;
+  max-width: 220px;
 }
 
 /* Keep the Pair column visible while the rest of the wide table scrolls

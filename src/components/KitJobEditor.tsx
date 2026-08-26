@@ -1,15 +1,19 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { format } from "date-fns";
-import type { ContactOutcome, DoorVisitOutcome, KitCollected, KitJob } from "../types/kit";
+import type { DoorVisitOutcome, KitCollected, KitJob } from "../types/kit";
 import {
-  addContactAttempt,
   addDoorVisit,
+  clearTexted,
   deleteContactAttempt,
   deleteDoorVisit,
   deleteKitJob,
   markDroppedOff,
+  markTexted,
   setKitCollected as saveKitCollected,
+  setNeedsReschedule as saveNeedsReschedule,
+  setNoVisitNeeded as saveNoVisitNeeded,
   setOfficeEmailed,
+  setResponse,
   unmarkDroppedOff,
   updateKitJob,
 } from "../db/kitRepo";
@@ -17,7 +21,13 @@ import { compressImageToDataUrl } from "../lib/photo";
 import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
-import { CONTACT_OUTCOME_META, CONTACT_OUTCOME_ORDER, deriveStage, DOOR_VISIT_OUTCOME_META, STAGE_META } from "../lib/kitStage";
+import {
+  CONTACT_OUTCOME_META,
+  deriveStage,
+  DOOR_VISIT_OUTCOME_META,
+  DOOR_VISIT_OUTCOME_ORDER,
+  STAGE_META,
+} from "../lib/kitStage";
 import { nowIso } from "../lib/id";
 import Dropdown from "./Dropdown";
 
@@ -94,10 +104,15 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   const [notes, setNotes] = useState(job.notes);
   const [saving, setSaving] = useState(false);
 
+  // contactAttempts is legacy (per-attempt outcome logging, replaced below
+  // by textedAt/respondedAt/responseNote) — kept read-only so nothing
+  // logged before the switch silently disappears.
   const [contactAttempts, setContactAttempts] = useState(job.contactAttempts);
-  const [attemptPhone, setAttemptPhone] = useState(phoneNumbers[0] ?? "");
-  const [attemptOutcome, setAttemptOutcome] = useState<ContactOutcome>("no_response");
-  const [attemptNote, setAttemptNote] = useState("");
+  const [textedAt, setTextedAt] = useState(job.textedAt);
+  const [respondedAt, setRespondedAt] = useState(job.respondedAt);
+  const [responseNote, setResponseNote] = useState(job.responseNote);
+  const [noVisitNeeded, setNoVisitNeeded] = useState(job.noVisitNeeded);
+  const [needsReschedule, setNeedsReschedule] = useState(job.needsReschedule);
 
   const [visits, setVisits] = useState(job.visits);
   const [visitOutcome, setVisitOutcome] = useState<DoorVisitOutcome>("no_answer");
@@ -112,7 +127,20 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   const [officeEmailedAt, setOfficeEmailedAt] = useState(job.officeEmailedAt);
   const [droppedOffAt, setDroppedOffAt] = useState(job.droppedOffAt);
 
-  const stage = STAGE_META[deriveStage({ ...job, contactAttempts, visits, kitCollected, officeEmailedAt, droppedOffAt })];
+  const stage =
+    STAGE_META[
+      deriveStage({
+        ...job,
+        contactAttempts,
+        visits,
+        kitCollected,
+        officeEmailedAt,
+        droppedOffAt,
+        textedAt,
+        respondedAt,
+        noVisitNeeded,
+      })
+    ];
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${address} ${postcode}`.trim())}`;
 
   async function handleSaveDetails() {
@@ -151,18 +179,39 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     setPhoneNumbers((prev) => prev.filter((p) => p !== phone));
   }
 
-  async function logAttempt() {
-    if (!attemptPhone.trim()) return;
-    const created = await addContactAttempt(job.id, { phoneNumber: attemptPhone.trim(), outcome: attemptOutcome, note: attemptNote.trim() });
-    if (created) {
-      setContactAttempts((prev) => [...prev, created]);
-      setAttemptNote("");
-    }
-  }
-
   async function removeAttempt(attemptId: string) {
     setContactAttempts((prev) => prev.filter((a) => a.id !== attemptId));
     await deleteContactAttempt(job.id, attemptId);
+  }
+
+  async function handleMarkTexted() {
+    const ts = nowIso();
+    setTextedAt(ts);
+    await markTexted(job.id);
+  }
+
+  async function handleClearTexted() {
+    setTextedAt(null);
+    await clearTexted(job.id);
+  }
+
+  async function handleSaveResponse() {
+    const trimmed = responseNote.trim();
+    setRespondedAt(trimmed ? nowIso() : null);
+    await setResponse(job.id, responseNote);
+    showToast(trimmed ? "Response saved" : "Response cleared");
+  }
+
+  async function handleToggleNoVisitNeeded() {
+    const next = !noVisitNeeded;
+    setNoVisitNeeded(next);
+    await saveNoVisitNeeded(job.id, next);
+  }
+
+  async function handleToggleNeedsReschedule() {
+    const next = !needsReschedule;
+    setNeedsReschedule(next);
+    await saveNeedsReschedule(job.id, next);
   }
 
   async function handlePhotoSelected(file: File | undefined) {
@@ -215,10 +264,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     }
   }
 
-  const contactSummary =
-    contactAttempts.length === 0
-      ? "None yet"
-      : `${contactAttempts.length} · ${CONTACT_OUTCOME_META[contactAttempts[contactAttempts.length - 1].outcome].label}`;
+  const contactSummary = !textedAt ? "Not texted yet" : respondedAt ? "Texted · Replied" : "Texted · No reply yet";
   const visitSummary =
     visits.length === 0 ? "Not visited" : `${visits.length} · ${DOOR_VISIT_OUTCOME_META[visits[visits.length - 1].outcome].label}`;
   const lifecycleSummary = `${officeEmailedAt ? "Emailed" : "Not emailed"} · ${droppedOffAt ? "Dropped off" : "Not dropped off"}`;
@@ -261,10 +307,10 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         {phoneNumbers.map((phone) => (
           <span key={phone} className="chip">
             <a href={`tel:${phone}`}>{phone}</a>
-            <a href={smsHref(phone, initialContactMessage(customerName))} className="kit-text-link">
+            <a href={smsHref(phone, initialContactMessage(customerName))} className="kit-text-link" onClick={() => void handleMarkTexted()}>
               text
             </a>
-            <a href={smsHref(phone, followUpMessage(customerName))} className="kit-text-link">
+            <a href={smsHref(phone, followUpMessage(customerName))} className="kit-text-link" onClick={() => void handleMarkTexted()}>
               reply
             </a>
             <button type="button" className="chip-remove" aria-label={`Remove ${phone}`} onClick={() => removePhone(phone)}>
@@ -284,6 +330,19 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           }}
         />
       </div>
+
+      <label className={`kit-toggle-row kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
+        <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
+        <span>
+          Not going — they said not to come, the info here looks wrong, or you've decided not to. Stays on your list
+          here, but is left out of the route and the office email.
+        </span>
+      </label>
+
+      <label className={`kit-toggle-row kit-reschedule-toggle ${needsReschedule ? "active" : ""}`}>
+        <input type="checkbox" checked={needsReschedule} onChange={() => void handleToggleNeedsReschedule()} />
+        <span>Needs rescheduling — visited but no answer, or no kit came back. Noted in the office email.</span>
+      </label>
 
       <div className="entry-editor-actions">
         <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
@@ -317,49 +376,66 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         </div>
       </Section>
 
-      <Section title="Contact attempts" summary={contactSummary}>
-        {contactAttempts.length > 0 && (
-          <ul className="status-update-list">
-            {contactAttempts.map((a) => (
-              <li key={a.id} className="status-update-row">
-                <span className="status-update-time">{format(new Date(a.createdAt), "MMM d, h:mm a")}</span>
-                <span
-                  className="kit-outcome-pill"
-                  style={{ "--stage-color": CONTACT_OUTCOME_META[a.outcome].color } as CSSProperties}
-                >
-                  {CONTACT_OUTCOME_META[a.outcome].label}
-                </span>
-                <span className="status-update-note">
-                  {a.phoneNumber}
-                  {a.note ? ` — ${a.note}` : ""}
-                </span>
-                <button type="button" className="chip-remove" aria-label="Delete attempt" onClick={() => void removeAttempt(a.id)}>
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <Section title="Texted & response" summary={contactSummary}>
+        <p className="settings-hint small">
+          Tapping 💬 Text or ↩️ Reply (here or on the Jobs list) marks this automatically — the buttons below are only
+          for texting from outside the app, or undoing a mistaken tap.
+        </p>
         <div className="kit-log-form">
-          <Dropdown
-            value={attemptPhone}
-            onChange={setAttemptPhone}
-            options={
-              phoneNumbers.length > 0
-                ? phoneNumbers.map((p) => ({ value: p, label: p }))
-                : [{ value: "", label: "No phone number yet" }]
-            }
+          <span className="status-update-note">
+            {textedAt ? `Texted ${format(new Date(textedAt), "MMM d, h:mm a")}` : "Not texted yet"}
+          </span>
+          <button type="button" className="ghost" onClick={() => void handleMarkTexted()}>
+            {textedAt ? "Mark texted again" : "Mark as texted"}
+          </button>
+          {textedAt && (
+            <button type="button" className="ghost" onClick={() => void handleClearTexted()}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        <label className="field">
+          <span className="field-label">Their response (optional)</span>
+          <textarea
+            className="entry-body"
+            placeholder="e.g. Yes I'll be in all day / Not needed, kit already handed back elsewhere"
+            value={responseNote}
+            onChange={(e) => setResponseNote(e.target.value)}
+            rows={2}
           />
-          <Dropdown
-            value={attemptOutcome}
-            onChange={(v) => setAttemptOutcome(v as ContactOutcome)}
-            options={CONTACT_OUTCOME_ORDER.map((o) => ({ value: o, label: CONTACT_OUTCOME_META[o].label }))}
-          />
-          <input type="text" placeholder="Note (optional)" value={attemptNote} onChange={(e) => setAttemptNote(e.target.value)} />
-          <button type="button" className="primary" disabled={!attemptPhone.trim()} onClick={() => void logAttempt()}>
-            Log attempt
+        </label>
+        <div className="entry-editor-actions">
+          <button type="button" className="primary" onClick={() => void handleSaveResponse()}>
+            Save response
           </button>
         </div>
+
+        {contactAttempts.length > 0 && (
+          <div className="kit-legacy-attempts">
+            <p className="settings-hint small">Attempts logged before this section was simplified:</p>
+            <ul className="status-update-list">
+              {contactAttempts.map((a) => (
+                <li key={a.id} className="status-update-row">
+                  <span className="status-update-time">{format(new Date(a.createdAt), "MMM d, h:mm a")}</span>
+                  <span
+                    className="kit-outcome-pill"
+                    style={{ "--stage-color": CONTACT_OUTCOME_META[a.outcome].color } as CSSProperties}
+                  >
+                    {CONTACT_OUTCOME_META[a.outcome].label}
+                  </span>
+                  <span className="status-update-note">
+                    {a.phoneNumber}
+                    {a.note ? ` — ${a.note}` : ""}
+                  </span>
+                  <button type="button" className="chip-remove" aria-label="Delete attempt" onClick={() => void removeAttempt(a.id)}>
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Section>
 
       <Section title="Door visits" summary={visitSummary}>
@@ -387,10 +463,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           <Dropdown
             value={visitOutcome}
             onChange={(v) => setVisitOutcome(v as DoorVisitOutcome)}
-            options={[
-              { value: "answered", label: "Answered" },
-              { value: "no_answer", label: "No answer" },
-            ]}
+            options={DOOR_VISIT_OUTCOME_ORDER.map((o) => ({ value: o, label: DOOR_VISIT_OUTCOME_META[o].label }))}
           />
           <input type="text" placeholder="Note (optional)" value={visitNote} onChange={(e) => setVisitNote(e.target.value)} />
           <label className="kit-photo-btn">

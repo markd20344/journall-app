@@ -5,6 +5,7 @@ import type { KitJob } from "../types/kit";
 import type { FamilyEvent, FamilyMedia, FamilyMember, FamilyRecord, Person, Relationship } from "../types/family";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
+import { deriveLegacyAutoNotes } from "../lib/kitEmailParser";
 
 const DEFAULT_CATEGORIES: Array<Pick<Category, "name" | "color">> = [
   { name: "General", color: "#6b7280" },
@@ -260,11 +261,80 @@ class JournalDB extends Dexie {
       candles: "[pair+date], pair, date",
       books: "id, title, author, series, status, format, updatedAt",
     });
-    // v14: Family Tree module — people, relationships, events, media,
+    // v14: notes stopped being pre-filled from the parsed sheet on import
+    // (schema unchanged) — but jobs imported *before* that fix still carry
+    // the old auto-generated text ("LEAVERS · PA/BW327 CALL NIGHT BEFORE")
+    // sitting in the box meant for the driver's own anomaly flags. Clears
+    // it only where it still exactly matches what the parser would have
+    // produced from that job's rawText, so a note actually typed since
+    // import is never touched.
+    this.version(14)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        const toClear = jobs.filter((job) => job.notes && job.notes === deriveLegacyAutoNotes(job.rawText));
+        for (const job of toClear) job.notes = "";
+        if (toClear.length > 0) await tx.table("kitJobs").bulkPut(toClear);
+      });
+    // v15: replace per-attempt outcome logging with a simpler texted/response
+    // model on the job itself — see types/kit.ts. Backfills the new fields
+    // onto every existing kitJob so useKitData's direct `.toArray()` reads
+    // (which bypass normalizeKitJob) don't hand components an object
+    // missing them.
+    this.version(15)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) {
+          job.textedAt = job.textedAt ?? null;
+          job.respondedAt = job.respondedAt ?? null;
+          job.responseNote = job.responseNote ?? "";
+          job.noVisitNeeded = job.noVisitNeeded ?? false;
+        }
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+    // v16: add needsReschedule (a job visited with no answer/no kit that
+    // needs a follow-up) — schema unchanged, backfills the new field for
+    // the same reason v15 backfilled its fields.
+    this.version(16)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) job.needsReschedule = job.needsReschedule ?? false;
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+    // v17: Family Tree module — people, relationships, events, media,
     // records and members of the shared family tree. Unlike every other
     // table here these mirror a *shared* Firestore tree (trees/family/...),
     // not this account's own private data — see firebase/familySync.ts.
-    this.version(14).stores({
+    this.version(17).stores({
       entries: "id, date, categoryId, *topicIds, updatedAt",
       categories: "id, name",
       topics: "id, name, categoryId",
@@ -324,6 +394,11 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     routeOrder: raw.routeOrder ?? null,
     lat: raw.lat ?? null,
     lng: raw.lng ?? null,
+    textedAt: raw.textedAt ?? null,
+    respondedAt: raw.respondedAt ?? null,
+    responseNote: raw.responseNote ?? "",
+    noVisitNeeded: raw.noVisitNeeded ?? false,
+    needsReschedule: raw.needsReschedule ?? false,
     contactAttempts: raw.contactAttempts ?? [],
     visits: raw.visits ?? [],
     kitCollected: raw.kitCollected ?? null,
