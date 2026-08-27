@@ -9,5 +9,6 @@ export const NAV_ITEMS: Array<{ id: View; label: string }> = [
   { id: "write", label: "Journal" },
   { id: "kit", label: "Kit Runs" },
   { id: "markets", label: "Markets" },
+  { id: "family", label: "Family Tree" },
   { id: "settings", label: "Settings" },
 ];

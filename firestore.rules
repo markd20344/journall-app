@@ -6,5 +6,103 @@ service cloud.firestore {
     match /users/{uid}/{collection}/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // The shared Family Tree — a single tree (id "family", see
+    // family/config.ts) that everyone with access reads from, and
+    // contributors/owners write to. Three roles, from trees/family/members:
+    //   - viewer: read-only.
+    //   - contributor: can add photos/records/events and edit facts on
+    //     existing people, but can't create/edit/delete relationships (the
+    //     tree structure), create new people, or delete anything.
+    //   - owner: full control, including relationships, deleting people,
+    //     and managing who has access.
+    // The very first owner is bootstrapped manually (Firebase console or
+    // CLI) rather than through these rules — see README "Firebase setup".
+    match /trees/{treeId} {
+      function memberDoc() {
+        return get(/databases/$(database)/documents/trees/$(treeId)/members/$(request.auth.uid));
+      }
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isMember() {
+        return isSignedIn() && exists(/databases/$(database)/documents/trees/$(treeId)/members/$(request.auth.uid));
+      }
+      function role() {
+        return memberDoc().data.role;
+      }
+      function isOwner() {
+        return isMember() && role() == 'owner';
+      }
+      function isContributor() {
+        return isMember() && (role() == 'contributor' || role() == 'owner');
+      }
+      // Deletions in people/events/media/records are written as tombstones
+      // (setDoc with {id, deleted: true, updatedAt}, replacing the whole
+      // doc — see firebase/familySync.ts) rather than a real Firestore
+      // delete, so an offline device can tell "genuinely deleted elsewhere"
+      // apart from "never synced yet" during reconciliation. That write is
+      // indistinguishable from an ordinary update by operation type alone,
+      // so it's gated on its content instead: only an owner may write a
+      // doc whose `deleted` field is true.
+      function isTombstoneWrite() {
+        return request.resource.data.get('deleted', false) == true;
+      }
+
+      match /members/{uid} {
+        allow read: if isMember();
+        // Self-claim: a signed-in user can create their own membership doc
+        // only if an owner already invited this exact sign-in email, and
+        // only with the role that invite specified.
+        allow create: if isSignedIn() && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.role == get(/databases/$(database)/documents/trees/$(treeId)/invites/$(request.auth.token.email)).data.role;
+        allow update, delete: if isOwner();
+      }
+
+      match /invites/{email} {
+        allow get: if isOwner() || (isSignedIn() && email == request.auth.token.email);
+        allow list: if isOwner();
+        allow create, update, delete: if isOwner();
+      }
+
+      // Facts: contributors and owners can create/update; only owners
+      // delete (a real delete() call, or a tombstone update — see above).
+      match /people/{id} {
+        allow read: if isMember();
+        allow create: if isContributor() && !isTombstoneWrite();
+        allow update: if (isContributor() && !isTombstoneWrite()) || (isOwner() && isTombstoneWrite());
+        allow delete: if isOwner();
+      }
+
+      // Structure: owner-only in every direction.
+      match /relationships/{id} {
+        allow read: if isMember();
+        allow write: if isOwner();
+      }
+
+      // Timeline events, photos and records: contributors and owners can
+      // add/edit; only owners delete (matches the "not delete or
+      // restructure" limit on contributors).
+      match /events/{id} {
+        allow read: if isMember();
+        allow create: if isContributor() && !isTombstoneWrite();
+        allow update: if (isContributor() && !isTombstoneWrite()) || (isOwner() && isTombstoneWrite());
+        allow delete: if isOwner();
+      }
+      match /media/{id} {
+        allow read: if isMember();
+        allow create: if isContributor() && !isTombstoneWrite();
+        allow update: if (isContributor() && !isTombstoneWrite()) || (isOwner() && isTombstoneWrite());
+        allow delete: if isOwner();
+      }
+      match /records/{id} {
+        allow read: if isMember();
+        allow create: if isContributor() && !isTombstoneWrite();
+        allow update: if (isContributor() && !isTombstoneWrite()) || (isOwner() && isTombstoneWrite());
+        allow delete: if isOwner();
+      }
+    }
   }
 }

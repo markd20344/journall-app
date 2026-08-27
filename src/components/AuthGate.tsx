@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { consumeRedirectResult, signIn, watchAuthState } from "../firebase/auth";
 import { startSync, stopSync } from "../firebase/sync";
+import { startFamilySync, stopFamilySync } from "../firebase/familySync";
+import { claimInviteIfAny } from "../family/role";
 import { firebaseEnabled } from "../firebase/config";
 import { cleanupDictationArtifacts, dedupeCategoriesAndTopics, dedupeItemCodes } from "../db/repo";
 
@@ -29,6 +31,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) {
       stopSync();
+      stopFamilySync();
       return;
     }
     setSyncing(true);
@@ -41,6 +44,22 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       .then(() => cleanupDictationArtifacts())
       .catch((err) => setError(err instanceof Error ? err.message : "Cloud sync failed to start."))
       .finally(() => setSyncing(false));
+
+    // Best-effort and independent of the journal sync above: a signed-in
+    // account with no family tree access yet (never invited) is expected,
+    // not an error worth surfacing here.
+    void (async () => {
+      try {
+        await claimInviteIfAny(user);
+      } catch (err) {
+        console.error("Family tree invite claim failed", err);
+      }
+      try {
+        await startFamilySync(user.uid);
+      } catch (err) {
+        console.error("Family tree sync failed to start", err);
+      }
+    })();
   }, [user]);
 
   if (!firebaseEnabled) {

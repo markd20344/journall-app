@@ -3,20 +3,15 @@
 // already logged against each job (kit collected, door-visit notes,
 // contact-attempt outcomes), so there's nothing to re-type.
 
-import type { ContactOutcome, KitJob } from "../types/kit";
-
-const CONTACT_OUTCOME_PHRASE: Record<ContactOutcome, string> = {
-  no_response: "No response to text.",
-  disconnected: "Phone did not connect.",
-  delivered_no_reply: "Text delivered, no reply.",
-  replied: "Replied to text.",
-};
+import type { KitJob } from "../types/kit";
 
 /**
- * The "Collection Outcome" narrative for a job with no kit collected —
- * built from the most recent door visit and contact attempt actually
- * logged against it, in Mark's own words wherever he wrote a note, falling
- * back to a plain description of the outcome when he didn't.
+ * The "Collection Outcome" line for a job with no kit collected — a short,
+ * fixed phrase built from what's actually logged (texted/replied, door
+ * outcome, reschedule flag), deliberately not Mark's own response text or
+ * notes verbatim. The office needs to know what happened, not his
+ * reasoning — that's what the separate "Note:" line and the in-app
+ * response box are for.
  */
 function outcomeNarrative(job: KitJob): string {
   const parts: string[] = [];
@@ -25,21 +20,33 @@ function outcomeNarrative(job: KitJob): string {
     parts.push(`No telephone number for ${job.customerName || "this contact"}.`);
   }
 
+  // Legacy contactAttempts count toward "contacted"/"responded" for jobs
+  // logged before texted/respondedAt existed, so nothing already recorded
+  // falls out of the report.
+  const contacted = Boolean(job.textedAt) || job.contactAttempts.length > 0;
+  const responded = Boolean(job.respondedAt) || job.contactAttempts.some((a) => a.outcome === "replied");
   const lastVisit = job.visits[job.visits.length - 1];
+
   if (lastVisit) {
     if (lastVisit.outcome === "answered") {
-      parts.push(lastVisit.note ? `Attended address — ${lastVisit.note}` : "Attended address — answered.");
+      parts.push(responded ? "Responded, visited — spoke to them." : "Visited — spoke to them.");
+    } else if (lastVisit.outcome === "answered_not_home") {
+      parts.push(responded ? "Responded, visited — contact not home." : "Visited — contact not home.");
+    } else if (responded) {
+      parts.push("Responded, visited — no answer.");
+    } else if (contacted) {
+      parts.push("Contacted, no response. Visited — no answer.");
     } else {
-      parts.push(lastVisit.note ? `No answer at the door. ${lastVisit.note}` : "No answer at the door.");
+      parts.push("Visited — no answer.");
     }
-  }
-
-  const lastAttempt = job.contactAttempts[job.contactAttempts.length - 1];
-  if (lastAttempt) {
-    parts.push(lastAttempt.note || CONTACT_OUTCOME_PHRASE[lastAttempt.outcome]);
+  } else if (responded) {
+    parts.push("Responded to text.");
+  } else if (contacted) {
+    parts.push("Contacted, no response.");
   }
 
   parts.push("No kit collected.");
+  if (job.needsReschedule) parts.push("Needs to be rescheduled.");
   return parts.join(" ");
 }
 
@@ -85,10 +92,13 @@ function jobBlock(job: KitJob): string {
   return lines.join("\n");
 }
 
-/** The full plain-text email body, ready to paste, covering every job passed in. */
+/** The full plain-text email body, ready to paste, covering every job passed in — jobs marked "no visit needed" are left out entirely, since there's nothing to report on them. */
 export function buildDailySummaryEmail(jobs: KitJob[]): string {
   const intro = "Hi,\n\nPlease find below the details of today's equipment collection visits:";
-  const blocks = jobs.map(jobBlock).join("\n\n");
+  const blocks = jobs
+    .filter((j) => !j.noVisitNeeded)
+    .map(jobBlock)
+    .join("\n\n");
   const outro = "Please let me know if you have any queries.\n\nKind regards,\nMark";
   return [intro, blocks, outro].filter(Boolean).join("\n\n");
 }

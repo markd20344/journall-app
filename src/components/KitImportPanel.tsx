@@ -123,7 +123,6 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
               <th>Address</th>
               <th>Postcode</th>
               <th>Phone(s)</th>
-              <th>Notes</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -163,9 +162,6 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
                       onChange={(e) => updateDraft(index, { phoneNumbers: textToPhones(e.target.value) })}
                     />
                   </td>
-                  <td>
-                    <input type="text" value={draft.notes} onChange={(e) => updateDraft(index, { notes: e.target.value })} />
-                  </td>
                   <td className="kit-draft-actions-cell">
                     {draft.rawText && (
                       <button type="button" className="chip-remove" aria-label="Show original text" onClick={() => toggleExpanded(index)}>
@@ -179,7 +175,7 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
                 </tr>
                 {expanded.has(index) && draft.rawText && (
                   <tr>
-                    <td colSpan={7} className="kit-draft-raw-cell">
+                    <td colSpan={6} className="kit-draft-raw-cell">
                       <pre>{draft.rawText}</pre>
                     </td>
                   </tr>

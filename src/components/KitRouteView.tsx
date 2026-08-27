@@ -32,7 +32,11 @@ function formatDuration(totalMinutes: number): string {
 }
 
 export default function KitRouteView({ batchDate, onOpenJob }: Props) {
-  const jobs = useKitJobsForDate(batchDate);
+  const allJobs = useKitJobsForDate(batchDate);
+  // Jobs marked "no visit needed" don't belong in the route at all — they
+  // stay visible on the Jobs tab, but there's nowhere to drive to.
+  const jobs = allJobs.filter((j) => !j.noVisitNeeded);
+  const excludedCount = allJobs.length - jobs.length;
   const savedHomeBase = getHomeBasePostcode();
   const [startMode, setStartMode] = useState<StartMode>(savedHomeBase ? "postcode" : "location");
   const [startPostcode, setStartPostcode] = useState(savedHomeBase);
@@ -180,8 +184,24 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
     };
   }
 
-  if (jobs.length === 0) {
+  // iOS Safari has never supported the native HTML5 drag-and-drop API for
+  // touch — the draggable/onDragStart wiring above only ever works with a
+  // mouse. These buttons are the real reorder mechanism on a phone.
+  function moveJob(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= jobs.length) return;
+    const reordered = [...jobs];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(target, 0, moved);
+    void applyRouteOrder(reordered.map((j) => j.id));
+    void recomputeLegsForOrder(reordered);
+  }
+
+  if (allJobs.length === 0) {
     return <p className="empty-hint">No jobs for {batchDate} yet — import the email or add one on the Jobs tab.</p>;
+  }
+  if (jobs.length === 0) {
+    return <p className="empty-hint">Every job for {batchDate} is marked "not going" — nothing left to route.</p>;
   }
 
   return (
@@ -217,7 +237,12 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
         </button>
       </div>
       {error && <p className="auth-error">{error}</p>}
-      <p className="settings-hint small">Drag a card to reorder it by hand.</p>
+      <p className="settings-hint small">Use ▲▼ to reorder a card by hand.</p>
+      {excludedCount > 0 && (
+        <p className="settings-hint small">
+          {excludedCount} job{excludedCount === 1 ? "" : "s"} marked "not going" left out of the route.
+        </p>
+      )}
 
       {validPlan && (
         <div className="kit-route-totals">
@@ -238,6 +263,26 @@ export default function KitRouteView({ batchDate, onOpenJob }: Props) {
             onDrop={handleDrop(index)}
             className={`kit-route-drag-row ${dragIndex === index ? "dragging" : ""}`}
           >
+            <div className="kit-reorder-btns">
+              <button
+                type="button"
+                className="kit-reorder-btn"
+                disabled={index === 0}
+                onClick={() => moveJob(index, -1)}
+                aria-label={`Move ${job.customerName || "this job"} up`}
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                className="kit-reorder-btn"
+                disabled={index === jobs.length - 1}
+                onClick={() => moveJob(index, 1)}
+                aria-label={`Move ${job.customerName || "this job"} down`}
+              >
+                ▼
+              </button>
+            </div>
             <KitJobCard
               job={job}
               routePosition={index + 1}

@@ -15,7 +15,11 @@ export interface ContactAttempt {
   createdAt: string; // ISO timestamp
 }
 
-export type DoorVisitOutcome = "answered" | "no_answer";
+// "answered_not_home" covers the very common case of someone else (mother,
+// brother, whoever) answering the door while the actual contact isn't in —
+// distinct from nobody answering at all, and worded differently in the
+// report either way.
+export type DoorVisitOutcome = "answered" | "answered_not_home" | "no_answer";
 
 // A knock on the door. photoDataUrl holds the "nobody answered" evidence
 // photo as a small compressed JPEG data URL — see lib/photo.ts.
@@ -46,7 +50,7 @@ export interface KitCollected {
 // lib/kitStage.ts's deriveStage) rather than stored — that keeps it
 // impossible for a stage to drift out of sync with the events that are
 // supposed to have produced it, on this device or another one after a sync.
-export type JobStage = "new" | "contacted" | "visited" | "collected" | "emailed" | "dropped_off";
+export type JobStage = "no_visit_needed" | "new" | "contacted" | "visited" | "collected" | "emailed" | "dropped_off";
 
 export interface KitJob {
   id: string;
@@ -61,6 +65,24 @@ export interface KitJob {
   routeOrder: number | null; // this job's position in batchDate's route; null = not yet ordered
   lat: number | null; // geocoded from postcode via postcodes.io
   lng: number | null;
+  // Set the moment "Text"/"Reply" is tapped (from the Jobs list or the
+  // editor's phone row) — deliberately just a fact ("I've sent them
+  // something"), not tied to any particular outcome, since a text sent from
+  // the phone's own Messages app can't be paired with whatever comes back.
+  textedAt: string | null;
+  // What they said back, logged separately once/if a reply actually shows
+  // up — respondedAt is null until responseNote is saved non-empty.
+  respondedAt: string | null;
+  responseNote: string;
+  // Ticked when a response says a visit isn't needed after all. Keeps the
+  // job visible here (so it's still "on the list" to review) but pulls it
+  // out of route planning and the office email — see kitStage.deriveStage,
+  // KitRouteView, and kitEmailReport.buildDailySummaryEmail.
+  noVisitNeeded: boolean;
+  // A visit that came up empty (no answer, no kit) sometimes just needs
+  // another attempt rather than being abandoned — this keeps that flagged
+  // for a follow-up rather than the job silently going stale.
+  needsReschedule: boolean;
   contactAttempts: ContactAttempt[];
   visits: DoorVisit[];
   kitCollected: KitCollected | null; // null until logged
