@@ -67,6 +67,14 @@ export default function KeyLevelsPanel({ analysis, onClose }: { analysis: PairAn
               <td>{kl.adrUsedPct !== null ? `${kl.adrUsedPct.toFixed(0)}%` : "—"}</td>
             </tr>
             <tr>
+              <th>AWR</th>
+              <td>{kl.awrPips !== null ? `${kl.awrPips.toFixed(0)}p` : "—"}</td>
+            </tr>
+            <tr>
+              <th>AMR</th>
+              <td>{kl.amrPips !== null ? `${kl.amrPips.toFixed(0)}p` : "—"}</td>
+            </tr>
+            <tr>
               <th>TDI Level</th>
               <td>{kl.tdiLevel !== null ? kl.tdiLevel.toFixed(1) : "—"}</td>
             </tr>

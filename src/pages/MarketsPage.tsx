@@ -85,7 +85,7 @@ export default function MarketsPage() {
             <tr>
               <th>Pair / last 3 weeks</th>
               <th>Status</th>
-              <th>ADR (14d) / Today</th>
+              <th title="Average Daily / Weekly / Monthly Range, plus today's range so far">Avg Range (D/W/M)</th>
               <th>TDI (RSI 13)</th>
             </tr>
           </thead>
@@ -111,11 +111,15 @@ export default function MarketsPage() {
                       {a.candles.length === 0 ? "—" : (summary?.text ?? "—")}
                     </span>
                   </td>
-                  <td>
-                    <div>{a.adrPips !== null ? `${a.adrPips.toFixed(1)} pips` : "—"}</div>
-                    <div className="settings-hint small">
-                      {a.todayRangePips !== null ? `Today: ${a.todayRangePips.toFixed(1)} pips` : ""}
+                  <td className="markets-range-cell">
+                    <div>
+                      D: {a.adrPips !== null ? `${a.adrPips.toFixed(1)}p` : "—"}
+                      {a.todayRangePips !== null && (
+                        <span className="settings-hint small"> (today {a.todayRangePips.toFixed(1)}p)</span>
+                      )}
                     </div>
+                    <div className="settings-hint small">W: {a.awrPips !== null ? `${a.awrPips.toFixed(1)}p` : "—"}</div>
+                    <div className="settings-hint small">M: {a.amrPips !== null ? `${a.amrPips.toFixed(1)}p` : "—"}</div>
                   </td>
                   <td title={a.tdi ? `Price line ${a.tdi.priceLine.toFixed(1)} / Signal ${a.tdi.signalLine.toFixed(1)}` : undefined}>
                     {a.tdi ? (

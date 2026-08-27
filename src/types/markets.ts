@@ -81,6 +81,8 @@ export interface KeyLevels {
   priorWeekRange: RangeStatus | null;
   adrPips: number | null;
   adrUsedPct: number | null;
+  awrPips: number | null; // average weekly range, last 8 complete weeks
+  amrPips: number | null; // average monthly range, last 6 complete months
   tdiLevel: number | null;
 }
 
@@ -115,6 +117,8 @@ export interface PairAnalysis {
   breakout: BreakoutResult | null;
   adrPips: number | null;
   todayRangePips: number | null;
+  awrPips: number | null; // average weekly range, last 8 complete weeks
+  amrPips: number | null; // average monthly range, last 6 complete months
   tdi: TdiResult | null;
   keyLevels: KeyLevels | null;
   lastClose: number | null;
