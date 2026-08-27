@@ -204,6 +204,52 @@ export function averageDailyRangePips(pair: string, candles: Candle[], lookback 
   return avgRange / pipSize(pair);
 }
 
+function isoMonthKey(dateStr: string): string {
+  return dateStr.slice(0, 7); // YYYY-MM
+}
+
+// Collapses daily candles into one high/low per period (week or month,
+// depending on keyFn), in chronological order.
+function groupRanges(candles: Candle[], keyFn: (date: string) => string): Array<{ key: string; high: number; low: number }> {
+  const byKey = new Map<string, { high: number; low: number }>();
+  const order: string[] = [];
+  for (const c of candles) {
+    const key = keyFn(c.date);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.high = Math.max(existing.high, c.high);
+      existing.low = Math.min(existing.low, c.low);
+    } else {
+      byKey.set(key, { high: c.high, low: c.low });
+      order.push(key);
+    }
+  }
+  return order.map((key) => ({ key, ...byKey.get(key)! }));
+}
+
+// Average weekly/monthly range, in pips — same idea as ADR but rolled up
+// to a full week's or month's high/low instead of one day's. The current,
+// still-in-progress period is dropped from the sample (its range is
+// artificially small purely because it isn't over yet, which would drag
+// the average down).
+export function averageWeeklyRangePips(pair: string, candles: Candle[], lookbackWeeks = 8): number | null {
+  if (candles.length === 0) return null;
+  const completeWeeks = groupRanges(candles, isoWeekKey).slice(0, -1);
+  const sample = completeWeeks.slice(-lookbackWeeks);
+  if (sample.length === 0) return null;
+  const avgRange = sample.reduce((sum, w) => sum + (w.high - w.low), 0) / sample.length;
+  return avgRange / pipSize(pair);
+}
+
+export function averageMonthlyRangePips(pair: string, candles: Candle[], lookbackMonths = 6): number | null {
+  if (candles.length === 0) return null;
+  const completeMonths = groupRanges(candles, isoMonthKey).slice(0, -1);
+  const sample = completeMonths.slice(-lookbackMonths);
+  if (sample.length === 0) return null;
+  const avgRange = sample.reduce((sum, m) => sum + (m.high - m.low), 0) / sample.length;
+  return avgRange / pipSize(pair);
+}
+
 export function todayRangePips(pair: string, candles: Candle[]): number | null {
   if (candles.length === 0) return null;
   const today = candles[candles.length - 1];
@@ -319,6 +365,8 @@ function buildKeyLevels(pair: string, candles: Candle[]): KeyLevels | null {
     priorWeekRange: detectPriorWeekRangeStatus(candles),
     adrPips: averageDailyRangePips(pair, candles, 14),
     adrUsedPct: adrUsedPct(pair, candles, 14),
+    awrPips: averageWeeklyRangePips(pair, candles, 8),
+    amrPips: averageMonthlyRangePips(pair, candles, 6),
     tdiLevel: computeTdi(candles)?.rsi ?? null,
   };
 }
@@ -425,6 +473,8 @@ export function analyzePair(pair: string, rawCandles: Candle[]): PairAnalysis {
     breakout: detectBreakout(candles),
     adrPips: averageDailyRangePips(pair, candles, 14),
     todayRangePips: todayRangePips(pair, candles),
+    awrPips: averageWeeklyRangePips(pair, candles, 8),
+    amrPips: averageMonthlyRangePips(pair, candles, 6),
     tdi: computeTdi(candles),
     keyLevels: buildKeyLevels(pair, candles),
     lastClose: candles.length ? candles[candles.length - 1].close : null,
