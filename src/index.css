@@ -1685,6 +1685,42 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.kit-prior-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-bg);
+}
+
+.kit-prior-banner-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.kit-prior-banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.kit-prior-banner li {
+  margin-bottom: 2px;
+}
+
+.kit-prior-warning {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-h);
+  background: var(--danger-bg);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
 .kit-note-preview {
   margin: 6px 0 0;
   font-size: 12px;
@@ -1810,6 +1846,14 @@ textarea {
   margin: 0;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.kit-draft-prior-cell {
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 8px;
 }
 
 /* ---------- Kit job editor ---------- */
