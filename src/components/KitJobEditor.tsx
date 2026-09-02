@@ -298,7 +298,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   return (
     <div className="item-editor kit-job-editor">
       <div className="kit-job-editor-header">
-        {job.jobNumber && <span className="code-badge">{job.jobNumber}</span>}
+        {job.jobNumber && <span className="code-badge kit-jobnum-badge">{job.jobNumber}</span>}
         <span className="kit-stage-badge" style={{ "--stage-color": stage.color } as CSSProperties}>
           {stage.label}
         </span>
