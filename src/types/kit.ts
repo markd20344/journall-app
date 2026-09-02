@@ -74,11 +74,19 @@ export interface KitJob {
   // up — respondedAt is null until responseNote is saved non-empty.
   respondedAt: string | null;
   responseNote: string;
+  // The text didn't go through — number's dead/disconnected. A separate
+  // flag rather than a third contactAttempt-style outcome, same lightweight
+  // pattern as noVisitNeeded/needsReschedule, and reported as its own line
+  // distinct from a plain "no response".
+  numberInvalid: boolean;
   // Ticked when a response says a visit isn't needed after all. Keeps the
-  // job visible here (so it's still "on the list" to review) but pulls it
-  // out of route planning and the office email — see kitStage.deriveStage,
-  // KitRouteView, and kitEmailReport.buildDailySummaryEmail.
+  // job visible here (so it's still "on the list" to review) and pulls it
+  // out of route planning — see kitStage.deriveStage and KitRouteView —
+  // but it's still included in the office email (with noVisitReason, if
+  // given) so the office knows why nothing happened rather than the job
+  // just silently vanishing from the report.
   noVisitNeeded: boolean;
+  noVisitReason: string;
   // A visit that came up empty (no answer, no kit) sometimes just needs
   // another attempt rather than being abandoned — this keeps that flagged
   // for a follow-up rather than the job silently going stale.

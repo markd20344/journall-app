@@ -350,6 +350,34 @@ class JournalDB extends Dexie {
       familyRecords: "id, updatedAt",
       familyMembers: "uid, email, updatedAt",
     });
+    // v18: add numberInvalid (the text never delivered — dead number) and
+    // noVisitReason (why a "not going" job isn't being visited, folded into
+    // the office email instead of that job being left out of it entirely).
+    this.version(18)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+        people: "id, lastName, updatedAt",
+        relationships: "id, type, personA, personB, updatedAt",
+        familyEvents: "id, personId, type, updatedAt",
+        familyMedia: "id, updatedAt",
+        familyRecords: "id, updatedAt",
+        familyMembers: "uid, email, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) {
+          job.numberInvalid = job.numberInvalid ?? false;
+          job.noVisitReason = job.noVisitReason ?? "";
+        }
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
   }
 }
 
@@ -397,7 +425,9 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     textedAt: raw.textedAt ?? null,
     respondedAt: raw.respondedAt ?? null,
     responseNote: raw.responseNote ?? "",
+    numberInvalid: raw.numberInvalid ?? false,
     noVisitNeeded: raw.noVisitNeeded ?? false,
+    noVisitReason: raw.noVisitReason ?? "",
     needsReschedule: raw.needsReschedule ?? false,
     contactAttempts: raw.contactAttempts ?? [],
     visits: raw.visits ?? [],
