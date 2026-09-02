@@ -125,7 +125,7 @@ export default function KitRunsPage() {
 
       {subView === "jobs" ? (
         <>
-          <div className="entry-editor-actions">
+          <div className="kit-primary-actions">
             <button type="button" className="primary" onClick={() => setImporting(true)}>
               + Import from email
             </button>

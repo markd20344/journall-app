@@ -31,8 +31,8 @@ export default function KitDailySummaryPanel({ jobs, batchDate, onClose }: Props
     <div>
       <h1 className="page-title">Daily summary — {batchDate}</h1>
       <p className="settings-hint">
-        Covers all {jobs.length} job{jobs.length === 1 ? "" : "s"} for this date. Copy it into your email to the office —
-        copying also marks every job here as included in today's office email.
+        Covers all {jobs.length} job{jobs.length === 1 ? "" : "s"} for this date. Copy it into your email to the
+        office — copying also marks every job here as included in today's office email.
       </p>
       <textarea className="entry-body kit-summary-textarea" readOnly value={emailText} rows={20} />
       <div className="entry-editor-actions">

@@ -83,10 +83,9 @@ export default function MarketsPage() {
         <table className="markets-table">
           <thead>
             <tr>
-              <th>Pair</th>
-              <th>Last 3 weeks</th>
+              <th>Pair / last 3 weeks</th>
               <th>Status</th>
-              <th>ADR (14d) / Today</th>
+              <th title="Average Daily / Weekly / Monthly Range, plus today's range so far">Avg Range (D/W/M)</th>
               <th>TDI (RSI 13)</th>
             </tr>
           </thead>
@@ -99,34 +98,35 @@ export default function MarketsPage() {
                   className={selectedPair === a.pair ? "markets-row-selected" : ""}
                   onClick={() => setSelectedPair(a.pair === selectedPair ? null : a.pair)}
                 >
-                  <td className="markets-pair-cell">{formatPair(a.pair)}</td>
-                  <td>
+                  <td className="markets-pair-cell">
+                    <div>{formatPair(a.pair)}</div>
                     {a.candles.length > 0 ? (
                       <DayStreak history={a.history} />
                     ) : (
                       <span className="settings-hint small">No data</span>
                     )}
                   </td>
-                  <td>
+                  <td className="markets-status-cell">
                     <span className={`status-text ${summary ? `status-text-${summary.tone}` : "status-text-empty"}`}>
                       {a.candles.length === 0 ? "—" : (summary?.text ?? "—")}
                     </span>
                   </td>
-                  <td>
-                    <div>{a.adrPips !== null ? `${a.adrPips.toFixed(1)} pips` : "—"}</div>
-                    <div className="settings-hint small">
-                      {a.todayRangePips !== null ? `Today: ${a.todayRangePips.toFixed(1)} pips` : ""}
+                  <td className="markets-range-cell">
+                    <div>
+                      D: {a.adrPips !== null ? `${a.adrPips.toFixed(1)}p` : "—"}
+                      {a.todayRangePips !== null && (
+                        <span className="settings-hint small"> (today {a.todayRangePips.toFixed(1)}p)</span>
+                      )}
                     </div>
+                    <div className="settings-hint small">W: {a.awrPips !== null ? `${a.awrPips.toFixed(1)}p` : "—"}</div>
+                    <div className="settings-hint small">M: {a.amrPips !== null ? `${a.amrPips.toFixed(1)}p` : "—"}</div>
                   </td>
-                  <td>
+                  <td title={a.tdi ? `Price line ${a.tdi.priceLine.toFixed(1)} / Signal ${a.tdi.signalLine.toFixed(1)}` : undefined}>
                     {a.tdi ? (
-                      <span
-                        className={`tdi-value tdi-${a.tdi.zone}`}
-                        title={`Price line ${a.tdi.priceLine.toFixed(1)} / Signal ${a.tdi.signalLine.toFixed(1)}`}
-                      >
-                        {a.tdi.rsi.toFixed(0)}
-                        {a.tdi.zone !== "neutral" ? ` (${a.tdi.zone})` : ""}
-                      </span>
+                      <>
+                        <div className={`tdi-value tdi-${a.tdi.zone}`}>{a.tdi.rsi.toFixed(0)}</div>
+                        {a.tdi.zone !== "neutral" && <div className={`settings-hint small tdi-${a.tdi.zone}`}>{a.tdi.zone}</div>}
+                      </>
                     ) : (
                       <span className="settings-hint small">Needs more history</span>
                     )}

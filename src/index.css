@@ -383,6 +383,8 @@ input[type="text"],
 input[type="search"],
 input[type="date"],
 input[type="color"],
+input[type="email"],
+input[type="number"],
 select,
 textarea {
   border: 1px solid var(--border);
@@ -1377,6 +1379,16 @@ textarea {
   white-space: nowrap;
 }
 
+/* Kit Runs' job number needs to be readable at a glance for writing down
+   during the day — same size as the customer name next to it, not the
+   smaller badge size .code-badge uses everywhere else (Task/Risk/Decision
+   codes), which those screens aren't asking to change. The doubled-up
+   selector beats .code-badge's own specificity regardless of source order. */
+.code-badge.kit-jobnum-badge {
+  font-size: 14px;
+  padding: 2px 8px;
+}
+
 /* ---------- Item cards (Log page) ---------- */
 
 .item-card {
@@ -1656,6 +1668,123 @@ textarea {
   opacity: 0.8;
 }
 
+.kit-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  /* Emoji glyphs render full-color regardless of the `color` property, so
+     the muted/active states have to come from filter+opacity+background,
+     not a text color swap. */
+  background: rgba(120, 130, 145, 0.14);
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.kit-status-icon.state-texted,
+.kit-status-icon.state-visited {
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 1.5px var(--accent);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-status-icon.state-replied {
+  background: var(--success-bg);
+  box-shadow: 0 0 0 1.5px var(--success-text);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-status-icon.state-invalid {
+  background: var(--danger-bg);
+  box-shadow: 0 0 0 1.5px var(--danger);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-reason-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: color-mix(in srgb, #be123c 10%, transparent);
+  border-left: 3px solid #be123c;
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-prior-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-bg);
+}
+
+.kit-prior-banner-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.kit-prior-banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.kit-prior-banner li {
+  margin-bottom: 2px;
+}
+
+.kit-prior-warning {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-h);
+  background: var(--danger-bg);
+  border-left: 3px solid var(--danger);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-note-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--amber-bg);
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-response-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
+.kit-legacy-attempts {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
 /* ---------- Kit import ---------- */
 
 .kit-import-panel {
@@ -1751,6 +1880,14 @@ textarea {
   margin: 0;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.kit-draft-prior-cell {
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 8px;
 }
 
 /* ---------- Kit job editor ---------- */
@@ -1930,11 +2067,12 @@ textarea {
   margin-top: 8px;
 }
 
-.kit-rucksack-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
+/* Reuses .kit-count-stepper's label-left/control-right layout so the
+   rucksack row lines up in exactly the same column as the Tablets/Phones/
+   etc. +/- controls below it, instead of sitting in its own offset spot. */
+.kit-rucksack-checkbox {
+  width: 22px;
+  height: 22px;
 }
 
 .kit-count-stepper {
@@ -1996,6 +2134,41 @@ textarea {
   font-size: 14px;
 }
 
+.kit-no-visit-toggle {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-no-visit-toggle.active {
+  border-color: var(--amber);
+  background: var(--amber-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.kit-no-visit-reason-input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.kit-reschedule-toggle {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.kit-reschedule-toggle.active {
+  border-color: #ea580c;
+  background: color-mix(in srgb, #ea580c 12%, transparent);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
 /* ---------- Kit route planning ---------- */
 
 .kit-route-controls {
@@ -2011,11 +2184,53 @@ textarea {
 }
 
 .kit-route-drag-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
   cursor: grab;
 }
 
 .kit-route-drag-row.dragging {
   opacity: 0.4;
+}
+
+.kit-route-drag-row .kit-job-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.kit-reorder-btns {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.kit-reorder-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.kit-reorder-btn:disabled {
+  opacity: 0.3;
+}
+
+.kit-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.kit-primary-actions button {
+  width: 100%;
 }
 
 .kit-route-totals {
@@ -2106,6 +2321,18 @@ textarea {
 .markets-pair-cell {
   font-weight: 700;
   color: var(--text-h);
+}
+
+.markets-pair-cell > div:first-child {
+  margin-bottom: 6px;
+}
+
+/* Status can be a long combined line ("First Green Day + Day 2 Breakout
+   ↑") — letting it wrap onto two lines instead of forcing the table's
+   global nowrap keeps this column from pushing ADR/TDI off the edge. */
+.markets-status-cell {
+  white-space: normal;
+  max-width: 220px;
 }
 
 /* Keep the Pair column visible while the rest of the wide table scrolls
@@ -2483,4 +2710,459 @@ textarea {
 .star-btn:hover:not(:disabled) {
   border-color: transparent;
   opacity: 0.8;
+}
+
+/* ---------- Family Tree ---------- */
+
+button.ghost.small,
+button.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.family-editor {
+  max-width: 640px;
+}
+
+.family-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 16px;
+}
+
+.partial-date-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.partial-date-row {
+  display: flex;
+  gap: 6px;
+}
+
+.partial-date-row select {
+  flex: 1.4;
+}
+
+.partial-date-day,
+.partial-date-month {
+  width: 56px;
+}
+
+.partial-date-year {
+  width: 72px;
+}
+
+.partial-date-preview {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.person-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.person-picker-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.person-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-raised);
+  text-align: left;
+}
+
+.person-picker-row:hover {
+  border-color: var(--accent);
+}
+
+.person-picker-years {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Tree canvas */
+
+.family-tree-viewport {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.family-tree-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-end;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.family-tree-scroll {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  max-height: 70vh;
+  padding: 24px;
+}
+
+.family-tree-canvas {
+  position: relative;
+  transform-origin: top left;
+}
+
+.family-tree-connector {
+  position: absolute;
+  background: var(--border);
+  pointer-events: none;
+}
+
+.family-tree-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  text-align: left;
+  cursor: pointer;
+}
+
+.family-tree-node.gender-female {
+  border-color: #d6609c;
+}
+
+.family-tree-node.gender-male {
+  border-color: #4c7fd6;
+}
+
+.family-tree-node.is-root {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.family-tree-node.is-selected {
+  background: var(--accent-bg);
+}
+
+.family-tree-node-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.family-tree-node-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.family-tree-node-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.family-tree-node-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.family-tree-node-years {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Person detail panel */
+
+.family-detail-header-row {
+  margin-bottom: 8px;
+}
+
+.family-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.family-detail-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--text-h);
+}
+
+.family-detail-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.family-facts-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 16px;
+}
+
+.family-facts-list dt {
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.family-facts-list dd {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.family-notes {
+  white-space: pre-wrap;
+  margin-bottom: 16px;
+}
+
+.family-relationships section {
+  margin-bottom: 20px;
+}
+
+.family-relationships h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.family-relationship-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.family-relationship-subtype {
+  font-size: 12px;
+  opacity: 0.7;
+  text-transform: capitalize;
+}
+
+/* Timeline */
+
+.family-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.family-timeline-entry {
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.family-timeline-year {
+  min-width: 48px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.family-timeline-place {
+  opacity: 0.7;
+}
+
+.family-timeline-note {
+  margin: 4px 0 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.family-timeline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Media & records */
+
+.family-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.family-media-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.family-media-thumb button {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+
+.family-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.family-media-caption {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.family-media-thumb-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.family-upload-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.family-media-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.family-media-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.family-record-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.family-record-link {
+  font-weight: 600;
+}
+
+.family-record-citation {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Members & invites */
+
+.family-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.family-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.family-member-email {
+  display: block;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.family-member-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* GEDCOM import */
+
+.gedcom-preview {
+  margin: 16px 0;
+}
+
+.gedcom-preview-list {
+  columns: 2;
+  font-size: 13px;
+  padding-left: 18px;
+}
+
+/* Search */
+
+.family-search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 480px;
 }

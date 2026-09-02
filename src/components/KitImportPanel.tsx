@@ -3,6 +3,8 @@ import { addDays, format } from "date-fns";
 import { emptyDraftJob, parseKitEmail, type DraftKitJob } from "../lib/kitEmailParser";
 import { importKitJobs } from "../db/kitRepo";
 import { showToast } from "../lib/toast";
+import { findPriorJobs, pickHeadlineJob, summarizePriorJob } from "../lib/kitDuplicates";
+import { useAllKitJobs } from "../hooks/useKitData";
 
 interface Props {
   onImported: (batchDate: string) => void;
@@ -34,6 +36,7 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
   const [drafts, setDrafts] = useState<DraftKitJob[] | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [importing, setImporting] = useState(false);
+  const allJobs = useAllKitJobs();
 
   function handleParse() {
     const parsed = parseKitEmail(emailText);
@@ -123,12 +126,13 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
               <th>Address</th>
               <th>Postcode</th>
               <th>Phone(s)</th>
-              <th>Notes</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
-            {drafts.map((draft, index) => (
+            {drafts.map((draft, index) => {
+              const priorJobs = findPriorJobs({ phoneNumbers: draft.phoneNumbers, customerName: draft.customerName }, allJobs);
+              return (
               <Fragment key={index}>
                 <tr>
                   <td>
@@ -163,9 +167,6 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
                       onChange={(e) => updateDraft(index, { phoneNumbers: textToPhones(e.target.value) })}
                     />
                   </td>
-                  <td>
-                    <input type="text" value={draft.notes} onChange={(e) => updateDraft(index, { notes: e.target.value })} />
-                  </td>
                   <td className="kit-draft-actions-cell">
                     {draft.rawText && (
                       <button type="button" className="chip-remove" aria-label="Show original text" onClick={() => toggleExpanded(index)}>
@@ -179,13 +180,22 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
                 </tr>
                 {expanded.has(index) && draft.rawText && (
                   <tr>
-                    <td colSpan={7} className="kit-draft-raw-cell">
+                    <td colSpan={6} className="kit-draft-raw-cell">
                       <pre>{draft.rawText}</pre>
                     </td>
                   </tr>
                 )}
+                {priorJobs.length > 0 && (
+                  <tr>
+                    <td colSpan={6} className="kit-draft-prior-cell">
+                      ⚠️ Seen before — {summarizePriorJob(pickHeadlineJob(priorJobs))}
+                      {priorJobs.length > 1 ? ` (+${priorJobs.length - 1} more)` : ""}
+                    </td>
+                  </tr>
+                )}
               </Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

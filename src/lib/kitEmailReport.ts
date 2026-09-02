@@ -1,46 +1,61 @@
 // Builds the plain-text "here's what I collected today" email Mark sends
 // to the office at the end of the round — assembled entirely from what's
-// already logged against each job (kit collected, door-visit notes,
-// contact-attempt outcomes), so there's nothing to re-type.
+// already logged against each job (kit collected, door-visit outcome,
+// texted/response state), so there's nothing to re-type. Written as one
+// continuous, plain-English paragraph per job rather than labelled fields
+// ("Outcome:", "Note:") — it's meant to read like Mark wrote it himself.
 
-import type { ContactOutcome, KitJob } from "../types/kit";
-
-const CONTACT_OUTCOME_PHRASE: Record<ContactOutcome, string> = {
-  no_response: "No response to text.",
-  disconnected: "Phone did not connect.",
-  delivered_no_reply: "Text delivered, no reply.",
-  replied: "Replied to text.",
-};
+import type { KitJob } from "../types/kit";
 
 /**
- * The "Collection Outcome" narrative for a job with no kit collected —
- * built from the most recent door visit and contact attempt actually
- * logged against it, in Mark's own words wherever he wrote a note, falling
- * back to a plain description of the outcome when he didn't.
+ * The outcome paragraph for a job with no kit collected — built purely
+ * from what's actually logged (texted/replied/invalid number, door
+ * outcome, reschedule flag), in plain sentences rather than Mark's own
+ * response text verbatim. His actual notes are still folded in at the end
+ * (see jobBlock) since those are his own words already and worth keeping,
+ * just not under a "Note:" label.
  */
 function outcomeNarrative(job: KitJob): string {
-  const parts: string[] = [];
+  const sentences: string[] = [];
 
   if (job.phoneNumbers.length === 0) {
-    parts.push(`No telephone number for ${job.customerName || "this contact"}.`);
+    sentences.push(`No telephone number on file for ${job.customerName || "this contact"}.`);
   }
 
+  // Legacy contactAttempts count toward "contacted"/"responded" for jobs
+  // logged before texted/respondedAt existed, so nothing already recorded
+  // falls out of the report.
+  const contacted = Boolean(job.textedAt) || job.contactAttempts.length > 0;
+  const responded = Boolean(job.respondedAt) || job.contactAttempts.some((a) => a.outcome === "replied");
   const lastVisit = job.visits[job.visits.length - 1];
+
+  if (job.numberInvalid) {
+    sentences.push("Sent a text but the number was invalid.");
+  } else if (responded) {
+    sentences.push("Sent a text and got a response.");
+  } else if (contacted) {
+    sentences.push("Sent a text but had no response.");
+  }
+
   if (lastVisit) {
     if (lastVisit.outcome === "answered") {
-      parts.push(lastVisit.note ? `Attended address — ${lastVisit.note}` : "Attended address — answered.");
+      sentences.push("Went to the property and spoke to them.");
+    } else if (lastVisit.outcome === "answered_not_home") {
+      sentences.push("Went to the property but they weren't home — someone else answered.");
     } else {
-      parts.push(lastVisit.note ? `No answer at the door. ${lastVisit.note}` : "No answer at the door.");
+      sentences.push("Went to the property but there was no answer.");
     }
   }
 
-  const lastAttempt = job.contactAttempts[job.contactAttempts.length - 1];
-  if (lastAttempt) {
-    parts.push(lastAttempt.note || CONTACT_OUTCOME_PHRASE[lastAttempt.outcome]);
-  }
+  sentences.push("No kit collected.");
+  if (job.needsReschedule) sentences.push("Will need to revisit.");
+  return sentences.join(" ");
+}
 
-  parts.push("No kit collected.");
-  return parts.join(" ");
+/** The line for a job marked "not going" — included in the email (unlike route planning, which still skips it) so the office knows why, in Mark's own reason rather than the job just vanishing from the report. */
+function notGoingNarrative(job: KitJob): string {
+  const reason = job.noVisitReason.trim();
+  return reason ? `Customer requested I don't visit — ${reason}.` : "Customer requested I don't visit.";
 }
 
 /** "Phone x1" / "Plates x2" / … one line per item actually logged, plus whatever's in "Other" verbatim. */
@@ -65,27 +80,28 @@ function jobBlock(job: KitJob): string {
   lines.push(`Address: ${[job.address, job.postcode].filter(Boolean).join(", ") || "—"}`);
   if (job.phoneNumbers.length > 0) lines.push(`Tel: ${job.phoneNumbers.join(", ")}`);
 
-  if (job.kitCollected) {
+  // Anomalies flagged by hand — a duplicate number, a different person
+  // answering, "not back until Christmas" — are Mark's own words already,
+  // so they're folded straight into the same paragraph as whatever else is
+  // being said about this job, rather than sitting under their own "Note:"
+  // label.
+  const notes = job.notes.trim();
+
+  if (job.noVisitNeeded) {
+    lines.push([notGoingNarrative(job), notes].filter(Boolean).join(" "));
+  } else if (job.kitCollected) {
     lines.push("Equipment Collected:");
     lines.push("");
     lines.push(...equipmentLines(job));
+    if (notes) lines.push(notes);
   } else {
-    lines.push(`Collection Outcome: ${outcomeNarrative(job)}`);
-  }
-
-  // Anomalies flagged by hand — a duplicate number, a different person
-  // answering, "not back until Christmas" — apply regardless of whether
-  // kit was collected, and regardless of whether this contact has a phone
-  // number on file, so they're appended unconditionally rather than folded
-  // into outcomeNarrative (which only runs when there's no kit collected).
-  if (job.notes.trim()) {
-    lines.push(`Note: ${job.notes.trim()}`);
+    lines.push([outcomeNarrative(job), notes].filter(Boolean).join(" "));
   }
 
   return lines.join("\n");
 }
 
-/** The full plain-text email body, ready to paste, covering every job passed in. */
+/** The full plain-text email body, ready to paste, covering every job passed in — including ones marked "not going", so the office sees why rather than the job just disappearing from the report. */
 export function buildDailySummaryEmail(jobs: KitJob[]): string {
   const intro = "Hi,\n\nPlease find below the details of today's equipment collection visits:";
   const blocks = jobs.map(jobBlock).join("\n\n");

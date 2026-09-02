@@ -141,18 +141,157 @@ dropped off at BCA Corby."
 - Data lives in its own `kitJobs` Dexie table and syncs through the same
   Firestore layer as journal entries — see `types/kit.ts`, `db/kitRepo.ts`.
 
+## Family Tree
+
+A shared, invite-only genealogy tree — a separate module from the rest of
+this app, which is otherwise entirely private per-account data. The tree
+lives in this same Firebase project (one Firestore database, one Storage
+bucket), but under its own collections (`trees/family/...`) with its own
+security rules, so relatives can be invited to view or contribute without
+getting access to your journal, kit runs, or anything else in the app.
+
+### Data model
+
+```
+Person                Relationship              FamilyEvent
+------                ------------              -----------
+id                     id                        id
+firstName/middleName   type: parent-child|spouse  personId ──┐
+  /lastName/maidenName personA, personB ──┐       type          │
+gender                 subtype                    label          │
+birth, birthPlace      startDate/Place            date, place    │
+death, deathPlace      endDate, endReason         note            │
+notes                  (spouse only)                              │
+profileMediaId ──┐                                                 │
+                  │     FamilyMedia          FamilyRecord           │
+                  │     ----------            -----------           │
+                  │     id                    id                    │
+                  └───▶ storagePath/downloadUrl storagePath/downloadUrl
+                        caption, date          recordType, sourceCitation
+                        attachedTo: person|event  attachedTo: person|event
+```
+
+- **Siblings are never stored** — they're derived on the fly from shared
+  `parent-child` links (two people sharing a parent are full siblings if
+  they share *all* their listed parents, half-siblings otherwise). This
+  keeps the model from ever going out of sync with itself.
+- **Photos and records live in Firebase Storage**, not as base64 blobs in
+  Firestore — a Firestore document caps out at 1MB, and syncing a few
+  thousand photos as inline strings would be both slower and far more
+  expensive than a small metadata doc pointing at a Storage file. Every
+  photo is resized/re-compressed client-side before upload (`family/storage.ts`)
+  to keep storage costs low at family scale; a scanned PDF record uploads
+  unmodified since a browser can't cheaply shrink those.
+- **Dates are almost always approximate** in genealogy ("c. 1890", "bef.
+  1920"), so every date is a `PartialDate` — a best-effort sortable
+  `YYYY[-MM[-DD]]`, a precision qualifier (exact/about/before/after/
+  estimated), and a human-readable display string — rather than a plain
+  ISO date.
+- Offline behaviour matches the rest of the app: Dexie is the local
+  source of truth (`people`, `relationships`, `familyEvents`,
+  `familyMedia`, `familyRecords`, `familyMembers` tables), and
+  `firebase/familySync.ts` mirrors it to/from `trees/family/...` in
+  Firestore — same last-write-wins-by-`updatedAt`, tombstone-for-deletes
+  approach as the rest of the app's Firestore sync (`firebase/sync.ts`),
+  just against a shared tree instead of your own private data.
+
+### Roles & sharing
+
+Three roles, stored in `trees/family/members/{uid}`:
+
+- **Viewer** — browse the tree, photos, and records.
+- **Contributor** — can also add photos/records/events and edit facts on
+  *existing* people, but can't create new people, edit or delete
+  relationships (the tree's structure), or delete anything.
+- **Owner** — full control: edit relationships, delete people, and manage
+  who has access. That's you.
+
+Invite a relative by email (Settings tab inside Family Tree → "People with
+access"). They sign in with their own Google account — whichever one uses
+that exact email address — and the moment they do, the app turns the
+pending invite into membership automatically (`family/role.ts`,
+`claimInviteIfAny`). Firestore security rules (`firestore.rules`) are the
+real enforcement of all of the above, not just the UI — a contributor
+account calling the API directly still can't touch relationships or
+delete anything.
+
+**One manual step before anyone can use it**: there's no owner yet the
+first time you deploy, and the security rules deliberately don't let
+anyone bootstrap themselves into that role (that would be a way to hijack
+the tree). Sign into the app once, find your Firebase Auth UID (Firebase
+Console → Authentication → Users, or `firebase auth:export`), then create
+one document by hand:
+
+```
+trees/family/members/{your-uid}
+  { uid: "<your-uid>", email: "<your sign-in email>", displayName: "...",
+    role: "owner", invitedBy: "", joinedAt: "<ISO timestamp>", updatedAt: "<ISO timestamp>" }
+```
+
+(Firebase Console → Firestore → "Start collection" works fine for this —
+it's a one-time step, not something the app needs to do again.)
+
+### Tree view
+
+Rendered with [`relatives-tree`](https://github.com/SanichKotikov/relatives-tree),
+a small layout-only library purpose-built for genealogy trees — it
+computes card positions for a focal person plus their ancestors,
+descendants, spouses and siblings (handling remarriages and half-siblings
+correctly), and leaves rendering entirely to the caller. That's a better
+fit here than a generic D3 hierarchy/tree-diagram library, which typically
+assumes a single-parent tree and has no native concept of a couple or a
+shared-parent sibling group. `family/treeLayout.ts` converts our
+People/Relationships into the node shape it expects (deriving siblings as
+above); `components/family/FamilyTreeCanvas.tsx` renders the result as
+absolutely-positioned cards with basic pan (scroll) and zoom. Click a card
+to view them, double-click to re-center the tree there.
+
+### GEDCOM import
+
+Ancestry (and most other genealogy tools) can export a tree as a standard
+GEDCOM `.ged` file: Ancestry → Tree Settings → Export Tree. `family/gedcomImport.ts`
+parses it with [`read-gedcom`](https://github.com/arbre-app/read-gedcom)
+(a zero-dependency, actively-maintained GEDCOM parser) and maps GEDCOM's
+`INDI`/`FAM` records onto People/Relationships — names, sex, birth/death
+dates (including `ABT`/`BEF`/`AFT` qualifiers) and places, spouse links
+with marriage/divorce dates, and parent-child links for every child in
+each family record.
+
+**Photos and scanned documents never come through GEDCOM** — Ancestry's
+export deliberately excludes media, so importing only ever produces
+people/relationships/dates/places. Add photos and records by hand
+afterward (Family Tree → a person → Photos/Records tab) for the people who
+matter most; there's no way around this from Ancestry's side.
+
 ## Project structure
 
 ```
 src/
-  types/            Domain types (Entry, Category, Topic; kit.ts — KitJob)
+  types/            Domain types (Entry, Category, Topic; kit.ts — KitJob; family.ts — Person, Relationship, ...)
   db/
     db.ts           Dexie schema + first-run category seeding
     repo.ts         CRUD helpers (createEntry, findOrCreateTopic, ...)
     kitRepo.ts      CRUD helpers for the Kit Runs module
+  firebase/
+    config.ts           Firebase app/auth/firestore/storage init
+    auth.ts              Google sign-in
+    sync.ts               Per-account private-data sync (users/{uid}/...)
+    familySync.ts          Shared family-tree sync (trees/family/...)
+  family/
+    config.ts            The shared tree's id
+    repo.ts               CRUD helpers for people/relationships/events/media/records/members
+    role.ts                Membership/role lookups + invite-claim flow
+    storage.ts              Photo/record compression + Firebase Storage upload
+    treeLayout.ts            Builds relatives-tree nodes, derives siblings
+    gedcomImport.ts           GEDCOM → People/Relationships mapping
+    gedcomDates.ts             read-gedcom date → PartialDate conversion
+    dates.ts                    PartialDate build/format helpers
+    personDisplay.ts             Name/lifespan/search-text formatting
+    recordTypes.ts                 Record-type dropdown options
   hooks/
     useJournalData.ts   Live-query React hooks (Dexie reactive queries)
     useKitData.ts       Live-query hooks for kit jobs
+    useFamilyData.ts     Live-query hooks for the family tree
   lib/
     id.ts               uuid / date helpers
     speech.ts           Web Speech API wrapper (voice dictation)
@@ -169,16 +308,24 @@ src/
     EntryEditor.tsx, EntryCard.tsx, CalendarView.tsx,
     ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx,
     KitJobCard.tsx, KitImportPanel.tsx, KitJobEditor.tsx, KitRouteView.tsx
+    family/
+      FamilyTreeCanvas.tsx, PersonDetailPanel.tsx, PersonEditor.tsx,
+      RelationshipEditor.tsx, PersonPicker.tsx, PartialDateInput.tsx,
+      EventTimeline.tsx, EventEditor.tsx, MediaGallery.tsx, RecordList.tsx,
+      MembersPanel.tsx, GedcomImportPanel.tsx, FamilySearchPanel.tsx
   pages/
     WritePage.tsx        Default landing view — fastest path to writing
     CalendarPage.tsx      Month calendar + per-day bookings only
     LogPage.tsx             Browse/filter spin-off items by kind
     BrowsePage.tsx           Chronological list + search + category/topic filter
     KitRunsPage.tsx           Kit-collection round: Jobs + Route tabs
+    FamilyTreePage.tsx         Family tree: Tree/Search/Import/Members tabs
     SettingsPage.tsx          Appearance, categories, backup, folder sync
   App.tsx             Nav shell / view switcher
 scripts/
   generate-icons.cjs  Generates the PWA app icons (no image lib needed)
+firestore.rules        Security rules for both users/{uid}/... and trees/family/...
+storage.rules           Security rules for Firebase Storage (Family Tree media)
 ```
 
 ## Running it
@@ -189,6 +336,19 @@ npm run dev       # http://localhost:5173
 npm run build      # production build to dist/
 npm run lint
 ```
+
+### Firebase setup
+
+1. Create a Firebase project, enable Google sign-in (Authentication),
+   Firestore, and Storage.
+2. Copy your web app config into `.env.local` as `VITE_FIREBASE_*`
+   variables (see `src/firebase/config.ts` for the exact names) — this
+   file is gitignored (`*.local`), so secrets never get committed.
+3. Deploy the security rules: `firebase deploy --only firestore:rules,storage`
+   (or paste `firestore.rules`/`storage.rules` into the Firebase Console).
+4. If you want the Family Tree module: sign into the app once, then do the
+   one-time owner bootstrap described in "Family Tree" → "Roles & sharing"
+   above.
 
 ## Voice input
 
@@ -209,3 +369,16 @@ pain point.
   folder too if you need it gone everywhere.
 - The File System Access API is Chromium-only today; other browsers fall
   back to manual JSON export/import through your synced folder.
+- Invite-by-email (Family Tree) matches the sign-in email exactly as
+  Firebase Auth reports it — Firestore security rules have no case-folding
+  function to lean on, so an invite has to be typed in the same case the
+  person's Google account actually uses (in practice this is essentially
+  always already-lowercase, since that's what Google's own sign-in issues).
+- The tree view renders every person connected (by any path) to whoever's
+  currently centered, all at once — there's no generation-limit/collapse
+  yet. Fine well into the hundreds of people; a very large single connected
+  tree (several thousand) would be a reasonable place to add a
+  generation-limited "load more" mode later.
+- GEDCOM export (sending the tree back out) and richer source/citation
+  management are intentionally out of scope for now — see the design notes
+  in the original brief for what's deferred to a phase 2.

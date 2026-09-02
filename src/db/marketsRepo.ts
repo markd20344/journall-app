@@ -8,9 +8,11 @@ import { PAIRS } from "../markets/pairs";
 const API_KEY_SETTING = "markets:twelveDataApiKey";
 const LAST_REFRESH_SETTING = "markets:lastRefreshedAt";
 
-// A little over the minimum a full analysis needs, so ADR/TDI have real
-// values right after the first refresh rather than sitting on the edge.
-const FETCH_OUTPUT_SIZE = MIN_CANDLES_FOR_FULL_ANALYSIS + 20;
+// Sized for the average monthly range (6 complete months + the current
+// partial one, at ~21 trading days/month, plus a buffer) rather than just
+// TDI's 52-candle minimum — that's the tallest pole now that AWR/AMR are
+// part of the analysis too.
+const FETCH_OUTPUT_SIZE = Math.max(MIN_CANDLES_FOR_FULL_ANALYSIS + 20, 160);
 
 export async function getApiKey(): Promise<string> {
   const record = await db.settings.get(API_KEY_SETTING);
