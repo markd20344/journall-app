@@ -3,6 +3,8 @@ import type { KitJob } from "../types/kit";
 import { deriveStage, kitSummary, STAGE_META } from "../lib/kitStage";
 import { followUpMessage, initialContactMessage, smsHref } from "../lib/kitSms";
 import { markTexted } from "../db/kitRepo";
+import { findPriorJobs, pickHeadlineJob, summarizePriorJob } from "../lib/kitDuplicates";
+import { useAllKitJobs } from "../hooks/useKitData";
 
 interface Props {
   job: KitJob;
@@ -54,6 +56,8 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
   const phone = phoneStatus(job);
   const door = doorStatus(job);
   const finished = isFinished(job);
+  const allJobs = useAllKitJobs();
+  const priorJobs = findPriorJobs(job, allJobs);
 
   return (
     <div className="kit-job-card">
@@ -84,6 +88,12 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
             {job.address && job.postcode ? ", " : ""}
             {job.postcode}
           </p>
+          {priorJobs.length > 0 && (
+            <p className="kit-prior-warning">
+              ⚠️ Seen before — {summarizePriorJob(pickHeadlineJob(priorJobs))}
+              {priorJobs.length > 1 ? ` (+${priorJobs.length - 1} more)` : ""}
+            </p>
+          )}
           {job.noVisitNeeded && job.noVisitReason.trim() && (
             <p className="kit-reason-preview">🚫 {job.noVisitReason.trim()}</p>
           )}

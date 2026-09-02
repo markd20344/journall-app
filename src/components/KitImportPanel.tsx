@@ -3,6 +3,8 @@ import { addDays, format } from "date-fns";
 import { emptyDraftJob, parseKitEmail, type DraftKitJob } from "../lib/kitEmailParser";
 import { importKitJobs } from "../db/kitRepo";
 import { showToast } from "../lib/toast";
+import { findPriorJobs, pickHeadlineJob, summarizePriorJob } from "../lib/kitDuplicates";
+import { useAllKitJobs } from "../hooks/useKitData";
 
 interface Props {
   onImported: (batchDate: string) => void;
@@ -34,6 +36,7 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
   const [drafts, setDrafts] = useState<DraftKitJob[] | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [importing, setImporting] = useState(false);
+  const allJobs = useAllKitJobs();
 
   function handleParse() {
     const parsed = parseKitEmail(emailText);
@@ -127,7 +130,9 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
             </tr>
           </thead>
           <tbody>
-            {drafts.map((draft, index) => (
+            {drafts.map((draft, index) => {
+              const priorJobs = findPriorJobs({ phoneNumbers: draft.phoneNumbers, customerName: draft.customerName }, allJobs);
+              return (
               <Fragment key={index}>
                 <tr>
                   <td>
@@ -180,8 +185,17 @@ export default function KitImportPanel({ onImported, onCancel }: Props) {
                     </td>
                   </tr>
                 )}
+                {priorJobs.length > 0 && (
+                  <tr>
+                    <td colSpan={6} className="kit-draft-prior-cell">
+                      ⚠️ Seen before — {summarizePriorJob(pickHeadlineJob(priorJobs))}
+                      {priorJobs.length > 1 ? ` (+${priorJobs.length - 1} more)` : ""}
+                    </td>
+                  </tr>
+                )}
               </Fragment>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

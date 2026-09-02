@@ -30,6 +30,8 @@ import {
   DOOR_VISIT_OUTCOME_ORDER,
   STAGE_META,
 } from "../lib/kitStage";
+import { findPriorJobs, summarizePriorJob } from "../lib/kitDuplicates";
+import { useAllKitJobs } from "../hooks/useKitData";
 import { nowIso } from "../lib/id";
 import Dropdown from "./Dropdown";
 
@@ -130,6 +132,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
 
   const [officeEmailedAt, setOfficeEmailedAt] = useState(job.officeEmailedAt);
   const [droppedOffAt, setDroppedOffAt] = useState(job.droppedOffAt);
+
+  const allJobs = useAllKitJobs();
+  const priorJobs = findPriorJobs(job, allJobs);
 
   const stage =
     STAGE_META[
@@ -351,6 +356,17 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           }}
         />
       </div>
+
+      {priorJobs.length > 0 && (
+        <div className="kit-prior-banner">
+          <p className="kit-prior-banner-title">⚠️ Seen before — {priorJobs.length} earlier entr{priorJobs.length === 1 ? "y" : "ies"}</p>
+          <ul>
+            {priorJobs.map((p) => (
+              <li key={p.id}>{summarizePriorJob(p)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={`kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
         <label className="kit-toggle-row">
