@@ -1355,6 +1355,16 @@ textarea {
   white-space: nowrap;
 }
 
+/* Kit Runs' job number needs to be readable at a glance for writing down
+   during the day — same size as the customer name next to it, not the
+   smaller badge size .code-badge uses everywhere else (Task/Risk/Decision
+   codes), which those screens aren't asking to change. The doubled-up
+   selector beats .code-badge's own specificity regardless of source order. */
+.code-badge.kit-jobnum-badge {
+  font-size: 14px;
+  padding: 2px 8px;
+}
+
 /* ---------- Item cards (Log page) ---------- */
 
 .item-card {

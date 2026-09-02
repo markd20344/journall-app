@@ -65,7 +65,7 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
       <button type="button" className="kit-job-card-main" onClick={onClick}>
         <div className="kit-job-card-body">
           <div className="kit-job-card-meta">
-            {job.jobNumber && <span className="code-badge">{job.jobNumber}</span>}
+            {job.jobNumber && <span className="code-badge kit-jobnum-badge">{job.jobNumber}</span>}
             <span className="kit-stage-badge" style={{ "--stage-color": stage.color } as CSSProperties}>
               {stage.label}
             </span>
