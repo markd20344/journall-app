@@ -10,6 +10,7 @@ import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import CategorySelect from "./CategorySelect";
+import DetectedLinks from "./DetectedLinks";
 import TopicTagInput from "./TopicTagInput";
 import VoiceButton from "./VoiceButton";
 import SpinOffPanel from "./SpinOffPanel";
@@ -134,6 +135,7 @@ export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, on
         <div className="field-voice-row field-voice-row-end">
           <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
         </div>
+        <DetectedLinks text={body} />
       </div>
 
       <div className="entry-editor-actions">

@@ -21,6 +21,7 @@ import { useDictation } from "../hooks/useDictation";
 import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import CategorySelect from "./CategorySelect";
+import DetectedLinks from "./DetectedLinks";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
 import Dropdown from "./Dropdown";
@@ -330,6 +331,7 @@ export default function ItemEditor({
             📋 Copy
           </button>
         </div>
+        <DetectedLinks text={body} />
       </div>
       {/* Classification first — what this is and how important it is — since
           that's what you actually decide right after writing the entry.

@@ -621,6 +621,30 @@ textarea {
   padding: 6px 12px;
 }
 
+.detected-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.detected-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detected-link:hover {
+  text-decoration: underline;
+}
+
 .voice-btn {
   font-size: 13px;
   padding: 6px 12px;
