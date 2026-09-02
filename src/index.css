@@ -1666,6 +1666,25 @@ textarea {
   opacity: 1;
 }
 
+.kit-status-icon.state-invalid {
+  background: var(--danger-bg);
+  box-shadow: 0 0 0 1.5px var(--danger);
+  filter: none;
+  opacity: 1;
+}
+
+.kit-reason-preview {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: color-mix(in srgb, #be123c 10%, transparent);
+  border-left: 3px solid #be123c;
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+}
+
 .kit-note-preview {
   margin: 6px 0 0;
   font-size: 12px;
@@ -1970,11 +1989,12 @@ textarea {
   margin-top: 8px;
 }
 
-.kit-rucksack-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
+/* Reuses .kit-count-stepper's label-left/control-right layout so the
+   rucksack row lines up in exactly the same column as the Tablets/Phones/
+   etc. +/- controls below it, instead of sitting in its own offset spot. */
+.kit-rucksack-checkbox {
+  width: 22px;
+  height: 22px;
 }
 
 .kit-count-stepper {
@@ -2049,6 +2069,11 @@ textarea {
   background: var(--amber-bg);
   color: var(--text-h);
   font-weight: 600;
+}
+
+.kit-no-visit-reason-input {
+  width: 100%;
+  margin-top: 8px;
 }
 
 .kit-reschedule-toggle {

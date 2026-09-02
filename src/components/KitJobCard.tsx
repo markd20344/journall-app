@@ -18,7 +18,7 @@ interface Props {
 
 interface StatusIcon {
   icon: string;
-  state: "muted" | "texted" | "replied" | "visited";
+  state: "muted" | "texted" | "replied" | "visited" | "invalid";
   label: string;
 }
 
@@ -27,7 +27,10 @@ function phoneStatus(job: KitJob): StatusIcon {
   // replaced per-attempt outcome tracking.
   const replied = Boolean(job.respondedAt) || job.contactAttempts.some((a) => a.outcome === "replied");
   const texted = Boolean(job.textedAt) || job.contactAttempts.length > 0;
+  // An actual reply proves the number worked, so it wins over a stale
+  // invalid flag someone forgot to clear.
   if (replied) return { icon: "📱", state: "replied", label: "Replied" };
+  if (job.numberInvalid) return { icon: "📱", state: "invalid", label: "Number invalid" };
   if (texted) return { icon: "📱", state: "texted", label: "Texted — no reply yet" };
   return { icon: "📱", state: "muted", label: "Not texted yet" };
 }
@@ -81,6 +84,9 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
             {job.address && job.postcode ? ", " : ""}
             {job.postcode}
           </p>
+          {job.noVisitNeeded && job.noVisitReason.trim() && (
+            <p className="kit-reason-preview">🚫 {job.noVisitReason.trim()}</p>
+          )}
           {job.notes.trim() && <p className="kit-note-preview">📝 {job.notes.trim()}</p>}
           {job.responseNote.trim() && <p className="kit-response-preview">💬 {job.responseNote.trim()}</p>}
           {summary && <p className="dependency-line">🎒 {summary}</p>}

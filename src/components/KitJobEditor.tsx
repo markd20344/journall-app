@@ -12,6 +12,8 @@ import {
   setKitCollected as saveKitCollected,
   setNeedsReschedule as saveNeedsReschedule,
   setNoVisitNeeded as saveNoVisitNeeded,
+  setNoVisitReason as saveNoVisitReason,
+  setNumberInvalid as saveNumberInvalid,
   setOfficeEmailed,
   setResponse,
   unmarkDroppedOff,
@@ -111,7 +113,9 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   const [textedAt, setTextedAt] = useState(job.textedAt);
   const [respondedAt, setRespondedAt] = useState(job.respondedAt);
   const [responseNote, setResponseNote] = useState(job.responseNote);
+  const [numberInvalid, setNumberInvalid] = useState(job.numberInvalid);
   const [noVisitNeeded, setNoVisitNeeded] = useState(job.noVisitNeeded);
+  const [noVisitReason, setNoVisitReason] = useState(job.noVisitReason);
   const [needsReschedule, setNeedsReschedule] = useState(job.needsReschedule);
 
   const [visits, setVisits] = useState(job.visits);
@@ -202,10 +206,21 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     showToast(trimmed ? "Response saved" : "Response cleared");
   }
 
+  async function handleToggleNumberInvalid() {
+    const next = !numberInvalid;
+    setNumberInvalid(next);
+    await saveNumberInvalid(job.id, next);
+  }
+
   async function handleToggleNoVisitNeeded() {
     const next = !noVisitNeeded;
     setNoVisitNeeded(next);
     await saveNoVisitNeeded(job.id, next);
+  }
+
+  async function handleNoVisitReasonBlur() {
+    if (noVisitReason.trim() === job.noVisitReason.trim()) return;
+    await saveNoVisitReason(job.id, noVisitReason);
   }
 
   async function handleToggleNeedsReschedule() {
@@ -264,7 +279,13 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
     }
   }
 
-  const contactSummary = !textedAt ? "Not texted yet" : respondedAt ? "Texted · Replied" : "Texted · No reply yet";
+  const contactSummary = !textedAt
+    ? "Not texted yet"
+    : numberInvalid
+      ? "Texted · Number invalid"
+      : respondedAt
+        ? "Texted · Replied"
+        : "Texted · No reply yet";
   const visitSummary =
     visits.length === 0 ? "Not visited" : `${visits.length} · ${DOOR_VISIT_OUTCOME_META[visits[visits.length - 1].outcome].label}`;
   const lifecycleSummary = `${officeEmailedAt ? "Emailed" : "Not emailed"} · ${droppedOffAt ? "Dropped off" : "Not dropped off"}`;
@@ -331,13 +352,25 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         />
       </div>
 
-      <label className={`kit-toggle-row kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
-        <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
-        <span>
-          Not going — they said not to come, the info here looks wrong, or you've decided not to. Stays on your list
-          here, but is left out of the route and the office email.
-        </span>
-      </label>
+      <div className={`kit-no-visit-toggle ${noVisitNeeded ? "active" : ""}`}>
+        <label className="kit-toggle-row">
+          <input type="checkbox" checked={noVisitNeeded} onChange={() => void handleToggleNoVisitNeeded()} />
+          <span>
+            Not going — they said not to come, the info here looks wrong, or you've decided not to. Left out of the
+            route, but still included in the office email so it's clear why.
+          </span>
+        </label>
+        {noVisitNeeded && (
+          <input
+            type="text"
+            className="kit-no-visit-reason-input"
+            placeholder="Reason (optional) — e.g. already collected, at work, on holiday"
+            value={noVisitReason}
+            onChange={(e) => setNoVisitReason(e.target.value)}
+            onBlur={() => void handleNoVisitReasonBlur()}
+          />
+        )}
+      </div>
 
       <label className={`kit-toggle-row kit-reschedule-toggle ${needsReschedule ? "active" : ""}`}>
         <input type="checkbox" checked={needsReschedule} onChange={() => void handleToggleNeedsReschedule()} />
@@ -359,8 +392,8 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
       <Section title="Notes (in report)" summary={notes.trim() ? notes.trim() : "None"}>
         <p className="settings-hint small">
           Anything worth flagging for this person — a duplicate number, a different person answering, "not back until
-          Christmas," etc. Works whether or not they have a phone number on file, and is included in the daily summary
-          email.
+          Christmas," etc. Works whether or not they have a phone number on file. Folded straight into that job's
+          line in the daily summary email — not shown as a separate "Note:" field.
         </p>
         <textarea
           className="entry-body"
@@ -394,6 +427,11 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             </button>
           )}
         </div>
+
+        <label className="kit-toggle-row">
+          <input type="checkbox" checked={numberInvalid} onChange={() => void handleToggleNumberInvalid()} />
+          <span>Number didn't work — dead or invalid, the text never went through.</span>
+        </label>
 
         <label className="field">
           <span className="field-label">Their response (optional)</span>
@@ -501,13 +539,14 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           </div>
         ) : (
           <div className="kit-collected-form">
-            <label className="kit-rucksack-check">
+            <label className="kit-count-stepper kit-rucksack-check">
+              <span className="kit-count-label">Rucksack</span>
               <input
                 type="checkbox"
+                className="kit-rucksack-checkbox"
                 checked={kitDraft.rucksack}
                 onChange={(e) => setKitDraft((prev) => ({ ...prev, rucksack: e.target.checked }))}
               />
-              Rucksack
             </label>
             <CountStepper label="Tablets" value={kitDraft.tablets} onChange={(v) => setKitDraft((prev) => ({ ...prev, tablets: v }))} />
             <CountStepper label="Phones" value={kitDraft.phones} onChange={(v) => setKitDraft((prev) => ({ ...prev, phones: v }))} />
