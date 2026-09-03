@@ -2154,6 +2154,28 @@ textarea {
   margin-top: 8px;
 }
 
+.kit-quick-phrases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.kit-quick-phrase-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.kit-quick-phrase-chip:active {
+  opacity: 0.6;
+}
+
 .kit-reschedule-toggle {
   margin: 0 0 12px;
   padding: 10px 12px;
