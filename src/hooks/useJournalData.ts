@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
-import type { Book, Category, Entry, EntryWithRefs, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, EntryWithRefs, Item, ItemAttachment, ItemKind, Topic } from "../types";
 import { usePendingDeleteIds } from "../lib/pendingDelete";
 
 // Most-recent-first, and reliable within a single day: Dexie's own
@@ -57,6 +57,16 @@ export function useItemsForEntry(entryId: string | undefined): Item[] {
     useLiveQuery(
       () => (entryId ? db.items.where("sourceEntryId").equals(entryId).sortBy("createdAt") : []),
       [entryId],
+      [],
+    ) ?? []
+  );
+}
+
+export function useAttachmentsForItem(itemId: string | undefined): ItemAttachment[] {
+  return (
+    useLiveQuery(
+      () => (itemId ? db.itemAttachments.where("itemId").equals(itemId).sortBy("createdAt") : []),
+      [itemId],
       [],
     ) ?? []
   );

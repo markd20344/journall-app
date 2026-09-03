@@ -1,6 +1,15 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Task/Item photo attachments — single-owner, so this mirrors
+    // firestore.rules' generic /users/{uid}/{collection}/{docId} rule
+    // rather than the Family Tree's shared-membership one below.
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Family Tree photos and record scans — role checks mirror
     // firestore.rules by reading the same trees/{treeId}/members doc via
     // Storage's cross-service `firestore.get`/`firestore.exists`.

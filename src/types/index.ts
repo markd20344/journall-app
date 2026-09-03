@@ -98,6 +98,21 @@ export interface Book {
   updatedAt: string;
 }
 
+// A photo attached to an Item — the file itself lives in Firebase Storage
+// (not this record, and not the Item record either), the same way Family
+// Tree media works and for the same reason: Firestore documents cap out at
+// 1MB, so even a single compressed photo would risk blowing past that if it
+// were embedded directly. This is just the pointer + display metadata.
+export interface ItemAttachment {
+  id: string;
+  itemId: string;
+  storagePath: string;
+  downloadUrl: string;
+  name: string; // original file name, for display
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Item {
   id: string;
   kind: ItemKind;

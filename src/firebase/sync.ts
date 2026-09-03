@@ -27,7 +27,7 @@ import { nowIso } from "../lib/id";
 import type { Item } from "../types";
 import type { KitJob } from "../types/kit";
 
-const SYNCED_TABLES = ["categories", "topics", "entries", "items", "kitJobs", "books"] as const;
+const SYNCED_TABLES = ["categories", "topics", "entries", "items", "kitJobs", "books", "itemAttachments"] as const;
 type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 interface Syncable {

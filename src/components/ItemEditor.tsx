@@ -22,6 +22,7 @@ import { showToast } from "../lib/toast";
 import { schedulePendingDelete, cancelPendingDelete } from "../lib/pendingDelete";
 import CategorySelect from "./CategorySelect";
 import DetectedLinks from "./DetectedLinks";
+import ItemAttachments from "./ItemAttachments";
 import VoiceButton from "./VoiceButton";
 import ItemKindBadge from "./ItemKindBadge";
 import Dropdown from "./Dropdown";
@@ -503,6 +504,8 @@ export default function ItemEditor({
           </div>
         </div>
       )}
+
+      {item && <ItemAttachments itemId={item.id} />}
 
       {item && meta.hasSubtasks && (
         <div className="link-section">

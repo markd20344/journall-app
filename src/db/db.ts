@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Book, Category, Entry, Item, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, Topic } from "../types";
 import type { Candle } from "../types/markets";
 import type { KitJob } from "../types/kit";
 import type { FamilyEvent, FamilyMedia, FamilyMember, FamilyRecord, Person, Relationship } from "../types/family";
@@ -34,6 +34,7 @@ class JournalDB extends Dexie {
   familyMedia!: Table<FamilyMedia, string>;
   familyRecords!: Table<FamilyRecord, string>;
   familyMembers!: Table<FamilyMember, string>;
+  itemAttachments!: Table<ItemAttachment, string>;
 
   constructor() {
     super("journall-db");
@@ -378,6 +379,26 @@ class JournalDB extends Dexie {
         }
         if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
       });
+    // v19: add itemAttachments — photos attached to a Task/Item, stored the
+    // same way Family Tree media is (the file itself lives in Firebase
+    // Storage; this table is just the pointer + display metadata).
+    this.version(19).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+      itemAttachments: "id, itemId, updatedAt",
+    });
   }
 }
 

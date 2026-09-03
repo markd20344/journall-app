@@ -2,10 +2,25 @@
 // file-sync and Firestore sync layers can do simple last-write-wins conflict
 // resolution, and mirrors the change to Firestore (a no-op when signed out).
 import { db } from "./db";
-import type { Book, BookFormat, BookStatus, Category, Entry, Item, ItemKind, ItemStatus, Priority, StatusUpdate, Subtask, Topic } from "../types";
+import type {
+  Book,
+  BookFormat,
+  BookStatus,
+  Category,
+  Entry,
+  Item,
+  ItemAttachment,
+  ItemKind,
+  ItemStatus,
+  Priority,
+  StatusUpdate,
+  Subtask,
+  Topic,
+} from "../types";
 import { newId, nowIso } from "../lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
 import { deleteRecord, pushRecord } from "../firebase/sync";
+import { deleteItemPhoto, uploadItemPhoto } from "../lib/itemAttachmentStorage";
 
 export async function createEntry(input: {
   date: string;
@@ -505,7 +520,8 @@ export async function deleteBook(id: string): Promise<void> {
 
 export async function deleteItem(id: string): Promise<void> {
   let linkerIds: string[] = [];
-  await db.transaction("rw", db.items, async () => {
+  const attachments = await db.itemAttachments.where("itemId").equals(id).toArray();
+  await db.transaction("rw", db.items, db.itemAttachments, async () => {
     const linkers = await db.items.where("linkedItemIds").equals(id).toArray();
     linkerIds = linkers.map((l) => l.id);
     const ts = nowIso();
@@ -513,10 +529,43 @@ export async function deleteItem(id: string): Promise<void> {
       await db.items.update(linker.id, { linkedItemIds: linker.linkedItemIds.filter((lid) => lid !== id), updatedAt: ts });
     }
     await db.items.delete(id);
+    await db.itemAttachments.where("itemId").equals(id).delete();
   });
   deleteRecord("items", id);
   for (const linkerId of linkerIds) {
     const updated = await db.items.get(linkerId);
     if (updated) pushRecord("items", updated);
   }
+  // Cleans up the actual Storage files too — otherwise a deleted task's
+  // photos would keep costing storage forever with nothing left pointing
+  // at them.
+  for (const attachment of attachments) {
+    deleteRecord("itemAttachments", attachment.id);
+    await deleteItemPhoto(attachment.storagePath);
+  }
+}
+
+export async function addItemAttachment(itemId: string, file: File): Promise<ItemAttachment> {
+  const id = newId();
+  const uploaded = await uploadItemPhoto(id, file);
+  const ts = nowIso();
+  const attachment: ItemAttachment = {
+    id,
+    itemId,
+    storagePath: uploaded.storagePath,
+    downloadUrl: uploaded.downloadUrl,
+    name: file.name,
+    createdAt: ts,
+    updatedAt: ts,
+  };
+  await db.itemAttachments.add(attachment);
+  pushRecord("itemAttachments", attachment);
+  return attachment;
+}
+
+export async function deleteItemAttachment(id: string): Promise<void> {
+  const attachment = await db.itemAttachments.get(id);
+  await db.itemAttachments.delete(id);
+  deleteRecord("itemAttachments", id);
+  if (attachment) await deleteItemPhoto(attachment.storagePath);
 }
