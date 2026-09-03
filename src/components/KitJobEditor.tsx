@@ -31,6 +31,13 @@ import {
   STAGE_META,
 } from "../lib/kitStage";
 import { findPriorJobs, summarizePriorJob } from "../lib/kitDuplicates";
+import {
+  appendPhrase,
+  DOOR_VISIT_NOTE_PHRASES,
+  GENERAL_NOTE_PHRASES,
+  NO_VISIT_REASON_PHRASES,
+  RESPONSE_PHRASES,
+} from "../lib/kitQuickPhrases";
 import { useAllKitJobs } from "../hooks/useKitData";
 import { nowIso } from "../lib/id";
 import Dropdown from "./Dropdown";
@@ -81,6 +88,19 @@ function Section({ title, summary, children }: { title: string; summary: string;
         </span>
       </button>
       {open && <div className="kit-section-body">{children}</div>}
+    </div>
+  );
+}
+
+/** A row of tap-to-insert phrases above a free-text field — inserted, not replaced, so a couple of taps can still be combined or edited further. */
+function QuickPhrases({ phrases, onPick }: { phrases: string[]; onPick: (phrase: string) => void }) {
+  return (
+    <div className="kit-quick-phrases">
+      {phrases.map((phrase) => (
+        <button key={phrase} type="button" className="kit-quick-phrase-chip" onClick={() => onPick(phrase)}>
+          {phrase}
+        </button>
+      ))}
     </div>
   );
 }
@@ -226,6 +246,12 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   async function handleNoVisitReasonBlur() {
     if (noVisitReason.trim() === job.noVisitReason.trim()) return;
     await saveNoVisitReason(job.id, noVisitReason);
+  }
+
+  async function handlePickNoVisitReason(phrase: string) {
+    const next = appendPhrase(noVisitReason, phrase);
+    setNoVisitReason(next);
+    await saveNoVisitReason(job.id, next);
   }
 
   async function handleToggleNeedsReschedule() {
@@ -377,14 +403,17 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           </span>
         </label>
         {noVisitNeeded && (
-          <input
-            type="text"
-            className="kit-no-visit-reason-input"
-            placeholder="Reason (optional) — e.g. already collected, at work, on holiday"
-            value={noVisitReason}
-            onChange={(e) => setNoVisitReason(e.target.value)}
-            onBlur={() => void handleNoVisitReasonBlur()}
-          />
+          <>
+            <input
+              type="text"
+              className="kit-no-visit-reason-input"
+              placeholder="Reason (optional) — e.g. already collected, at work, on holiday"
+              value={noVisitReason}
+              onChange={(e) => setNoVisitReason(e.target.value)}
+              onBlur={() => void handleNoVisitReasonBlur()}
+            />
+            <QuickPhrases phrases={NO_VISIT_REASON_PHRASES} onPick={(p) => void handlePickNoVisitReason(p)} />
+          </>
         )}
       </div>
 
@@ -418,6 +447,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
         />
+        <QuickPhrases phrases={GENERAL_NOTE_PHRASES} onPick={(p) => setNotes((prev) => appendPhrase(prev, p))} />
         <div className="entry-editor-actions">
           <button type="button" className="primary" disabled={saving} onClick={() => void handleSaveDetails()}>
             Save note
@@ -459,6 +489,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             rows={2}
           />
         </label>
+        <QuickPhrases phrases={RESPONSE_PHRASES} onPick={(p) => setResponseNote((prev) => appendPhrase(prev, p))} />
         <div className="entry-editor-actions">
           <button type="button" className="primary" onClick={() => void handleSaveResponse()}>
             Save response
@@ -513,6 +544,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
             ))}
           </ul>
         )}
+        <QuickPhrases phrases={DOOR_VISIT_NOTE_PHRASES} onPick={(p) => setVisitNote((prev) => appendPhrase(prev, p))} />
         <div className="kit-log-form">
           <Dropdown
             value={visitOutcome}
