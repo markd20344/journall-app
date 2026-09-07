@@ -22,6 +22,7 @@ export async function createKitJob(input: {
   phoneNumbers?: string[];
   rawText?: string;
   notes?: string;
+  dropOffLocation?: string;
 }): Promise<KitJob> {
   const ts = nowIso();
   const job: KitJob = {
@@ -34,6 +35,7 @@ export async function createKitJob(input: {
     phoneNumbers: input.phoneNumbers ?? [],
     rawText: input.rawText ?? "",
     notes: input.notes ?? "",
+    dropOffLocation: input.dropOffLocation ?? "",
     routeOrder: null,
     lat: null,
     lng: null,
@@ -70,6 +72,7 @@ export async function importKitJobs(drafts: DraftKitJob[], batchDate: string): P
         postcode: d.postcode,
         phoneNumbers: d.phoneNumbers,
         rawText: d.rawText,
+        dropOffLocation: d.dropOffLocation,
         // Deliberately not d.notes: the Notes field on a job is now the
         // report-facing "flag an anomaly for this person" box (duplicate
         // number, "away until Christmas", etc.) — it should start empty on
@@ -86,7 +89,9 @@ export async function importKitJobs(drafts: DraftKitJob[], batchDate: string): P
 
 export async function updateKitJob(
   id: string,
-  changes: Partial<Pick<KitJob, "jobNumber" | "customerName" | "address" | "postcode" | "phoneNumbers" | "notes" | "batchDate">>,
+  changes: Partial<
+    Pick<KitJob, "jobNumber" | "customerName" | "address" | "postcode" | "phoneNumbers" | "notes" | "batchDate" | "dropOffLocation">
+  >,
 ): Promise<void> {
   await db.kitJobs.update(id, { ...changes, updatedAt: nowIso() });
   await persist(id);
@@ -224,7 +229,7 @@ export async function setOfficeEmailed(jobId: string, emailed: boolean): Promise
   await persist(jobId);
 }
 
-/** Marks a batch of jobs dropped off at BCA Corby together, sharing one droppedOffBatchId. */
+/** Marks a batch of jobs dropped off together, sharing one droppedOffBatchId — regardless of whether they all went to the same hub. */
 export async function markDroppedOff(jobIds: string[]): Promise<void> {
   const ts = nowIso();
   const batchId = newId();

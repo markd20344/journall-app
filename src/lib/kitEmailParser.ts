@@ -20,6 +20,7 @@ export interface DraftKitJob {
   phoneNumbers: string[];
   notes: string;
   rawText: string;
+  dropOffLocation: string;
 }
 
 const POSTCODE_REGEX = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi;
@@ -47,7 +48,7 @@ function extractPhones(text: string): string[] {
 }
 
 export function emptyDraftJob(): DraftKitJob {
-  return { jobNumber: "", customerName: "", address: "", postcode: "", phoneNumbers: [], notes: "", rawText: "" };
+  return { jobNumber: "", customerName: "", address: "", postcode: "", phoneNumbers: [], notes: "", rawText: "", dropOffLocation: "" };
 }
 
 // ---------------------------------------------------------------------
@@ -103,6 +104,36 @@ function looksLikeAddressNote(line: string): boolean {
   return /^[A-Z]{1,4}\//.test(line) || /\bcall\b/i.test(line) || /\bnight before\b/i.test(line);
 }
 
+const METADATA_LABEL_REGEX = /^[a-z][a-z .#]*:/i;
+
+/**
+ * The "Deliver To" hub — where the collected kit actually needs dropping
+ * off, not always the same depot job to job — spills into the same lines
+ * as the collection address once the postcode column is reached, exactly
+ * the way a wrapped address cell does. `startLine`/`firstSegment` are
+ * where the collection-address scan left off: the line index right after
+ * the collection postcode, and whatever text trailed past that line's tab
+ * (the first word or two of the hub name).
+ */
+function extractDropOffLocation(lines: string[], startLine: number, firstSegment: string): string {
+  const parts: string[] = firstSegment ? [firstSegment] : [];
+  let postcode = "";
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    if (METADATA_LABEL_REGEX.test(line)) break; // hit "Account:"/"Collection Contact :"/etc — the address block is over
+    const tabIdx = line.indexOf("\t");
+    const beforeTab = (tabIdx >= 0 ? line.slice(0, tabIdx) : line).trim();
+    const postcodeMatch = beforeTab.match(POSTCODE_REGEX);
+    if (postcodeMatch) {
+      postcode = postcodeMatch[0].toUpperCase().replace(/\s+/g, " ");
+      break;
+    }
+    parts.push(beforeTab);
+  }
+  return [parts.join(", "), postcode].filter(Boolean).join(", ");
+}
+
 export function parseDriverSheetBlock(lines: string[]): DraftKitJob {
   const firstLineFields = lines[0].split("\t");
   const jobNumber = (firstLineFields[1] ?? "").trim();
@@ -112,9 +143,11 @@ export function parseDriverSheetBlock(lines: string[]): DraftKitJob {
   // Walk forward from the second line, collecting plain (no-tab) lines as
   // address text, until a line carrying the postcode is found — that line
   // may itself continue past a tab into the *next* column (Deliver To),
-  // which is dropped since it's the drop-off hub, not this job's address.
+  // which is where the drop-off hub info picks up (see
+  // extractDropOffLocation) rather than being part of this job's address.
   const addressLines: string[] = collectionFromFirstSeg ? [collectionFromFirstSeg] : [];
   let postcode = "";
+  let dropOffLocation = "";
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     const tabIdx = line.indexOf("\t");
@@ -122,6 +155,8 @@ export function parseDriverSheetBlock(lines: string[]): DraftKitJob {
     const postcodeMatch = beforeTab.match(POSTCODE_REGEX);
     if (postcodeMatch) {
       postcode = postcodeMatch[0].toUpperCase().replace(/\s+/g, " ");
+      const afterTab = tabIdx >= 0 ? line.slice(tabIdx + 1).trim() : "";
+      dropOffLocation = extractDropOffLocation(lines, i + 1, afterTab);
       break;
     }
     if (beforeTab) addressLines.push(beforeTab);
@@ -163,6 +198,7 @@ export function parseDriverSheetBlock(lines: string[]): DraftKitJob {
     phoneNumbers: phone ? [phone] : [],
     notes,
     rawText: lines.join("\n"),
+    dropOffLocation,
   };
 }
 
@@ -239,7 +275,7 @@ function parseProseBlock(rawText: string): DraftKitJob {
   const jobNumber = extractJobNumber(rawText);
   const name = guessName(lines, postcode);
   const address = guessAddress(lines, name);
-  return { jobNumber, customerName: name, address, postcode, phoneNumbers, notes: "", rawText: rawText.trim() };
+  return { jobNumber, customerName: name, address, postcode, phoneNumbers, notes: "", rawText: rawText.trim(), dropOffLocation: "" };
 }
 
 function parseProseEmail(rawEmailText: string): DraftKitJob[] {

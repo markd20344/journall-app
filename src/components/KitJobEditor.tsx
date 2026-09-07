@@ -126,6 +126,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
   const [batchDate, setBatchDate] = useState(job.batchDate);
   const [phoneNumbers, setPhoneNumbers] = useState(job.phoneNumbers);
   const [notes, setNotes] = useState(job.notes);
+  const [dropOffLocation, setDropOffLocation] = useState(job.dropOffLocation);
   const [saving, setSaving] = useState(false);
 
   // contactAttempts is legacy (per-attempt outcome logging, replaced below
@@ -183,11 +184,17 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         phoneNumbers,
         notes,
         batchDate,
+        dropOffLocation: dropOffLocation.trim(),
       });
       showToast("Job saved");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleDropOffLocationBlur() {
+    if (dropOffLocation.trim() === job.dropOffLocation.trim()) return;
+    await updateKitJob(job.id, { dropOffLocation: dropOffLocation.trim() });
   }
 
   function handleDelete() {
@@ -354,6 +361,17 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
           </a>
         )}
       </div>
+
+      <label className="field">
+        <span className="field-label">📦 Drop off at</span>
+        <input
+          type="text"
+          placeholder="Where this kit needs dropping off — e.g. Corby Hub, Geddington Road"
+          value={dropOffLocation}
+          onChange={(e) => setDropOffLocation(e.target.value)}
+          onBlur={() => void handleDropOffLocationBlur()}
+        />
+      </label>
 
       <div className="kit-phone-row">
         {phoneNumbers.map((phone) => (
@@ -643,7 +661,7 @@ export default function KitJobEditor({ job, onClose, onDeleted }: Props) {
         <label className="kit-toggle-row">
           <input type="checkbox" checked={Boolean(droppedOffAt)} onChange={() => void toggleDroppedOff()} disabled={!kitCollected} />
           <span>
-            Dropped off at BCA Corby
+            {dropOffLocation.trim() ? `Dropped off at ${dropOffLocation.trim()}` : "Dropped off"}
             {droppedOffAt && <span className="entry-timestamp"> — {format(new Date(droppedOffAt), "MMM d, h:mm a")}</span>}
           </span>
         </label>
