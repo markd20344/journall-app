@@ -399,6 +399,32 @@ class JournalDB extends Dexie {
       familyMembers: "uid, email, updatedAt",
       itemAttachments: "id, itemId, updatedAt",
     });
+    // v20: add dropOffLocation (the "Deliver To" hub, now parsed out of the
+    // sheet instead of discarded — see lib/kitEmailParser.ts). Backfills a
+    // blank default onto existing jobs, same reason as v18's fields.
+    this.version(20)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+        people: "id, lastName, updatedAt",
+        relationships: "id, type, personA, personB, updatedAt",
+        familyEvents: "id, personId, type, updatedAt",
+        familyMedia: "id, updatedAt",
+        familyRecords: "id, updatedAt",
+        familyMembers: "uid, email, updatedAt",
+        itemAttachments: "id, itemId, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as KitJob[];
+        for (const job of jobs) job.dropOffLocation = job.dropOffLocation ?? "";
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
   }
 }
 
@@ -440,6 +466,7 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     phoneNumbers: raw.phoneNumbers ?? [],
     rawText: raw.rawText ?? "",
     notes: raw.notes ?? "",
+    dropOffLocation: raw.dropOffLocation ?? "",
     routeOrder: raw.routeOrder ?? null,
     lat: raw.lat ?? null,
     lng: raw.lng ?? null,
