@@ -48,6 +48,14 @@ export default defineConfig({
         // Precache the app shell so it opens instantly offline; journal data
         // itself lives in IndexedDB, not the cache.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // This app is deployed at the site root, so its service worker's
+        // scope naturally covers everything under /journall-app/ —
+        // including the Kit Runs and Family Tree subpaths, which are
+        // separate apps living in the same site. Without this, journal's
+        // SW intercepts navigation to those paths and serves its own
+        // cached shell instead of letting the browser load the actual app
+        // sitting there.
+        navigateFallbackDenylist: [/^\/journall-app\/kit-runs\//, /^\/journall-app\/family-tree\//],
       },
     }),
   ],
