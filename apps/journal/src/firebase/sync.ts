@@ -1,0 +1,225 @@
+// Mirrors the local Dexie cache to/from Firestore so the same account sees
+// the same data on every device. Dexie stays the source of truth for the UI
+// (fast, works offline); Firestore is a sync layer bolted on top using the
+// same last-write-wins-by-`updatedAt` approach as the JSON export/import and
+// folder-sync features.
+//
+// Deletions are written as tombstones (`{ id, deleted: true, updatedAt }`)
+// rather than removing the Firestore doc outright. That makes a full
+// reconciliation (initialMerge / refreshNow) unambiguous: a local record
+// with no remote counterpart at all is simply "not pushed yet" and is left
+// alone, while a remote tombstone is an explicit instruction to delete
+// locally. Without this, a plain "local record missing from remote" check
+// couldn't tell a genuine deletion apart from a race against an in-flight
+// first push, risking data loss.
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  setDoc,
+  writeBatch,
+  type Unsubscribe,
+} from "firebase/firestore";
+import { db, normalizeItem } from "../db/db";
+import { firestore } from "@journall/shared/firebase/config";
+import { nowIso } from "@journall/shared/lib/id";
+import type { Item } from "../types";
+
+// kitJobs used to sync here too, back when Kit Runs was part of this same
+// app — it's now a separate app with its own dedicated Firestore sync (same
+// users/{uid}/kitJobs path, so nothing changes server-side), so this app no
+// longer touches that table at all.
+const SYNCED_TABLES = ["categories", "topics", "entries", "items", "books", "itemAttachments"] as const;
+type SyncedTable = (typeof SYNCED_TABLES)[number];
+
+interface Syncable {
+  id: string;
+  updatedAt: string;
+}
+
+type RemoteDoc = Syncable & { deleted?: boolean };
+
+// Remote records reflect whatever schema version wrote them — possibly an
+// older client, or an older local record just pushed as-is. Only "items"
+// currently has fields that have grown over time (see normalizeItem);
+// normalizing here (not just in the local Dexie migrations) keeps a record
+// synced down from another device from crashing a component that assumes a
+// newer field is always present.
+function normalizeForTable(table: SyncedTable, record: RemoteDoc): RemoteDoc {
+  if (table === "items") return normalizeItem(record as unknown as Item) as unknown as RemoteDoc;
+  return record;
+}
+
+let activeUid: string | null = null;
+let unsubscribers: Unsubscribe[] = [];
+
+export function isSyncActive(): boolean {
+  return activeUid !== null;
+}
+
+function userCollection(uid: string, table: SyncedTable) {
+  return collection(firestore!, "users", uid, table);
+}
+
+// Per-write sync status: pushRecord/deleteRecord are fire-and-forget, so a
+// failed background push (a flaky connection while adding a subtask, say)
+// used to only reach console.error — invisible to the user, on a feature
+// whose entire pitch is "the same data on every device." This tracks how
+// many writes are currently in flight and the most recent failure so a
+// small status indicator can surface it instead.
+export interface SyncStatus {
+  pending: number;
+  lastError: string | null;
+}
+
+let pendingWrites = 0;
+let lastSyncError: string | null = null;
+let statusListeners: Array<(status: SyncStatus) => void> = [];
+
+function currentStatus(): SyncStatus {
+  return { pending: pendingWrites, lastError: lastSyncError };
+}
+
+function notifyStatus(): void {
+  const status = currentStatus();
+  statusListeners.forEach((l) => l(status));
+}
+
+export function subscribeSyncStatus(listener: (status: SyncStatus) => void): () => void {
+  statusListeners.push(listener);
+  listener(currentStatus());
+  return () => {
+    statusListeners = statusListeners.filter((l) => l !== listener);
+  };
+}
+
+async function trackWrite(description: string, work: () => Promise<void>): Promise<void> {
+  pendingWrites++;
+  notifyStatus();
+  try {
+    await work();
+    lastSyncError = null;
+  } catch (err) {
+    lastSyncError = err instanceof Error ? err.message : description;
+    console.error(description, err);
+  } finally {
+    pendingWrites--;
+    notifyStatus();
+  }
+}
+
+/** Push one changed record up to Firestore. Fire-and-forget; safe to call even when sync is inactive. */
+export function pushRecord(table: SyncedTable, record: Syncable): void {
+  if (!activeUid || !firestore) return;
+  const uid = activeUid;
+  const fs = firestore;
+  void trackWrite(`Firestore push failed for ${table}/${record.id}`, async () => {
+    const batch = writeBatch(fs);
+    batch.set(doc(userCollection(uid, table), record.id), record as unknown as Record<string, unknown>);
+    await batch.commit();
+  });
+}
+
+/** Marks a record deleted in Firestore via tombstone rather than removing the doc. */
+export function deleteRecord(table: SyncedTable, id: string): void {
+  if (!activeUid || !firestore) return;
+  const uid = activeUid;
+  const tombstone: RemoteDoc = { id, deleted: true, updatedAt: nowIso() };
+  void trackWrite(`Firestore delete failed for ${table}/${id}`, async () => {
+    await setDoc(doc(userCollection(uid, table), id), tombstone as unknown as Record<string, unknown>);
+  });
+}
+
+/** Full reconciliation of local vs. remote state — safe to call anytime, not just at sign-in. */
+async function fullMerge(uid: string): Promise<void> {
+  if (!firestore) return;
+  for (const table of SYNCED_TABLES) {
+    const localRecords = (await db.table(table).toArray()) as Syncable[];
+    const remoteSnap = await getDocs(userCollection(uid, table));
+    const remoteById = new Map(remoteSnap.docs.map((d) => [d.id, d.data() as RemoteDoc]));
+    const localById = new Map(localRecords.map((r) => [r.id, r]));
+
+    const batch = writeBatch(firestore);
+    let pending = 0;
+    for (const local of localRecords) {
+      const remote = remoteById.get(local.id);
+      // A newer remote tombstone means this record was deleted elsewhere
+      // after our last known state — don't resurrect it by pushing.
+      if (remote?.deleted && remote.updatedAt >= local.updatedAt) continue;
+      if (!remote || local.updatedAt > remote.updatedAt) {
+        batch.set(doc(userCollection(uid, table), local.id), local as unknown as Record<string, unknown>);
+        pending++;
+      }
+    }
+    if (pending > 0) await batch.commit();
+
+    for (const [id, remote] of remoteById) {
+      const local = localById.get(id);
+      if (remote.deleted) {
+        if (!local || remote.updatedAt >= local.updatedAt) {
+          await db.table(table).delete(id);
+        }
+        continue;
+      }
+      if (!local || remote.updatedAt > local.updatedAt) {
+        await db.table(table).put(normalizeForTable(table, remote));
+      }
+    }
+  }
+}
+
+function startListeners(uid: string): void {
+  for (const table of SYNCED_TABLES) {
+    const unsub = onSnapshot(
+      userCollection(uid, table),
+      (snap) => {
+        void (async () => {
+          for (const change of snap.docChanges()) {
+            if (change.type === "removed") {
+              await db.table(table).delete(change.doc.id);
+              continue;
+            }
+            const remote = change.doc.data() as RemoteDoc;
+            const local = (await db.table(table).get(remote.id)) as Syncable | undefined;
+            if (remote.deleted) {
+              if (!local || remote.updatedAt >= local.updatedAt) {
+                await db.table(table).delete(remote.id);
+              }
+              continue;
+            }
+            if (!local || remote.updatedAt >= local.updatedAt) {
+              await db.table(table).put(normalizeForTable(table, remote));
+            }
+          }
+        })();
+      },
+      (err) => console.error(`Firestore listener error for ${table}`, err),
+    );
+    unsubscribers.push(unsub);
+  }
+}
+
+export async function startSync(uid: string): Promise<void> {
+  if (activeUid === uid) return;
+  stopSync();
+  await fullMerge(uid);
+  activeUid = uid;
+  startListeners(uid);
+}
+
+/**
+ * Forces an immediate full reconciliation instead of waiting for the
+ * real-time listeners — useful when a device was backgrounded (phones
+ * pause JS for background tabs, so listeners can lag until reopened).
+ */
+export async function refreshNow(): Promise<void> {
+  if (!activeUid) return;
+  await fullMerge(activeUid);
+}
+
+export function stopSync(): void {
+  unsubscribers.forEach((unsub) => unsub());
+  unsubscribers = [];
+  activeUid = null;
+}

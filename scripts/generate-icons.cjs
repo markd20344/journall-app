@@ -94,13 +94,20 @@ function draw(x, y, w, h) {
   return [r, g, b, a];
 }
 
-const outDir = path.join(__dirname, "..", "public", "icons");
-fs.mkdirSync(outDir, { recursive: true });
+// Each app has its own public/icons/ now (see apps/*/public/icons) — this
+// writes the same art into all three, since they still share one look for
+// now. Point this at just one app's public/icons if that ever changes.
+const outDirs = ["journal", "kit-runs", "family-tree"].map((app) =>
+  path.join(__dirname, "..", "apps", app, "public", "icons"),
+);
+for (const outDir of outDirs) fs.mkdirSync(outDir, { recursive: true });
 
 for (const size of [192, 512]) {
   const png = buildPng(size, draw);
-  fs.writeFileSync(path.join(outDir, `icon-${size}.png`), png);
-  console.log(`wrote icons/icon-${size}.png`);
+  for (const outDir of outDirs) {
+    fs.writeFileSync(path.join(outDir, `icon-${size}.png`), png);
+  }
+  console.log(`wrote icon-${size}.png to ${outDirs.length} apps`);
 }
 
 // Maskable icon: same art, but the safe zone is smaller (icon should occupy
@@ -141,5 +148,7 @@ function drawMaskable(x, y, w, h) {
 }
 
 const maskablePng = buildPng(512, drawMaskable);
-fs.writeFileSync(path.join(outDir, "icon-maskable-512.png"), maskablePng);
-console.log("wrote icons/icon-maskable-512.png");
+for (const outDir of outDirs) {
+  fs.writeFileSync(path.join(outDir, "icon-maskable-512.png"), maskablePng);
+}
+console.log(`wrote icon-maskable-512.png to ${outDirs.length} apps`);
