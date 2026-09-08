@@ -1755,6 +1755,13 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.kit-dropoff-line {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0d9488;
+}
+
 .kit-note-preview {
   margin: 6px 0 0;
   font-size: 12px;

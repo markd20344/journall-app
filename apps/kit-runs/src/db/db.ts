@@ -31,6 +31,7 @@ export function normalizeKitJob(raw: KitJob): KitJob {
     phoneNumbers: raw.phoneNumbers ?? [],
     rawText: raw.rawText ?? "",
     notes: raw.notes ?? "",
+    dropOffLocation: raw.dropOffLocation ?? "",
     routeOrder: raw.routeOrder ?? null,
     lat: raw.lat ?? null,
     lng: raw.lng ?? null,

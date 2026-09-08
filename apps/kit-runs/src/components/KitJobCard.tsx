@@ -88,6 +88,7 @@ export default function KitJobCard({ job, onClick, routePosition, legLabel }: Pr
             {job.address && job.postcode ? ", " : ""}
             {job.postcode}
           </p>
+          {job.dropOffLocation.trim() && <p className="kit-dropoff-line">📦 Drop off: {job.dropOffLocation.trim()}</p>}
           {priorJobs.length > 0 && (
             <p className="kit-prior-warning">
               ⚠️ Seen before — {summarizePriorJob(pickHeadlineJob(priorJobs))}

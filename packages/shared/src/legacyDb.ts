@@ -5,9 +5,12 @@
 // time it loads on a given device/browser, then leaves the old copy alone
 // (nothing here ever deletes from it) so there's no way this loses data.
 //
-// This mirrors journall-db's schema exactly as it stood at version 19 (the
+// This mirrors journall-db's schema exactly as it stood at version 20 (the
 // last version before the split) — just enough for Dexie to open the
 // existing database and read rows out of it, not to run any migrations.
+// Bump this if journall-db's own schema (apps/journal/src/db/db.ts) ever
+// grows a new version again — Dexie refuses to open a database whose
+// on-disk version is newer than the highest version declared here.
 import Dexie, { type Table } from "dexie";
 
 const LEGACY_DB_NAME = "journall-db";
@@ -32,6 +35,25 @@ class LegacyJournalDB extends Dexie {
   constructor() {
     super(LEGACY_DB_NAME);
     this.version(19).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+      itemAttachments: "id, itemId, updatedAt",
+    });
+    // v20 only added a non-indexed field (kitJobs.dropOffLocation) — no
+    // index changes, so no upgrade() callback is needed here.
+    this.version(20).stores({
       entries: "id, date, categoryId, *topicIds, updatedAt",
       categories: "id, name",
       topics: "id, name, categoryId",

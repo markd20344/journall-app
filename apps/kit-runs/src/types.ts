@@ -62,6 +62,11 @@ export interface KitJob {
   phoneNumbers: string[];
   rawText: string; // the original pasted email block this job was parsed from
   notes: string;
+  // Where the collected kit needs to be dropped off — pulled from the
+  // "Deliver To" hub in the source sheet, since it isn't always the same
+  // depot job to job (see lib/kitEmailParser.ts's extractDropOffLocation).
+  // Blank for anything imported before this existed, or added manually.
+  dropOffLocation: string;
   routeOrder: number | null; // this job's position in batchDate's route; null = not yet ordered
   lat: number | null; // geocoded from postcode via postcodes.io
   lng: number | null;
@@ -95,7 +100,7 @@ export interface KitJob {
   visits: DoorVisit[];
   kitCollected: KitCollected | null; // null until logged
   officeEmailedAt: string | null; // when the evening "here's what I collected" email was sent
-  droppedOffAt: string | null; // when this kit was physically dropped at BCA Corby
+  droppedOffAt: string | null; // when this kit was physically dropped off (see dropOffLocation for where)
   droppedOffBatchId: string | null; // groups jobs dropped off together in the same trip
   createdAt: string;
   updatedAt: string;

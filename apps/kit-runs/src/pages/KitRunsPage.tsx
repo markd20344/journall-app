@@ -35,8 +35,14 @@ export default function KitRunsPage() {
 
   async function handleMarkAllDroppedOff() {
     await markDroppedOff(pendingDropOff.map((j) => j.id));
-    showToast(`Marked ${pendingDropOff.length} job(s) dropped off at Corby`);
+    showToast(`Marked ${pendingDropOff.length} job(s) dropped off`);
   }
+
+  // Jobs waiting to be dropped off don't all necessarily go to the same
+  // place, so the banner only names a location when every pending job
+  // actually agrees on one — otherwise it just says "ready to drop off".
+  const pendingDropOffLocations = new Set(pendingDropOff.map((j) => j.dropOffLocation.trim()).filter(Boolean));
+  const commonDropOffLocation = pendingDropOffLocations.size === 1 ? [...pendingDropOffLocations][0] : null;
 
   if (editingJob) {
     return (
@@ -77,8 +83,7 @@ export default function KitRunsPage() {
     <div className="page">
       <h1 className="page-title">Kit Runs</h1>
       <p className="settings-hint">
-        Paste the daily job email, plan the route, and track each job from first text through to dropping the kit off at
-        Corby.
+        Paste the daily job email, plan the route, and track each job from first text through to dropping the kit off.
       </p>
 
       <nav className="kit-subnav">
@@ -93,8 +98,8 @@ export default function KitRunsPage() {
       {pendingDropOff.length > 0 && (
         <div className="kit-dropoff-banner">
           <span>
-            {pendingDropOff.length} job{pendingDropOff.length === 1 ? "" : "s"} collected and ready to drop off at BCA
-            Corby.
+            {pendingDropOff.length} job{pendingDropOff.length === 1 ? "" : "s"} collected and ready to drop off
+            {commonDropOffLocation ? ` at ${commonDropOffLocation}` : ""}.
           </span>
           <button type="button" className="ghost" onClick={() => void handleMarkAllDroppedOff()}>
             Mark all dropped off

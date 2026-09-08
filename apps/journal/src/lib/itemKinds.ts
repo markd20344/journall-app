@@ -28,6 +28,18 @@ export interface ItemKindMeta {
   // label when a kind doesn't override it.
   statusLabels?: Partial<Record<ItemStatus, string>>;
   notClosedLabel?: string; // override for the "not-closed" composite filter option
+  // Defaults the time field to right now when logging a brand new item of
+  // this kind, instead of leaving it blank. Only makes sense alongside
+  // hasTime: true, and only for kinds where the time is "when did this
+  // happen/get logged" (Decisions) rather than "what time is this booked
+  // for" (Calendar Bookings), which must stay blank for the user to pick.
+  autoStampTime?: boolean;
+  // Shows the status picker while creating a brand new item, not just once
+  // it's saved — and renders it before the body field rather than after.
+  // For Decisions: leaving a decision open (because the information needed
+  // to make it isn't available yet) is a first-class choice made at the
+  // moment of logging, not an afterthought edited in later.
+  statusBeforeBody?: boolean;
 }
 
 // Fixed, semantic colors — unlike categories these carry meaning (risk =
@@ -131,7 +143,7 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     color: "#15803d",
     codePrefix: "D",
     statuses: ["open", "closed", "blocked"],
-    hasTime: false,
+    hasTime: true,
     dateLabel: "Date",
     hasPriority: true,
     hasProbabilityImpact: false,
@@ -140,6 +152,8 @@ export const ITEM_KINDS: ItemKindMeta[] = [
     hasCategory: false,
     hasSubtasks: false,
     referenceOnly: false,
+    autoStampTime: true,
+    statusBeforeBody: true,
   },
   {
     kind: "assumption",
