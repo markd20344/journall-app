@@ -93,7 +93,7 @@ export default function ItemEditor({
     ensureSentenceEnd,
   );
   const [date, setDate] = useState(item?.date ?? defaultDate ?? todayDateString());
-  const [time, setTime] = useState(item?.time ?? "");
+  const [time, setTime] = useState(item?.time ?? (meta.autoStampTime ? format(new Date(), "HH:mm") : ""));
   const [status, setStatus] = useState<ItemStatus | null>(item?.status ?? (meta.statuses[0] ?? null));
   const [closureNote, setClosureNote] = useState(item?.closureNote ?? "");
   const [linkedIds, setLinkedIds] = useState<string[]>(item?.linkedItemIds ?? []);
@@ -285,6 +285,19 @@ export default function ItemEditor({
   const subtaskDoneCount = subtasks.filter((s) => s.done).length;
   const subtaskPercent = subtasks.length > 0 ? Math.round((subtaskDoneCount / subtasks.length) * 100) : 0;
 
+  const statusBlock =
+    meta.statuses.length > 0 && (item || meta.statusBeforeBody) ? (
+      <div className="status-row">
+        <span className="status-row-label">Status</span>
+        <Dropdown
+          className="status-row-select"
+          value={status ?? ""}
+          onChange={(v) => setStatus(v as ItemStatus)}
+          options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
+        />
+      </div>
+    ) : null;
+
   async function copyBody() {
     if (!body.trim()) return;
     try {
@@ -315,6 +328,7 @@ export default function ItemEditor({
       <div className="field-voice-row">
         <VoiceButton onTranscript={onTitleTranscript} onDictationEnd={endTitleDictation} />
       </div>
+      {meta.statusBeforeBody && statusBlock}
       <div className="field">
         <span className="field-label">Entry</span>
         <textarea
@@ -417,22 +431,14 @@ export default function ItemEditor({
 
       {item && <p className="entry-timestamp">Logged {format(new Date(item.createdAt), "MMM d, yyyy · h:mm a")}</p>}
 
-      {/* Status only appears once an item exists — you wouldn't set it while
-          just logging something, only later if it needs to change (blocked,
-          on hold, closed). Kept small and quiet rather than styled like the
-          fields above, but still right here, one tap from Save, so closing
-          something out doesn't take any hunting. */}
-      {item && meta.statuses.length > 0 && (
-        <div className="status-row">
-          <span className="status-row-label">Status</span>
-          <Dropdown
-            className="status-row-select"
-            value={status ?? ""}
-            onChange={(v) => setStatus(v as ItemStatus)}
-            options={meta.statuses.map((s) => ({ value: s, label: statusLabelFor(kind, s) }))}
-          />
-        </div>
-      )}
+      {/* For most kinds, status only appears once an item exists — you
+          wouldn't set it while just logging something, only later if it
+          needs to change (blocked, on hold, closed). Kept small and quiet
+          rather than styled like the fields above, but still right here,
+          one tap from Save, so closing something out doesn't take any
+          hunting. Kinds with statusBeforeBody (Decisions) render it earlier,
+          above the body field, instead — see there. */}
+      {!meta.statusBeforeBody && statusBlock}
 
       {status === "closed" && (
         <label className="field">
