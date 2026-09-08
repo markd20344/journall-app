@@ -27,9 +27,14 @@ jobs:
       - run: npm run lint
       - run: npx playwright install --with-deps chromium
       # Runs against a build with no Firebase secrets in scope (see
-      # playwright.config.ts), so the app comes up in local-only mode —
-      # deterministic and offline. A failure here blocks the deploy below.
+      # apps/journal/playwright.config.ts), so the journal app comes up in
+      # local-only mode — deterministic and offline. A failure here blocks
+      # the deploy below. Kit Runs and Family Tree have no e2e suite of
+      # their own yet.
       - run: npm run test:e2e
+      # Builds all three apps (journal, kit-runs, family-tree) and combines
+      # them into one dist/ for a single Pages deploy — see
+      # scripts/assemble-site.mjs for how they're laid out.
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

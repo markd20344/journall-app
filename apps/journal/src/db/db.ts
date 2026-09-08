@@ -1,0 +1,487 @@
+import Dexie, { type Table } from "dexie";
+import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, Topic } from "../types";
+import type { Candle } from "../types/markets";
+import { newId, nowIso } from "@journall/shared/lib/id";
+import { itemKindMeta } from "../lib/itemKinds";
+import { deriveLegacyAutoNotes } from "./legacyKitNotesMigration";
+
+// kitJobs and the family-tree tables below are opaque to this app now —
+// Kit Runs and Family Tree are separate apps with their own dedicated
+// databases (see packages/shared/src/legacyDb.ts, which they use to copy
+// their tables out of this database on first load). These tables, and the
+// handful of already-applied historical migrations that touch kitJobs
+// rows, stay declared here only so Dexie can open this database (which may
+// still be sitting at an older on-disk version on some device) without
+// error — this app never reads or writes them.
+type LegacyKitJobRow = Record<string, unknown> & { notes?: string; rawText?: string };
+
+const DEFAULT_CATEGORIES: Array<Pick<Category, "name" | "color">> = [
+  { name: "General", color: "#6b7280" },
+  { name: "Work", color: "#2563eb" },
+  { name: "Health", color: "#16a34a" },
+  { name: "Trading", color: "#d97706" },
+];
+
+export interface SettingRecord {
+  key: string;
+  value: unknown;
+}
+
+class JournalDB extends Dexie {
+  entries!: Table<Entry, string>;
+  categories!: Table<Category, string>;
+  topics!: Table<Topic, string>;
+  settings!: Table<SettingRecord, string>;
+  items!: Table<Item, string>;
+  candles!: Table<Candle, [string, string]>;
+  kitJobs!: Table<Record<string, unknown>, string>;
+  books!: Table<Book, string>;
+  people!: Table<Record<string, unknown>, string>;
+  relationships!: Table<Record<string, unknown>, string>;
+  familyEvents!: Table<Record<string, unknown>, string>;
+  familyMedia!: Table<Record<string, unknown>, string>;
+  familyRecords!: Table<Record<string, unknown>, string>;
+  familyMembers!: Table<Record<string, unknown>, string>;
+  itemAttachments!: Table<ItemAttachment, string>;
+
+  constructor() {
+    super("journall-db");
+    this.version(1).stores({
+      // Primary key + indexes we actually query by.
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+    });
+    this.version(2).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, done, updatedAt",
+    });
+    // v3: replace the boolean `done` field with a proper per-kind status
+    // lifecycle (open/on_hold/blocked/closed), add auto-assigned sequential
+    // codes (R001, D001, ...) and a dependsOnItemId link for Actions/Risks.
+    this.version(3)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, dependsOnItemId, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        type V2Item = Item & { done?: boolean; dependsOnItemId?: string | null };
+        const items = (await tx.table("items").toArray()) as V2Item[];
+        const byKind = new Map<ItemKind, V2Item[]>();
+        for (const item of items) {
+          if (!byKind.has(item.kind)) byKind.set(item.kind, []);
+          byKind.get(item.kind)!.push(item);
+        }
+        for (const [kind, list] of byKind) {
+          list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          const meta = itemKindMeta(kind);
+          list.forEach((item, idx) => {
+            item.code = `${meta.codePrefix}${String(idx + 1).padStart(3, "0")}`;
+            item.dependsOnItemId = item.dependsOnItemId ?? null;
+            item.status = meta.statuses.length === 0 ? null : item.done ? "closed" : "open";
+            delete item.done;
+          });
+          await tx.table("settings").put({ key: `codeCounter:${kind}`, value: list.length });
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v4: replace the single, kind-restricted dependsOnItemId with a
+    // general, bidirectional linkedItemIds array available on every kind.
+    this.version(4)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Array<Item & { dependsOnItemId?: string | null }>;
+        const byId = new Map(items.map((i) => [i.id, i]));
+        for (const item of items) {
+          const linked = new Set(item.linkedItemIds ?? []);
+          if (item.dependsOnItemId) {
+            linked.add(item.dependsOnItemId);
+            const other = byId.get(item.dependsOnItemId);
+            if (other) {
+              other.linkedItemIds = Array.from(new Set([...(other.linkedItemIds ?? []), item.id]));
+            }
+          }
+          item.linkedItemIds = Array.from(linked);
+          delete item.dependsOnItemId;
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v5: add a dated status-update log per item, plus a closure note and
+    // an auto-populated closedAt timestamp.
+    this.version(5)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.statusUpdates = item.statusUpdates ?? [];
+          item.closureNote = item.closureNote ?? "";
+          // Backfill a closedAt for anything already closed before this
+          // version existed, using its last-updated time as a reasonable
+          // approximation of when it was closed.
+          item.closedAt = item.status === "closed" ? (item.closedAt ?? item.updatedAt) : null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v6: add priority (Actions/Decisions/Stories), probability+impact
+    // (Risks), and project (Stories) — plus the "story" kind itself.
+    this.version(6)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.priority = item.priority ?? null;
+          item.probability = item.probability ?? null;
+          item.impact = item.impact ?? null;
+          item.project = item.project ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v7: add agency + source (Job Applications) — plus the "application" kind.
+    this.version(7)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.agency = item.agency ?? null;
+          item.source = item.source ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v8: add categoryId (Tasks — reuses the same Category table journal
+    // entries use, rather than a separate tagging system).
+    this.version(8)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.categoryId = item.categoryId ?? null;
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v9: add subtasks (Tasks) — a lightweight checklist for a ballpark %
+    // complete, not full Items of their own.
+    this.version(9)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const items = (await tx.table("items").toArray()) as Item[];
+        for (const item of items) {
+          item.subtasks = item.subtasks ?? [];
+        }
+        await tx.table("items").bulkPut(items);
+      });
+    // v10: add kitJobs — the kit-collection round tracker (jobs parsed from
+    // the daily company email, route order, contact/visit logs, kit
+    // collected, and office-email/drop-off tracking).
+    this.version(10).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+    });
+    // v11: Markets dashboard — cached daily FX candles, keyed by pair+date
+    // so a re-fetched day just overwrites in place (bulkPut, no dupes).
+    this.version(11).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+    });
+    // v12: v11 shipped before candles were filtered to weekdays only —
+    // purge any Saturday/Sunday bars a refresh already cached under v11 so
+    // stale weekend rows don't linger for anyone who refreshed before this
+    // fix landed. Schema is unchanged, this version only runs the cleanup.
+    this.version(12)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+      })
+      .upgrade(async (tx) => {
+        const candles = (await tx.table("candles").toArray()) as Candle[];
+        const weekendKeys = candles
+          .filter((c) => {
+            const day = new Date(c.date + "T00:00:00Z").getUTCDay();
+            return day === 0 || day === 6;
+          })
+          .map((c): [string, string] => [c.pair, c.date]);
+        if (weekendKeys.length > 0) await tx.table("candles").bulkDelete(weekendKeys);
+      });
+    // v13: add the books table (want-to-read / reading / finished tracking)
+    // — brand new table, no existing data to migrate.
+    this.version(13).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+    });
+    // v14: notes stopped being pre-filled from the parsed sheet on import
+    // (schema unchanged) — but jobs imported *before* that fix still carry
+    // the old auto-generated text ("LEAVERS · PA/BW327 CALL NIGHT BEFORE")
+    // sitting in the box meant for the driver's own anomaly flags. Clears
+    // it only where it still exactly matches what the parser would have
+    // produced from that job's rawText, so a note actually typed since
+    // import is never touched.
+    this.version(14)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as LegacyKitJobRow[];
+        const toClear = jobs.filter((job) => job.notes && job.notes === deriveLegacyAutoNotes(job.rawText ?? ""));
+        for (const job of toClear) job.notes = "";
+        if (toClear.length > 0) await tx.table("kitJobs").bulkPut(toClear);
+      });
+    // v15: replace per-attempt outcome logging with a simpler texted/response
+    // model on the job itself — see types/kit.ts. Backfills the new fields
+    // onto every existing kitJob so useKitData's direct `.toArray()` reads
+    // (which bypass normalizeKitJob) don't hand components an object
+    // missing them.
+    this.version(15)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as LegacyKitJobRow[];
+        for (const job of jobs) {
+          job.textedAt = job.textedAt ?? null;
+          job.respondedAt = job.respondedAt ?? null;
+          job.responseNote = job.responseNote ?? "";
+          job.noVisitNeeded = job.noVisitNeeded ?? false;
+        }
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+    // v16: add needsReschedule (a job visited with no answer/no kit that
+    // needs a follow-up) — schema unchanged, backfills the new field for
+    // the same reason v15 backfilled its fields.
+    this.version(16)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as LegacyKitJobRow[];
+        for (const job of jobs) job.needsReschedule = job.needsReschedule ?? false;
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+    // v17: Family Tree module — people, relationships, events, media,
+    // records and members of the shared family tree. Unlike every other
+    // table here these mirror a *shared* Firestore tree (trees/family/...),
+    // not this account's own private data — see firebase/familySync.ts.
+    this.version(17).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+    });
+    // v18: add numberInvalid (the text never delivered — dead number) and
+    // noVisitReason (why a "not going" job isn't being visited, folded into
+    // the office email instead of that job being left out of it entirely).
+    this.version(18)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+        people: "id, lastName, updatedAt",
+        relationships: "id, type, personA, personB, updatedAt",
+        familyEvents: "id, personId, type, updatedAt",
+        familyMedia: "id, updatedAt",
+        familyRecords: "id, updatedAt",
+        familyMembers: "uid, email, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as LegacyKitJobRow[];
+        for (const job of jobs) {
+          job.numberInvalid = job.numberInvalid ?? false;
+          job.noVisitReason = job.noVisitReason ?? "";
+        }
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+    // v19: add itemAttachments — photos attached to a Task/Item, stored the
+    // same way Family Tree media is (the file itself lives in Firebase
+    // Storage; this table is just the pointer + display metadata).
+    this.version(19).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+      itemAttachments: "id, itemId, updatedAt",
+    });
+    // v20: add dropOffLocation (the "Deliver To" hub, now parsed out of the
+    // sheet instead of discarded — see lib/kitEmailParser.ts). Backfills a
+    // blank default onto existing jobs, same reason as v18's fields.
+    this.version(20)
+      .stores({
+        entries: "id, date, categoryId, *topicIds, updatedAt",
+        categories: "id, name",
+        topics: "id, name, categoryId",
+        settings: "key",
+        items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+        kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+        candles: "[pair+date], pair, date",
+        books: "id, title, author, series, status, format, updatedAt",
+        people: "id, lastName, updatedAt",
+        relationships: "id, type, personA, personB, updatedAt",
+        familyEvents: "id, personId, type, updatedAt",
+        familyMedia: "id, updatedAt",
+        familyRecords: "id, updatedAt",
+        familyMembers: "uid, email, updatedAt",
+        itemAttachments: "id, itemId, updatedAt",
+      })
+      .upgrade(async (tx) => {
+        const jobs = (await tx.table("kitJobs").toArray()) as LegacyKitJobRow[];
+        for (const job of jobs) job.dropOffLocation = job.dropOffLocation ?? "";
+        if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
+      });
+  }
+}
+
+export const db = new JournalDB();
+
+// Backfills every field the Item schema has grown over time with the same
+// defaults the version migrations above use. Records created through
+// repo.ts's createItem() always have every field already, but records that
+// arrive from *outside* that path — a Firestore sync pull, or a JSON import
+// of an older export — go straight into Dexie via `.put()` and skip the
+// migrations entirely (those only run once, against whatever was already in
+// this browser's IndexedDB, at schema-version-bump time). Without this, an
+// old record missing a newer field (e.g. `subtasks`) crashes any component
+// that assumes the field is always present.
+export function normalizeItem(raw: Item): Item {
+  return {
+    ...raw,
+    statusUpdates: raw.statusUpdates ?? [],
+    closedAt: raw.closedAt ?? null,
+    closureNote: raw.closureNote ?? "",
+    priority: raw.priority ?? null,
+    probability: raw.probability ?? null,
+    impact: raw.impact ?? null,
+    project: raw.project ?? null,
+    agency: raw.agency ?? null,
+    source: raw.source ?? null,
+    categoryId: raw.categoryId ?? null,
+    subtasks: raw.subtasks ?? [],
+  };
+}
+
+// Seed a small default category list on first run so the app isn't empty.
+// Runs inside a transaction with a "seeded" flag so concurrent calls (e.g.
+// React StrictMode double-invoking effects, or two tabs opening at once)
+// can't race and insert duplicate categories.
+export async function ensureSeeded(): Promise<void> {
+  await db.transaction("rw", db.categories, db.settings, async () => {
+    const flag = await db.settings.get("seeded");
+    if (flag) return;
+    const ts = nowIso();
+    await db.categories.bulkAdd(
+      DEFAULT_CATEGORIES.map((c) => ({
+        id: newId(),
+        name: c.name,
+        color: c.color,
+        createdAt: ts,
+        updatedAt: ts,
+      })),
+    );
+    await db.settings.put({ key: "seeded", value: true });
+  });
+}

@@ -1,7 +1,41 @@
-# Journall OS
+# Journall
 
-A private, local-first journaling app. All entries are stored on your own
-device — nothing is sent to a third-party cloud service.
+A monorepo of three independent, installable local-first apps that used to
+be one bundled together. All entries are stored on your own device —
+nothing is sent to a third-party cloud service.
+
+## Apps in this repo
+
+This started as a single app and has been split into three separate PWAs
+that build, deploy, and install independently — Kit Runs and Family Tree
+each have their own audience (a work tool, and something shareable with
+relatives) that has nothing to do with journaling, so they no longer share
+a nav bar, a database, or a home-screen icon with it.
+
+| App | Path | What it is | Deployed at |
+| --- | --- | --- | --- |
+| **Journall OS** | `apps/journal` | Journal entries, calendar, tasks/log items (actions, risks, decisions, stories, ...), books, and the Markets dashboard | `/journall-app/` |
+| **Kit Runs** | `apps/kit-runs` | Daily kit-collection round tracker: import jobs, plan the route, track visits and drop-offs | `/journall-app/kit-runs/` |
+| **Family Tree** | `apps/family-tree` | Shared, invite-only genealogy tree | `/journall-app/family-tree/` |
+
+Code shared by all three (auth, the sign-in gate, toast/update-prompt UI,
+voice dictation, id/date helpers, ...) lives in `packages/shared`. Each app
+otherwise has its own `package.json`, `vite.config.ts`, PWA manifest, and —
+importantly — its **own Dexie/IndexedDB database**, so installing one has
+no effect on the others. Kit Runs and Family Tree each do a one-time,
+non-destructive copy of their own data out of the old shared database the
+first time they load on a device that still has it (see
+`packages/shared/src/legacyDb.ts`); the old database itself is never
+touched, so this can't lose data.
+
+All three still talk to the same Firebase project — the split is a
+frontend/storage change, not a backend one, so existing Firestore
+data, security rules, and invited Family Tree members are unaffected.
+
+Because they build separately, splitting one out into its own repository
+later (e.g. before selling or handing it off) is a matter of copying its
+`apps/<name>` folder plus the bits of `packages/shared` it uses — nothing
+else in the monorepo needs to change.
 
 ## Tech stack & sync approach
 
@@ -111,10 +145,10 @@ phase-2 addition but a separate piece of work from the local-first core.
 
 ## Kit Runs
 
-A separate module (nav item "Kit Runs") for tracking a daily kit-collection
-round: each day a company email lists people to visit and collect kit back
-from, and this module takes it from "paste the email" through to "kit
-dropped off at BCA Corby."
+Its own app (`apps/kit-runs`) for tracking a daily kit-collection round:
+each day a company email lists people to visit and collect kit back from,
+and this app takes it from "paste the email" through to "kit dropped off at
+BCA Corby."
 
 - **Import** — paste the raw email into the Jobs tab. `lib/kitEmailParser.ts`
   heuristically splits it into one draft per job (preferring "Job Number:" /
@@ -138,17 +172,20 @@ dropped off at BCA Corby."
   (New → Contacted → Visited → Kit collected → Office emailed → Dropped off)
   is always derived from these fields (`lib/kitStage.ts`), never stored
   separately, so it can't drift out of sync with what's actually logged.
-- Data lives in its own `kitJobs` Dexie table and syncs through the same
-  Firestore layer as journal entries — see `types/kit.ts`, `db/kitRepo.ts`.
+- Data lives in its own `kitJobs` Dexie table, in this app's own
+  `kit-runs-db` database — separate from the journal's — and syncs to the
+  same `users/{uid}/kitJobs` Firestore path it always has. See `types.ts`,
+  `db/kitRepo.ts`.
 
 ## Family Tree
 
-A shared, invite-only genealogy tree — a separate module from the rest of
-this app, which is otherwise entirely private per-account data. The tree
-lives in this same Firebase project (one Firestore database, one Storage
-bucket), but under its own collections (`trees/family/...`) with its own
-security rules, so relatives can be invited to view or contribute without
-getting access to your journal, kit runs, or anything else in the app.
+Its own app (`apps/family-tree`) for a shared, invite-only genealogy tree —
+entirely separate from the journal and Kit Runs, both of which are private
+per-account data. The tree lives in the same Firebase project (one
+Firestore database, one Storage bucket), but under its own collections
+(`trees/family/...`) with its own security rules, so relatives can be
+invited to view or contribute without getting access to your journal, kit
+runs, or anything else.
 
 ### Data model
 
@@ -266,74 +303,72 @@ matter most; there's no way around this from Ancestry's side.
 ## Project structure
 
 ```
-src/
-  types/            Domain types (Entry, Category, Topic; kit.ts — KitJob; family.ts — Person, Relationship, ...)
+packages/shared/src/       Code all three apps use
+  firebase/                  config.ts (init) + auth.ts (Google sign-in)
+  components/                AuthGate, ErrorBoundary, SyncStatusBadge, ToastHost,
+                              UpdatePrompt, Dropdown, VoiceButton, DetectedLinks
+  lib/                        id.ts, toast.ts, theme.ts, dictation.ts, speech.ts,
+                               links.ts, pendingDelete.ts, image.ts, photo.ts
+  hooks/useDictation.ts
+  legacyDb.ts                 Opens the old shared journall-db, for the
+                               one-time per-app data migration below
+
+apps/journal/src/          Journal, Calendar, Log/tasks, Books, Markets, Settings
+  types/                      Entry, Category, Topic, Item (+ markets.ts)
   db/
-    db.ts           Dexie schema + first-run category seeding
-    repo.ts         CRUD helpers (createEntry, findOrCreateTopic, ...)
-    kitRepo.ts      CRUD helpers for the Kit Runs module
-  firebase/
-    config.ts           Firebase app/auth/firestore/storage init
-    auth.ts              Google sign-in
-    sync.ts               Per-account private-data sync (users/{uid}/...)
-    familySync.ts          Shared family-tree sync (trees/family/...)
-  family/
-    config.ts            The shared tree's id
-    repo.ts               CRUD helpers for people/relationships/events/media/records/members
-    role.ts                Membership/role lookups + invite-claim flow
-    storage.ts              Photo/record compression + Firebase Storage upload
-    treeLayout.ts            Builds relatives-tree nodes, derives siblings
-    gedcomImport.ts           GEDCOM → People/Relationships mapping
-    gedcomDates.ts             read-gedcom date → PartialDate conversion
-    dates.ts                    PartialDate build/format helpers
-    personDisplay.ts             Name/lifespan/search-text formatting
-    recordTypes.ts                 Record-type dropdown options
-  hooks/
-    useJournalData.ts   Live-query React hooks (Dexie reactive queries)
-    useKitData.ts       Live-query hooks for kit jobs
-    useFamilyData.ts     Live-query hooks for the family tree
-  lib/
-    id.ts               uuid / date helpers
-    speech.ts           Web Speech API wrapper (voice dictation)
-    exportImport.ts      JSON/Markdown export, JSON import, merge logic
-    fileSync.ts          File System Access API folder sync
-    itemKinds.ts          Spin-off item kind metadata (labels/colors)
-    theme.ts               Accent color presets + runtime CSS var application
-    kitEmailParser.ts       Splits a pasted job email into draft jobs
-    kitRoute.ts             postcodes.io geocoding + nearest-neighbor ordering
-    kitStage.ts             Kit job life-cycle stage + outcome metadata
-    photo.ts                Downscale/compress a photo to a small data URL
-  components/
-    CategorySelect.tsx, TopicTagInput.tsx, VoiceButton.tsx,
-    EntryEditor.tsx, EntryCard.tsx, CalendarView.tsx,
-    ItemEditor.tsx, ItemCard.tsx, ItemKindBadge.tsx, SpinOffPanel.tsx,
-    KitJobCard.tsx, KitImportPanel.tsx, KitJobEditor.tsx, KitRouteView.tsx
-    family/
-      FamilyTreeCanvas.tsx, PersonDetailPanel.tsx, PersonEditor.tsx,
-      RelationshipEditor.tsx, PersonPicker.tsx, PartialDateInput.tsx,
-      EventTimeline.tsx, EventEditor.tsx, MediaGallery.tsx, RecordList.tsx,
-      MembersPanel.tsx, GedcomImportPanel.tsx, FamilySearchPanel.tsx
-  pages/
-    WritePage.tsx        Default landing view — fastest path to writing
-    CalendarPage.tsx      Month calendar + per-day bookings only
-    LogPage.tsx             Browse/filter spin-off items by kind
-    BrowsePage.tsx           Chronological list + search + category/topic filter
-    KitRunsPage.tsx           Kit-collection round: Jobs + Route tabs
-    FamilyTreePage.tsx         Family tree: Tree/Search/Import/Members tabs
-    SettingsPage.tsx          Appearance, categories, backup, folder sync
-  App.tsx             Nav shell / view switcher
+    db.ts                      Dexie schema ("journall-db") + first-run seeding
+    repo.ts                     CRUD helpers (createEntry, findOrCreateTopic, ...)
+    marketsRepo.ts               Candle cache + Twelve Data refresh
+    legacyKitNotesMigration.ts    Frozen copy of one historical kitJobs migration step
+  firebase/sync.ts             Per-account sync (users/{uid}/..., minus kitJobs)
+  hooks/                        useJournalData.ts, useMarketsData.ts
+  lib/                          itemKinds.ts, exportImport.ts, fileSync.ts, bookMeta.ts, ...
+  markets/                      Stacey Burke analysis, pair list, Twelve Data API client
+  components/, pages/          Entry/Item/Book editors and cards; Today/Write/Calendar/
+                                Log/Browse/Books/Markets/Settings pages
+  App.tsx                     Tab nav shell across the pages above
+
+apps/kit-runs/src/         Kit Runs (its own app)
+  types.ts                    KitJob and friends
+  db/
+    db.ts                      Dexie schema ("kit-runs-db")
+    kitRepo.ts                  CRUD helpers
+    migrateLegacyDb.ts           One-time copy of kitJobs out of journall-db
+  firebase/sync.ts             Sync scoped to users/{uid}/kitJobs only
+  lib/                          kitEmailParser.ts, kitRoute.ts, kitStage.ts, kitSms.ts, ...
+  components/, pages/          KitJobCard/Editor/ImportPanel/RouteView, KitRunsPage
+  App.tsx                     Sign-in gate + single-page shell
+
+apps/family-tree/src/      Family Tree (its own app)
+  types.ts                    Person, Relationship, FamilyEvent, ...
+  db/
+    db.ts                      Dexie schema ("family-tree-db")
+    migrateLegacyDb.ts           One-time copy of the family tables out of journall-db
+  firebase/familySync.ts       Shared-tree sync (trees/family/...)
+  family/                      repo.ts, role.ts, storage.ts, treeLayout.ts,
+                                gedcomImport.ts, gedcomDates.ts, dates.ts, personDisplay.ts
+  components/family/, pages/  FamilyTreeCanvas, PersonDetailPanel, ..., FamilyTreePage
+  App.tsx                     Sign-in gate + single-page shell
+
 scripts/
-  generate-icons.cjs  Generates the PWA app icons (no image lib needed)
-firestore.rules        Security rules for both users/{uid}/... and trees/family/...
-storage.rules           Security rules for Firebase Storage (Family Tree media)
+  generate-icons.cjs        Generates the PWA app icons (no image lib needed)
+  assemble-site.mjs          Combines all three apps' dist/ into one dist/ for one Pages deploy
+firestore.rules              Security rules for both users/{uid}/... and trees/family/...
+storage.rules                 Security rules for Firebase Storage (Family Tree media)
 ```
 
 ## Running it
 
+Each app runs and builds independently:
+
 ```bash
-npm install
-npm run dev       # http://localhost:5173
-npm run build      # production build to dist/
+npm install          # once, at the repo root — installs all three apps + shared package
+
+npm run dev:journal       # http://localhost:5173
+npm run dev:kit-runs
+npm run dev:family-tree
+
+npm run build         # builds all three and assembles them into dist/ (see scripts/assemble-site.mjs)
 npm run lint
 ```
 
@@ -341,9 +376,12 @@ npm run lint
 
 1. Create a Firebase project, enable Google sign-in (Authentication),
    Firestore, and Storage.
-2. Copy your web app config into `.env.local` as `VITE_FIREBASE_*`
-   variables (see `src/firebase/config.ts` for the exact names) — this
-   file is gitignored (`*.local`), so secrets never get committed.
+2. Copy your web app config into an `.env.local` in each app's own
+   directory (`apps/journal/.env.local`, etc.) as `VITE_FIREBASE_*`
+   variables (see `packages/shared/src/firebase/config.ts` for the exact
+   names) — this file is gitignored (`*.local`), so secrets never get
+   committed. All three apps read the same variable names, so it's the same
+   `.env.local` content in each.
 3. Deploy the security rules: `firebase deploy --only firestore:rules,storage`
    (or paste `firestore.rules`/`storage.rules` into the Firebase Console).
 4. If you want the Family Tree module: sign into the app once, then do the

@@ -1,0 +1,160 @@
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import type { Entry } from "../types";
+import { useCategories, useTopicsForCategory } from "../hooks/useJournalData";
+import { createEntry, deleteEntry, findOrCreateTopic, updateEntry } from "../db/repo";
+import { db } from "../db/db";
+import { todayDateString } from "@journall/shared/lib/id";
+import { appendDictatedSentence, ensureSentenceEnd } from "@journall/shared/lib/dictation";
+import { useDictation } from "@journall/shared/hooks/useDictation";
+import { showToast } from "@journall/shared/lib/toast";
+import { schedulePendingDelete, cancelPendingDelete } from "@journall/shared/lib/pendingDelete";
+import CategorySelect from "./CategorySelect";
+import DetectedLinks from "@journall/shared/components/DetectedLinks";
+import TopicTagInput from "./TopicTagInput";
+import VoiceButton from "@journall/shared/components/VoiceButton";
+import SpinOffPanel from "./SpinOffPanel";
+
+interface Props {
+  entry?: Entry;
+  initialDate?: string;
+  onSaved?: (entry: Entry) => void;
+  onDeleted?: () => void;
+  onCancel?: () => void;
+}
+
+export default function EntryEditor({ entry, initialDate, onSaved, onDeleted, onCancel }: Props) {
+  const categories = useCategories();
+  const [date, setDate] = useState(entry?.date ?? initialDate ?? todayDateString());
+  const [categoryId, setCategoryId] = useState(entry?.categoryId ?? "");
+  const [topicNames, setTopicNames] = useState<string[]>([]);
+  const [body, setBody] = useState(entry?.body ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const topicsForCategory = useTopicsForCategory(categoryId);
+
+  // Default to the first available category once categories load.
+  useEffect(() => {
+    if (!categoryId && categories.length > 0) {
+      setCategoryId(categories[0].id);
+    }
+  }, [categories, categoryId]);
+
+  // Resolve the entry's topic ids to names once on load / when entry changes.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTopicNames() {
+      if (!entry || entry.topicIds.length === 0) {
+        if (!cancelled) setTopicNames([]);
+        return;
+      }
+      const topics = await db.topics.bulkGet(entry.topicIds);
+      if (!cancelled) {
+        setTopicNames(topics.filter((t): t is NonNullable<typeof t> => Boolean(t)).map((t) => t.name));
+      }
+    }
+    void loadTopicNames();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id]);
+
+  const { onTranscript: onBodyTranscript, endSession: endBodyDictation } = useDictation(
+    setBody,
+    appendDictatedSentence,
+    ensureSentenceEnd,
+  );
+
+  async function handleSave() {
+    if (!categoryId || body.trim().length === 0) return;
+    setSaving(true);
+    try {
+      const topicIds = await Promise.all(
+        topicNames.map(async (name) => (await findOrCreateTopic(name, categoryId)).id),
+      );
+      if (entry) {
+        await updateEntry(entry.id, { date, categoryId, topicIds, body });
+        showToast("Entry saved");
+        onSaved?.({ ...entry, date, categoryId, topicIds, body });
+      } else {
+        const created = await createEntry({ date, categoryId, topicIds, body });
+        showToast("Entry saved");
+        onSaved?.(created);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleDelete() {
+    if (!entry) return;
+    const id = entry.id;
+    schedulePendingDelete("entry", id, () => deleteEntry(id));
+    showToast("Entry deleted", {
+      action: { label: "Undo", onClick: () => cancelPendingDelete("entry", id) },
+      durationMs: 5000,
+    });
+    onDeleted?.();
+  }
+
+  return (
+    <div className="entry-editor">
+      <div className="entry-editor-row">
+        <label className="field">
+          <span className="field-label">Date</span>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        <div className="field">
+          <span className="field-label">Category</span>
+          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+        </div>
+      </div>
+
+      {entry && (
+        <p className="entry-timestamp">Logged {format(new Date(entry.createdAt), "h:mm a")}</p>
+      )}
+
+      <label className="field">
+        <span className="field-label">Topics</span>
+        <TopicTagInput availableTopics={topicsForCategory} selected={topicNames} onChange={setTopicNames} />
+      </label>
+
+      <div className="field">
+        <span className="field-label">Entry</span>
+        <textarea
+          className="entry-body"
+          placeholder="What's on your mind?"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          autoCapitalize="sentences"
+          spellCheck
+          rows={10}
+          autoFocus
+        />
+        <div className="field-voice-row field-voice-row-end">
+          <VoiceButton onTranscript={onBodyTranscript} onDictationEnd={endBodyDictation} />
+        </div>
+        <DetectedLinks text={body} />
+      </div>
+
+      <div className="entry-editor-actions">
+        <button type="button" className="primary" disabled={saving || !categoryId || !body.trim()} onClick={() => void handleSave()}>
+          {entry ? "Save changes" : "Save entry"}
+        </button>
+        {onCancel && (
+          <button type="button" className="ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+        {entry && (
+          <button type="button" className="danger" onClick={() => void handleDelete()}>
+            Delete
+          </button>
+        )}
+      </div>
+
+      {entry && <SpinOffPanel entry={entry} />}
+    </div>
+  );
+}
