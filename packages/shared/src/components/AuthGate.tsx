@@ -17,9 +17,18 @@ export interface AuthGateProps {
   onSignedIn?: (user: User) => Promise<void>;
   /** Runs when the user signs out (or on unmount while signed in) — stop this app's sync here. */
   onSignedOut?: () => void;
+  /** See SignInOptions.forceRedirectInStandalone — only set this where popup is confirmed broken in an installed PWA. */
+  forceRedirectInStandalone?: boolean;
 }
 
-export default function AuthGate({ children, appTitle, signInPrompt, onSignedIn, onSignedOut }: AuthGateProps) {
+export default function AuthGate({
+  children,
+  appTitle,
+  signInPrompt,
+  onSignedIn,
+  onSignedOut,
+  forceRedirectInStandalone,
+}: AuthGateProps) {
   const [checkedRedirect, setCheckedRedirect] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -75,7 +84,7 @@ export default function AuthGate({ children, appTitle, signInPrompt, onSignedIn,
           className="primary"
           onClick={() => {
             setError(null);
-            signIn().catch((err) => {
+            signIn({ forceRedirectInStandalone }).catch((err) => {
               // A user closing the popup isn't worth surfacing as an error.
               if (err instanceof Error && err.message.includes("popup-closed-by-user")) return;
               setError(err instanceof Error ? err.message : "Sign-in failed.");

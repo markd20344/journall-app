@@ -32,6 +32,7 @@ export default function App() {
       signInPrompt="Sign in with Google to sync your kit runs across your PC and phone."
       onSignedIn={onSignedIn}
       onSignedOut={stopSync}
+      forceRedirectInStandalone
     >
       <div className="app-shell">
         <header className="app-header">

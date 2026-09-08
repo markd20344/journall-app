@@ -45,6 +45,7 @@ export default function App() {
       signInPrompt="Sign in with Google to view and edit the family tree."
       onSignedIn={onSignedIn}
       onSignedOut={stopFamilySync}
+      forceRedirectInStandalone
     >
       <div className="app-shell">
         <header className="app-header">
