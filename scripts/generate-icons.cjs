@@ -1,5 +1,6 @@
-// One-off script to generate simple solid-color PWA icon PNGs with rounded
-// corners and a centered "J" mark, without pulling in an image library.
+// One-off script to generate simple solid-color PWA icon PNGs — one
+// distinct mark + color per app, so they're easy to tell apart on a phone's
+// home screen — without pulling in an image library.
 const fs = require("node:fs");
 const path = require("node:path");
 const zlib = require("node:zlib");
@@ -41,87 +42,18 @@ function buildPng(size, draw) {
   ihdr[12] = 0;
 
   const idatData = zlib.deflateSync(raw);
-  const png = Buffer.concat([
-    signature,
-    chunk("IHDR", ihdr),
-    chunk("IDAT", idatData),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-  return png;
+  return Buffer.concat([signature, chunk("IHDR", ihdr), chunk("IDAT", idatData), chunk("IEND", Buffer.alloc(0))]);
 }
 
-const ACCENT = [255, 255, 255]; // white glyph
-const BG = [37, 99, 235]; // matches --accent (#2563eb), the app's actual blue branding
+const WHITE = [255, 255, 255];
 
-function draw(x, y, w, h) {
-  const cx = w / 2;
-  const cy = h / 2;
-  const radius = w * 0.5;
-  const dx = x + 0.5 - cx;
-  const dy = y + 0.5 - cy;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist > radius) return [0, 0, 0, 0];
+// Each glyph function takes scaled coordinates (sx, sy already have the
+// maskable safe-zone shrink applied, or are just x/y for the regular icon)
+// plus the icon's center/size, and returns true if that pixel is part of
+// the mark.
 
-  // Background circle
-  let [r, g, b] = BG;
-  const a = 255;
-
-  // Draw a simple "J" glyph using a few rectangles in accent color.
-  const stemWidth = w * 0.11;
-  const stemTop = h * 0.28;
-  const stemBottom = h * 0.62;
-  const stemX = cx + w * 0.06;
-
-  const inStem = x > stemX - stemWidth / 2 && x < stemX + stemWidth / 2 && y > stemTop && y < stemBottom;
-
-  const hookCx = cx - w * 0.08;
-  const hookCy = stemBottom;
-  const hookOuter = w * 0.2;
-  const hookInner = hookOuter - stemWidth;
-  const hdx = x - hookCx;
-  const hdy = y - hookCy;
-  const hookDist = Math.sqrt(hdx * hdx + hdy * hdy);
-  const inHook = hookDist < hookOuter && hookDist > hookInner && hdy > -stemWidth / 2;
-
-  const topBarY0 = h * 0.24;
-  const topBarY1 = h * 0.24 + stemWidth;
-  const inTopBar = x > stemX - w * 0.16 && x < stemX + w * 0.16 && y > topBarY0 && y < topBarY1;
-
-  if (inStem || inHook || inTopBar) {
-    [r, g, b] = ACCENT;
-  }
-
-  return [r, g, b, a];
-}
-
-// Each app has its own public/icons/ now (see apps/*/public/icons) — this
-// writes the same art into all three, since they still share one look for
-// now. Point this at just one app's public/icons if that ever changes.
-const outDirs = ["journal", "kit-runs", "family-tree"].map((app) =>
-  path.join(__dirname, "..", "apps", app, "public", "icons"),
-);
-for (const outDir of outDirs) fs.mkdirSync(outDir, { recursive: true });
-
-for (const size of [192, 512]) {
-  const png = buildPng(size, draw);
-  for (const outDir of outDirs) {
-    fs.writeFileSync(path.join(outDir, `icon-${size}.png`), png);
-  }
-  console.log(`wrote icon-${size}.png to ${outDirs.length} apps`);
-}
-
-// Maskable icon: same art, but the safe zone is smaller (icon should occupy
-// only the inner ~80% so it isn't clipped when masked to a shape).
-function drawMaskable(x, y, w, h) {
-  const cx = w / 2;
-  const cy = h / 2;
-  let [r, g, b] = BG;
-  const a = 255;
-
-  const scale = 0.7;
-  const sx = cx + (x - cx) / scale;
-  const sy = cy + (y - cy) / scale;
-
+function journalGlyph(sx, sy, cx, w, h) {
+  // A simple "J": a vertical stem, a hook at the bottom, and a top bar.
   const stemWidth = w * 0.11;
   const stemTop = h * 0.28;
   const stemBottom = h * 0.62;
@@ -141,14 +73,85 @@ function drawMaskable(x, y, w, h) {
   const topBarY1 = h * 0.24 + stemWidth;
   const inTopBar = sx > stemX - w * 0.16 && sx < stemX + w * 0.16 && sy > topBarY0 && sy < topBarY1;
 
-  if (inStem || inHook || inTopBar) {
-    [r, g, b] = ACCENT;
-  }
-  return [r, g, b, a];
+  return inStem || inHook || inTopBar;
 }
 
-const maskablePng = buildPng(512, drawMaskable);
-for (const outDir of outDirs) {
-  fs.writeFileSync(path.join(outDir, "icon-maskable-512.png"), maskablePng);
+function kitRunsGlyph(sx, sy, cx, w, h) {
+  // A shipping box: a hollow square outline with a lid-seam line near the
+  // top — a package to collect, not a letter mark, so it reads instantly
+  // as a different app from Journall OS.
+  const half = w * 0.22;
+  const cy = h / 2;
+  const bx0 = cx - half;
+  const bx1 = cx + half;
+  const by0 = cy - half;
+  const by1 = cy + half;
+  const border = w * 0.05;
+  const inBox = sx > bx0 && sx < bx1 && sy > by0 && sy < by1;
+  const nearEdge = sx < bx0 + border || sx > bx1 - border || sy < by0 + border || sy > by1 - border;
+  const inOutline = inBox && nearEdge;
+
+  const lidY0 = by0 + (by1 - by0) * 0.32;
+  const lidY1 = lidY0 + border;
+  const inLid = inBox && sy > lidY0 && sy < lidY1;
+
+  return inOutline || inLid;
 }
-console.log(`wrote icon-maskable-512.png to ${outDirs.length} apps`);
+
+function familyTreeGlyph(sx, sy, cx, w, h) {
+  // A tree: a short trunk under a three-lobed canopy.
+  const trunkWidth = w * 0.09;
+  const trunkTop = h * 0.5; // tucks under the canopy's overlap so there's no visible gap
+  const trunkBottom = h * 0.72;
+  const inTrunk = sx > cx - trunkWidth / 2 && sx < cx + trunkWidth / 2 && sy > trunkTop && sy < trunkBottom;
+
+  const lobes = [
+    { cx: cx, cy: h * 0.34, r: w * 0.17 },
+    { cx: cx - w * 0.14, cy: h * 0.47, r: w * 0.15 },
+    { cx: cx + w * 0.14, cy: h * 0.47, r: w * 0.15 },
+  ];
+  const inCanopy = lobes.some((l) => {
+    const dx = sx - l.cx;
+    const dy = sy - l.cy;
+    return Math.sqrt(dx * dx + dy * dy) < l.r;
+  });
+
+  return inTrunk || inCanopy;
+}
+
+const APPS = [
+  { name: "journal", bg: [37, 99, 235], glyph: journalGlyph }, // matches --accent (#2563eb)
+  { name: "kit-runs", bg: [217, 119, 6], glyph: kitRunsGlyph }, // amber (#d97706)
+  { name: "family-tree", bg: [21, 128, 61], glyph: familyTreeGlyph }, // green (#15803d)
+];
+
+function makeDraw(app, maskable) {
+  return function draw(x, y, w, h) {
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = w * 0.5;
+    const dx = x + 0.5 - cx;
+    const dy = y + 0.5 - cy;
+    if (Math.sqrt(dx * dx + dy * dy) > radius) return [0, 0, 0, 0];
+
+    // Maskable icons get masked to arbitrary shapes by the OS, so the mark
+    // needs to sit inside a smaller safe zone (~70%) or it gets clipped.
+    const scale = maskable ? 0.7 : 1;
+    const sx = cx + (x + 0.5 - cx) / scale;
+    const sy = cy + (y + 0.5 - cy) / scale;
+
+    const [r, g, b] = app.glyph(sx, sy, cx, w, h) ? WHITE : app.bg;
+    return [r, g, b, 255];
+  };
+}
+
+for (const app of APPS) {
+  const outDir = path.join(__dirname, "..", "apps", app.name, "public", "icons");
+  fs.mkdirSync(outDir, { recursive: true });
+
+  for (const size of [192, 512]) {
+    fs.writeFileSync(path.join(outDir, `icon-${size}.png`), buildPng(size, makeDraw(app, false)));
+  }
+  fs.writeFileSync(path.join(outDir, "icon-maskable-512.png"), buildPng(512, makeDraw(app, true)));
+  console.log(`wrote icons for ${app.name}`);
+}

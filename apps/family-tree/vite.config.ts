@@ -25,7 +25,7 @@ export default defineConfig({
         name: 'Family Tree',
         short_name: 'Family Tree',
         description: 'A shared family tree — people, relationships, events, photos and records.',
-        theme_color: '#2563eb',
+        theme_color: '#15803d',
         background_color: '#eef3fc',
         display: 'standalone',
         start_url: '/journall-app/family-tree/',

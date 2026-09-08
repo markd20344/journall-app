@@ -25,7 +25,7 @@ export default defineConfig({
         name: 'Kit Runs',
         short_name: 'Kit Runs',
         description: 'Daily kit-collection round tracker: import jobs, plan the route, track visits and drop-offs.',
-        theme_color: '#2563eb',
+        theme_color: '#d97706',
         background_color: '#eef3fc',
         display: 'standalone',
         start_url: '/journall-app/kit-runs/',
