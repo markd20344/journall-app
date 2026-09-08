@@ -108,6 +108,16 @@ button, input, select, textarea {
   color: var(--danger);
 }
 
+.auth-email-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 280px;
+}
+
+
 .error-boundary {
   display: flex;
   flex-direction: column;

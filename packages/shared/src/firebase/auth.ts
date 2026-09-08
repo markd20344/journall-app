@@ -5,6 +5,10 @@ import {
   signInWithPopup,
   signOut,
   getRedirectResult,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  type ActionCodeSettings,
   type User,
 } from "firebase/auth";
 import { auth } from "./config";
@@ -72,4 +76,40 @@ export function watchAuthState(callback: (user: User | null) => void): () => voi
 export async function consumeRedirectResult(): Promise<void> {
   if (!auth) return;
   await getRedirectResult(auth);
+}
+
+// Email-link ("magic link") sign-in — a fallback for environments where
+// Google's popup/redirect sign-in doesn't work at all (confirmed: an
+// installed iOS home-screen icon). There's no popup or cross-origin
+// redirect involved, so it sidesteps that whole class of problem: the user
+// types their email, gets a link, and opening that link (on the same
+// device) completes sign-in entirely within this app's own page.
+const PENDING_EMAIL_KEY = "journall:pendingSignInEmail";
+
+/** Emails the user a sign-in link that, when opened, returns to this exact page. */
+export async function sendEmailSignInLink(email: string): Promise<void> {
+  if (!auth) throw new Error("Firebase is not configured.");
+  const actionCodeSettings: ActionCodeSettings = {
+    url: window.location.href,
+    handleCodeInApp: true,
+  };
+  await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+  window.localStorage.setItem(PENDING_EMAIL_KEY, email);
+}
+
+/** True if the given URL is a sign-in link Firebase generated (i.e. this page was opened from one). */
+export function isEmailSignInLink(url: string): boolean {
+  if (!auth) return false;
+  return isSignInWithEmailLink(auth, url);
+}
+
+/** The email sendEmailSignInLink was last called with on this device, if any — lets the same-device case skip re-asking for it. */
+export function getStoredSignInEmail(): string | null {
+  return window.localStorage.getItem(PENDING_EMAIL_KEY);
+}
+
+export async function completeEmailSignIn(email: string, url: string): Promise<void> {
+  if (!auth) throw new Error("Firebase is not configured.");
+  await signInWithEmailLink(auth, email, url);
+  window.localStorage.removeItem(PENDING_EMAIL_KEY);
 }
