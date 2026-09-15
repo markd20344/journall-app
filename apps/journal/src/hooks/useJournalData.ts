@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
-import type { Book, Category, Entry, EntryWithRefs, Item, ItemAttachment, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, EntryWithRefs, Item, ItemAttachment, ItemKind, QuickCapture, Topic } from "../types";
 import { usePendingDeleteIds } from "@journall/shared/lib/pendingDelete";
 
 // Most-recent-first, and reliable within a single day: Dexie's own
@@ -136,6 +136,13 @@ export function useCalendarItemsInRange(startDate: string, endDate: string): Ite
   return items
     .filter((i) => (CALENDAR_KINDS as string[]).includes(i.kind) && !pendingIds.has(i.id))
     .sort((a, b) => (a.date !== b.date ? a.date.localeCompare(b.date) : (a.time || "").localeCompare(b.time || "")));
+}
+
+export function useAllQuickCaptures(): QuickCapture[] {
+  const captures = useLiveQuery(() => db.quickCaptures.toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("quickCapture");
+  const visible = pendingIds.size === 0 ? captures : captures.filter((c) => !pendingIds.has(c.id));
+  return [...visible].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function useAllBooks(): Book[] {

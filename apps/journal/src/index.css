@@ -1517,6 +1517,58 @@ textarea {
   margin: 0;
 }
 
+.quick-capture-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--bg-raised);
+}
+
+.quick-capture-form {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-capture-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-capture-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-capture-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-capture-row:last-child {
+  border-bottom: none;
+}
+
+.quick-capture-time {
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.65;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.quick-capture-text {
+  flex: 1;
+  color: var(--text-h);
+}
+
 
 
 /* ---------- Kit Runs ---------- */

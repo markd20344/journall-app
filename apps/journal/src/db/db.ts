@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, QuickCapture, Topic } from "../types";
 import type { Candle } from "../types/markets";
 import { newId, nowIso } from "@journall/shared/lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
@@ -43,6 +43,7 @@ class JournalDB extends Dexie {
   familyRecords!: Table<Record<string, unknown>, string>;
   familyMembers!: Table<Record<string, unknown>, string>;
   itemAttachments!: Table<ItemAttachment, string>;
+  quickCaptures!: Table<QuickCapture, string>;
 
   constructor() {
     super("journall-db");
@@ -433,6 +434,26 @@ class JournalDB extends Dexie {
         for (const job of jobs) job.dropOffLocation = job.dropOffLocation ?? "";
         if (jobs.length > 0) await tx.table("kitJobs").bulkPut(jobs);
       });
+    // v21: add quickCaptures — one-line jottings with none of the structure
+    // a journal Entry or Item requires (see types/index.ts).
+    this.version(21).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+      itemAttachments: "id, itemId, updatedAt",
+      quickCaptures: "id, createdAt",
+    });
   }
 }
 

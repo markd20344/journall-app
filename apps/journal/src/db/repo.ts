@@ -13,6 +13,7 @@ import type {
   ItemKind,
   ItemStatus,
   Priority,
+  QuickCapture,
   StatusUpdate,
   Subtask,
   Topic,
@@ -516,6 +517,23 @@ export async function setBookStatus(id: string, status: BookStatus): Promise<voi
 export async function deleteBook(id: string): Promise<void> {
   await db.books.delete(id);
   deleteRecord("books", id);
+}
+
+// ---------- Quick captures ----------
+
+export async function addQuickCapture(text: string): Promise<QuickCapture | null> {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const ts = nowIso();
+  const capture: QuickCapture = { id: newId(), text: trimmed, createdAt: ts, updatedAt: ts };
+  await db.quickCaptures.add(capture);
+  pushRecord("quickCaptures", capture);
+  return capture;
+}
+
+export async function deleteQuickCapture(id: string): Promise<void> {
+  await db.quickCaptures.delete(id);
+  deleteRecord("quickCaptures", id);
 }
 
 export async function deleteItem(id: string): Promise<void> {

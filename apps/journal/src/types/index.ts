@@ -33,6 +33,17 @@ export interface EntryWithRefs extends Entry {
   topics: Topic[];
 }
 
+// A one-line jotting — a word, a stray thought, a reminder to write up
+// properly later — with none of the structure a journal Entry (category,
+// topics) or an Item (kind, status, due date) requires. The point is
+// zero-friction capture; nothing here is meant to be filled in.
+export interface QuickCapture {
+  id: string;
+  text: string;
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+}
+
 // "Spin-off" items: structured records you can create out of a journal
 // entry (or standalone) — lessons learned, actions, risks, etc. Each kind
 // uses the same shape; fields that don't apply to a given kind are simply

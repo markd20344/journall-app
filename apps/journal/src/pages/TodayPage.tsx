@@ -9,6 +9,7 @@ import ItemCard from "../components/ItemCard";
 import ItemEditor from "../components/ItemEditor";
 import BookCard from "../components/BookCard";
 import BookEditor from "../components/BookEditor";
+import QuickCapture from "../components/QuickCapture";
 
 interface Props {
   onNavigate: (view: View) => void;
@@ -97,6 +98,8 @@ export default function TodayPage({ onNavigate }: Props) {
     <div className="page today-page">
       <h1 className="page-title">Today</h1>
       <p className="today-date">{format(new Date(), "EEEE, MMMM d")}</p>
+
+      <QuickCapture />
 
       {nothingToShow && <p className="empty-hint">Nothing overdue, due, or coming up this week.</p>}
 
