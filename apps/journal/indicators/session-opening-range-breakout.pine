@@ -24,9 +24,10 @@ indicator("Session Opening Range Breakout + EMA", shorttitle="ORB+EMA", overlay=
 tzInput = input.string("Europe/London", title="Session Timezone (IANA name)", group="General", tooltip="Examples: Europe/London, America/New_York, UTC. Europe/London auto-adjusts for GMT/BST.")
 maxDaysHistory = input.int(30, title="Keep last N days of ranges", minval=1, maxval=100, group="General")
 showBoxInput = input.bool(true, title="Highlight opening-range hour with a box", group="General")
+showBoxBorderInput = input.bool(false, title="Show box border (vertical/horizontal edges)", group="General")
 showLabelsInput = input.bool(true, title="Show session name labels", group="General")
 showBreakoutMarkersInput = input.bool(true, title="Show breakout markers", group="General")
-lineWidthInput = input.int(2, title="Range line width", minval=1, maxval=4, group="General")
+lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, group="General")
 
 asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
 asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
@@ -98,7 +99,7 @@ trimLabels(array<label> arr, int maxDays) =>
 
 // Builds/updates one session's opening-range lines, box and label, and
 // returns [breakoutUp, breakoutDown] flags that fire once per finished range.
-processSession(SessionState state, bool enabled, string sess, string tz, color col, bool showBox, bool showLabel, string labelText, int maxDays, int widthPx) =>
+processSession(SessionState state, bool enabled, string sess, string tz, color col, bool showBox, bool showBoxBorder, bool showLabel, string labelText, int maxDays, int widthPx) =>
     var bool prevInSession = false
     bool breakUp = false
     bool breakDown = false
@@ -125,7 +126,7 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
             trimLines(state.botHist, maxDays)
 
             if showBox
-                newBox = box.new(left=bar_index, top=high, right=bar_index, bottom=low, border_color=col, border_width=1, bgcolor=color.new(col, 85))
+                newBox = box.new(left=bar_index, top=high, right=bar_index, bottom=low, border_color=showBoxBorder ? col : color.new(col, 100), border_width=1, bgcolor=color.new(col, 85))
                 state.rangeBox := newBox
                 state.boxHist.push(newBox)
                 trimBoxes(state.boxHist, maxDays)
@@ -177,9 +178,9 @@ var SessionState nyState     = SessionState.new(topHist=array.new<line>(), botHi
 // Run each session
 // ---------------------------------------------------------------------------
 
-[asianBreakUp, asianBreakDown] = processSession(asianState, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, asianColor, showBoxInput, showLabelsInput, "ASIA", maxDaysHistory, lineWidthInput)
-[londonBreakUp, londonBreakDown] = processSession(londonState, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, londonColor, showBoxInput, showLabelsInput, "LONDON", maxDaysHistory, lineWidthInput)
-[nyBreakUp, nyBreakDown] = processSession(nyState, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, nyColor, showBoxInput, showLabelsInput, "NEW YORK", maxDaysHistory, lineWidthInput)
+[asianBreakUp, asianBreakDown] = processSession(asianState, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, asianColor, showBoxInput, showBoxBorderInput, showLabelsInput, "ASIA", maxDaysHistory, lineWidthInput)
+[londonBreakUp, londonBreakDown] = processSession(londonState, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, londonColor, showBoxInput, showBoxBorderInput, showLabelsInput, "LONDON", maxDaysHistory, lineWidthInput)
+[nyBreakUp, nyBreakDown] = processSession(nyState, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, nyColor, showBoxInput, showBoxBorderInput, showLabelsInput, "NEW YORK", maxDaysHistory, lineWidthInput)
 
 // ---------------------------------------------------------------------------
 // Breakout markers
