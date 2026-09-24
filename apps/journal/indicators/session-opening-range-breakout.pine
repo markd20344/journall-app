@@ -135,7 +135,7 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
                 state.boxHist.push(newBox)
                 trimBoxes(state.boxHist, maxDays)
             if showLabel
-                newLbl = label.new(x=bar_index, y=high, text=labelText, style=label.style_label_down, color=color.new(col, 0), textcolor=color.white, size=size.tiny)
+                newLbl = label.new(x=bar_index, y=high, text=labelText, style=label.style_label_down, color=color.new(color.black, 15), textcolor=col, size=size.small)
                 state.rangeLabel := newLbl
                 state.labelHist.push(newLbl)
                 trimLabels(state.labelHist, maxDays)
