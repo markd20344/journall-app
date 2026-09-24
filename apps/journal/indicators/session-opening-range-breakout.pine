@@ -68,6 +68,7 @@ type SessionState
     float rangeHigh = na
     float rangeLow = na
     int   startIdx = na
+    int   rangeDay = na
     bool  breakUpFired = false
     bool  breakDownFired = false
     array<line>  topHist
@@ -108,11 +109,14 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
         t = time(timeframe.period, sess, tz)
         inSess = not na(t)
         newSess = inSess and not prevInSession
+        currentDay = year(time, tz) * 10000 + month(time, tz) * 100 + dayofmonth(time, tz)
+        sameDay = currentDay == state.rangeDay
 
         if newSess
             state.rangeHigh := high
             state.rangeLow := low
             state.startIdx := bar_index
+            state.rangeDay := currentDay
             state.breakUpFired := false
             state.breakDownFired := false
 
@@ -150,11 +154,11 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
                 box.set_right(state.rangeBox, bar_index)
             if not na(state.rangeLabel)
                 label.set_xy(state.rangeLabel, state.startIdx, state.rangeHigh)
-        else if not inSess and not na(state.topLine)
+        else if not inSess and not na(state.topLine) and sameDay
             line.set_xy2(state.topLine, bar_index, state.rangeHigh)
             line.set_xy2(state.botLine, bar_index, state.rangeLow)
 
-        if not inSess and not na(state.rangeHigh)
+        if not inSess and not na(state.rangeHigh) and sameDay
             if not state.breakUpFired and close > state.rangeHigh
                 breakUp := true
                 state.breakUpFired := true
