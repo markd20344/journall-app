@@ -1,0 +1,207 @@
+//@version=6
+
+// Session Opening Range Breakout (ORB) + EMA
+// Marks the opening-range high/low of the Asian, London and New York sessions
+// and rays them across the rest of the day so you can compare how each
+// session's range broke out (or didn't) relative to the others.
+//
+// Usage notes:
+//  - Use an intraday chart at or below the shortest session's range length
+//    (e.g. 1m-5m) so the opening-range high/low builds up accurately tick by
+//    tick rather than in coarse steps.
+//  - All session start/end times are read in the timezone set below, so
+//    "Europe/London" will automatically follow GMT/BST without you having to
+//    change anything across the clock change.
+//  - Alerts fire once per range, the first time price closes back outside
+//    the range after that session's opening hour has finished forming.
+
+indicator("Session Opening Range Breakout + EMA", shorttitle="ORB+EMA", overlay=true, max_lines_count=500, max_boxes_count=500, max_labels_count=500)
+
+// ---------------------------------------------------------------------------
+// Inputs
+// ---------------------------------------------------------------------------
+
+tzInput = input.string("Europe/London", title="Session Timezone (IANA name)", group="General", tooltip="Examples: Europe/London, America/New_York, UTC. Europe/London auto-adjusts for GMT/BST.")
+maxDaysHistory = input.int(30, title="Keep last N days of ranges", minval=1, maxval=100, group="General")
+showBoxInput = input.bool(true, title="Highlight opening-range hour with a box", group="General")
+showLabelsInput = input.bool(true, title="Show session name labels", group="General")
+showBreakoutMarkersInput = input.bool(true, title="Show breakout markers", group="General")
+lineWidthInput = input.int(2, title="Range line width", minval=1, maxval=4, group="General")
+
+asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
+asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
+asianStartH  = input.int(1, title="Start Hour", minval=0, maxval=23, inline="asianStart", group="Asian Session")
+asianStartM  = input.int(0, title="Start Min", minval=0, maxval=59, inline="asianStart", group="Asian Session")
+asianEndH    = input.int(2, title="End Hour", minval=0, maxval=23, inline="asianEnd", group="Asian Session")
+asianEndM    = input.int(0, title="End Min", minval=0, maxval=59, inline="asianEnd", group="Asian Session")
+
+londonEnabled = input.bool(true, title="Enable", inline="londonEnable", group="London Session")
+londonColor   = input.color(color.blue, title="Color", inline="londonEnable", group="London Session")
+londonStartH  = input.int(8, title="Start Hour", minval=0, maxval=23, inline="londonStart", group="London Session")
+londonStartM  = input.int(0, title="Start Min", minval=0, maxval=59, inline="londonStart", group="London Session")
+londonEndH    = input.int(10, title="End Hour", minval=0, maxval=23, inline="londonEnd", group="London Session")
+londonEndM    = input.int(0, title="End Min", minval=0, maxval=59, inline="londonEnd", group="London Session")
+
+nyEnabled = input.bool(true, title="Enable", inline="nyEnable", group="New York Session")
+nyColor   = input.color(color.red, title="Color", inline="nyEnable", group="New York Session")
+nyStartH  = input.int(14, title="Start Hour", minval=0, maxval=23, inline="nyStart", group="New York Session")
+nyStartM  = input.int(30, title="Start Min", minval=0, maxval=59, inline="nyStart", group="New York Session")
+nyEndH    = input.int(15, title="End Hour", minval=0, maxval=23, inline="nyEnd", group="New York Session")
+nyEndM    = input.int(30, title="End Min", minval=0, maxval=59, inline="nyEnd", group="New York Session")
+
+emaEnabled = input.bool(true, title="Show EMA", group="EMA")
+emaSource  = input.source(close, title="Source", group="EMA")
+emaLength  = input.int(8, title="Length", minval=1, group="EMA")
+emaColor   = input.color(color.red, title="Color", group="EMA")
+emaWidth   = input.int(2, title="Line Width", minval=1, maxval=4, group="EMA")
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type SessionState
+    line  topLine
+    line  botLine
+    box   rangeBox
+    label rangeLabel
+    float rangeHigh = na
+    float rangeLow = na
+    int   startIdx = na
+    bool  breakUpFired = false
+    bool  breakDownFired = false
+    array<line>  topHist
+    array<line>  botHist
+    array<box>   boxHist
+    array<label> labelHist
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+pad2(n) =>
+    n < 10 ? "0" + str.tostring(n) : str.tostring(n)
+
+sessionString(startH, startM, endH, endM) =>
+    pad2(startH) + pad2(startM) + "-" + pad2(endH) + pad2(endM)
+
+trimLines(array<line> arr, int maxDays) =>
+    if arr.size() > maxDays
+        line.delete(arr.shift())
+
+trimBoxes(array<box> arr, int maxDays) =>
+    if arr.size() > maxDays
+        box.delete(arr.shift())
+
+trimLabels(array<label> arr, int maxDays) =>
+    if arr.size() > maxDays
+        label.delete(arr.shift())
+
+// Builds/updates one session's opening-range lines, box and label, and
+// returns [breakoutUp, breakoutDown] flags that fire once per finished range.
+processSession(SessionState state, bool enabled, string sess, string tz, color col, bool showBox, bool showLabel, string labelText, int maxDays, int widthPx) =>
+    var bool prevInSession = false
+    bool breakUp = false
+    bool breakDown = false
+
+    if enabled
+        t = time(timeframe.period, sess, tz)
+        inSess = not na(t)
+        newSess = inSess and not prevInSession
+
+        if newSess
+            state.rangeHigh := high
+            state.rangeLow := low
+            state.startIdx := bar_index
+            state.breakUpFired := false
+            state.breakDownFired := false
+
+            newTop = line.new(x1=bar_index, y1=high, x2=bar_index, y2=high, xloc=xloc.bar_index, extend=extend.none, color=col, width=widthPx)
+            newBot = line.new(x1=bar_index, y1=low, x2=bar_index, y2=low, xloc=xloc.bar_index, extend=extend.none, color=col, width=widthPx)
+            state.topLine := newTop
+            state.botLine := newBot
+            state.topHist.push(newTop)
+            state.botHist.push(newBot)
+            trimLines(state.topHist, maxDays)
+            trimLines(state.botHist, maxDays)
+
+            if showBox
+                newBox = box.new(left=bar_index, top=high, right=bar_index, bottom=low, border_color=col, border_width=1, bgcolor=color.new(col, 85))
+                state.rangeBox := newBox
+                state.boxHist.push(newBox)
+                trimBoxes(state.boxHist, maxDays)
+            if showLabel
+                newLbl = label.new(x=bar_index, y=high, text=labelText, style=label.style_label_down, color=color.new(col, 0), textcolor=color.white, size=size.tiny)
+                state.rangeLabel := newLbl
+                state.labelHist.push(newLbl)
+                trimLabels(state.labelHist, maxDays)
+        else if inSess
+            state.rangeHigh := math.max(state.rangeHigh, high)
+            state.rangeLow := math.min(state.rangeLow, low)
+
+        if inSess and not na(state.topLine)
+            line.set_xy1(state.topLine, state.startIdx, state.rangeHigh)
+            line.set_xy2(state.topLine, bar_index, state.rangeHigh)
+            line.set_xy1(state.botLine, state.startIdx, state.rangeLow)
+            line.set_xy2(state.botLine, bar_index, state.rangeLow)
+            if not na(state.rangeBox)
+                box.set_top(state.rangeBox, state.rangeHigh)
+                box.set_bottom(state.rangeBox, state.rangeLow)
+                box.set_right(state.rangeBox, bar_index)
+            if not na(state.rangeLabel)
+                label.set_xy(state.rangeLabel, state.startIdx, state.rangeHigh)
+        else if not inSess and not na(state.topLine)
+            line.set_xy2(state.topLine, bar_index, state.rangeHigh)
+            line.set_xy2(state.botLine, bar_index, state.rangeLow)
+
+        if not inSess and not na(state.rangeHigh)
+            if not state.breakUpFired and close > state.rangeHigh
+                breakUp := true
+                state.breakUpFired := true
+            if not state.breakDownFired and close < state.rangeLow
+                breakDown := true
+                state.breakDownFired := true
+
+        prevInSession := inSess
+
+    [breakUp, breakDown]
+
+// ---------------------------------------------------------------------------
+// State (one persistent object per session)
+// ---------------------------------------------------------------------------
+
+var SessionState asianState  = SessionState.new(topHist=array.new<line>(), botHist=array.new<line>(), boxHist=array.new<box>(), labelHist=array.new<label>())
+var SessionState londonState = SessionState.new(topHist=array.new<line>(), botHist=array.new<line>(), boxHist=array.new<box>(), labelHist=array.new<label>())
+var SessionState nyState     = SessionState.new(topHist=array.new<line>(), botHist=array.new<line>(), boxHist=array.new<box>(), labelHist=array.new<label>())
+
+// ---------------------------------------------------------------------------
+// Run each session
+// ---------------------------------------------------------------------------
+
+[asianBreakUp, asianBreakDown] = processSession(asianState, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, asianColor, showBoxInput, showLabelsInput, "ASIA", maxDaysHistory, lineWidthInput)
+[londonBreakUp, londonBreakDown] = processSession(londonState, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, londonColor, showBoxInput, showLabelsInput, "LONDON", maxDaysHistory, lineWidthInput)
+[nyBreakUp, nyBreakDown] = processSession(nyState, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, nyColor, showBoxInput, showLabelsInput, "NEW YORK", maxDaysHistory, lineWidthInput)
+
+// ---------------------------------------------------------------------------
+// Breakout markers
+// ---------------------------------------------------------------------------
+
+plotshape(showBreakoutMarkersInput and asianBreakUp, title="Asian Break Up", style=shape.triangleup, location=location.abovebar, color=asianColor, size=size.tiny)
+plotshape(showBreakoutMarkersInput and asianBreakDown, title="Asian Break Down", style=shape.triangledown, location=location.belowbar, color=asianColor, size=size.tiny)
+plotshape(showBreakoutMarkersInput and londonBreakUp, title="London Break Up", style=shape.triangleup, location=location.abovebar, color=londonColor, size=size.tiny)
+plotshape(showBreakoutMarkersInput and londonBreakDown, title="London Break Down", style=shape.triangledown, location=location.belowbar, color=londonColor, size=size.tiny)
+plotshape(showBreakoutMarkersInput and nyBreakUp, title="New York Break Up", style=shape.triangleup, location=location.abovebar, color=nyColor, size=size.tiny)
+plotshape(showBreakoutMarkersInput and nyBreakDown, title="New York Break Down", style=shape.triangledown, location=location.belowbar, color=nyColor, size=size.tiny)
+
+alertcondition(asianBreakUp, title="Asian Range Breakout Up", message="Price closed above the Asian opening-range high")
+alertcondition(asianBreakDown, title="Asian Range Breakout Down", message="Price closed below the Asian opening-range low")
+alertcondition(londonBreakUp, title="London Range Breakout Up", message="Price closed above the London opening-range high")
+alertcondition(londonBreakDown, title="London Range Breakout Down", message="Price closed below the London opening-range low")
+alertcondition(nyBreakUp, title="New York Range Breakout Up", message="Price closed above the New York opening-range high")
+alertcondition(nyBreakDown, title="New York Range Breakout Down", message="Price closed below the New York opening-range low")
+
+// ---------------------------------------------------------------------------
+// EMA
+// ---------------------------------------------------------------------------
+
+emaValue = ta.ema(emaSource, emaLength)
+plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth)
