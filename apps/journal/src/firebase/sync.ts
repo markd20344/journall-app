@@ -30,7 +30,16 @@ import type { Item } from "../types";
 // app — it's now a separate app with its own dedicated Firestore sync (same
 // users/{uid}/kitJobs path, so nothing changes server-side), so this app no
 // longer touches that table at all.
-const SYNCED_TABLES = ["categories", "topics", "entries", "items", "books", "itemAttachments", "quickCaptures"] as const;
+const SYNCED_TABLES = [
+  "categories",
+  "topics",
+  "entries",
+  "items",
+  "books",
+  "itemAttachments",
+  "quickCaptures",
+  "procedures",
+] as const;
 type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 interface Syncable {

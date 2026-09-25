@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, QuickCapture, Topic } from "../types";
+import type { Book, Category, Entry, Item, ItemAttachment, ItemKind, Procedure, QuickCapture, Topic } from "../types";
 import type { Candle } from "../types/markets";
 import { newId, nowIso } from "@journall/shared/lib/id";
 import { itemKindMeta } from "../lib/itemKinds";
@@ -44,6 +44,7 @@ class JournalDB extends Dexie {
   familyMembers!: Table<Record<string, unknown>, string>;
   itemAttachments!: Table<ItemAttachment, string>;
   quickCaptures!: Table<QuickCapture, string>;
+  procedures!: Table<Procedure, string>;
 
   constructor() {
     super("journall-db");
@@ -453,6 +454,28 @@ class JournalDB extends Dexie {
       familyMembers: "uid, email, updatedAt",
       itemAttachments: "id, itemId, updatedAt",
       quickCaptures: "id, createdAt",
+    });
+    // v22: add procedures — dictated step-by-step how-tos for things done
+    // rarely enough to forget (e.g. "post an eBay sale via Evri"). Brand new
+    // table, no existing data to migrate.
+    this.version(22).stores({
+      entries: "id, date, categoryId, *topicIds, updatedAt",
+      categories: "id, name",
+      topics: "id, name, categoryId",
+      settings: "key",
+      items: "id, kind, date, sourceEntryId, status, categoryId, *linkedItemIds, code, updatedAt",
+      kitJobs: "id, batchDate, postcode, routeOrder, droppedOffBatchId, updatedAt",
+      candles: "[pair+date], pair, date",
+      books: "id, title, author, series, status, format, updatedAt",
+      people: "id, lastName, updatedAt",
+      relationships: "id, type, personA, personB, updatedAt",
+      familyEvents: "id, personId, type, updatedAt",
+      familyMedia: "id, updatedAt",
+      familyRecords: "id, updatedAt",
+      familyMembers: "uid, email, updatedAt",
+      itemAttachments: "id, itemId, updatedAt",
+      quickCaptures: "id, createdAt",
+      procedures: "id, title, categoryId, updatedAt",
     });
   }
 }

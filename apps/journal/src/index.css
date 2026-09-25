@@ -1366,6 +1366,75 @@ textarea {
   opacity: 0.55;
 }
 
+/* ---------- Procedure steps ---------- */
+
+.procedure-step-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.procedure-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.procedure-step-number {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.procedure-step-text {
+  flex: 1;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  font-size: 14px;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}
+
+.procedure-step-input {
+  flex: 1;
+}
+
+.procedure-step-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.step-reorder-btn {
+  padding: 2px 8px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.procedure-add-step-row {
+  align-items: center;
+}
+
+.procedure-add-step-row input {
+  flex: 1;
+}
+
 /* ---------- Kind badge / code badge ---------- */
 
 .kind-badge {

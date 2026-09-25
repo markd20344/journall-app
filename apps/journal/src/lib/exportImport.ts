@@ -1,5 +1,5 @@
 import { db, normalizeItem } from "../db/db";
-import type { Book, Category, Entry, Item, Topic } from "../types";
+import type { Book, Category, Entry, Item, Procedure, Topic } from "../types";
 import { itemKindMeta, STATUS_META } from "./itemKinds";
 import { bookStatusMeta } from "./bookMeta";
 
@@ -10,17 +10,19 @@ export interface JournalDump {
   entries: Entry[];
   items: Item[];
   books: Book[];
+  procedures: Procedure[];
 }
 
 export async function buildDump(): Promise<JournalDump> {
-  const [categories, topics, entries, items, books] = await Promise.all([
+  const [categories, topics, entries, items, books, procedures] = await Promise.all([
     db.categories.toArray(),
     db.topics.toArray(),
     db.entries.toArray(),
     db.items.toArray(),
     db.books.toArray(),
+    db.procedures.toArray(),
   ]);
-  return { exportedAt: new Date().toISOString(), categories, topics, entries, items, books };
+  return { exportedAt: new Date().toISOString(), categories, topics, entries, items, books, procedures };
 }
 
 function download(filename: string, content: string, mime: string) {
@@ -107,6 +109,19 @@ export async function exportAsMarkdown(): Promise<void> {
     }
   }
 
+  if (dump.procedures.length > 0) {
+    const sortedProcedures = [...dump.procedures].sort((a, b) => a.title.localeCompare(b.title));
+    lines.push(`## Procedures`, "");
+    for (const procedure of sortedProcedures) {
+      lines.push(`### ${procedure.title || "Untitled"}`, "");
+      for (const [idx, step] of procedure.steps.entries()) {
+        lines.push(`${idx + 1}. ${step.text}`);
+      }
+      if (procedure.steps.length > 0) lines.push("");
+      if (procedure.notes) lines.push(procedure.notes, "");
+    }
+  }
+
   const stamp = new Date().toISOString().slice(0, 10);
   download(`journal-export-${stamp}.md`, lines.join("\n"), "text/markdown");
 }
@@ -120,7 +135,10 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
   let added = 0;
   let updated = 0;
 
-  await db.transaction("rw", db.categories, db.topics, db.entries, db.items, db.books, async () => {
+  await db.transaction(
+    "rw",
+    [db.categories, db.topics, db.entries, db.items, db.books, db.procedures],
+    async () => {
     for (const category of dump.categories) {
       const existing = await db.categories.get(category.id);
       if (!existing) {
@@ -173,6 +191,17 @@ export async function importDump(dump: JournalDump): Promise<{ added: number; up
         added++;
       } else if (book.updatedAt > existing.updatedAt) {
         await db.books.put(book);
+        updated++;
+      }
+    }
+    // dump.procedures may be absent in exports taken before Procedures existed.
+    for (const procedure of dump.procedures ?? []) {
+      const existing = await db.procedures.get(procedure.id);
+      if (!existing) {
+        await db.procedures.put(procedure);
+        added++;
+      } else if (procedure.updatedAt > existing.updatedAt) {
+        await db.procedures.put(procedure);
         updated++;
       }
     }

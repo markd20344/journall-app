@@ -1,6 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../db/db";
-import type { Book, Category, Entry, EntryWithRefs, Item, ItemAttachment, ItemKind, QuickCapture, Topic } from "../types";
+import type { Book, Category, Entry, EntryWithRefs, Item, ItemAttachment, ItemKind, Procedure, QuickCapture, Topic } from "../types";
 import { usePendingDeleteIds } from "@journall/shared/lib/pendingDelete";
 
 // Most-recent-first, and reliable within a single day: Dexie's own
@@ -150,6 +150,13 @@ export function useAllBooks(): Book[] {
   const pendingIds = usePendingDeleteIds("book");
   const visible = pendingIds.size === 0 ? books : books.filter((b) => !pendingIds.has(b.id));
   return [...visible].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export function useAllProcedures(): Procedure[] {
+  const procedures = useLiveQuery(() => db.procedures.toArray(), [], []) ?? [];
+  const pendingIds = usePendingDeleteIds("procedure");
+  const visible = pendingIds.size === 0 ? procedures : procedures.filter((p) => !pendingIds.has(p.id));
+  return [...visible].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export function useEnrichedEntries(entries: Entry[]): EntryWithRefs[] {

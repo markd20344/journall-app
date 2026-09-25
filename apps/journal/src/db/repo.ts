@@ -13,6 +13,8 @@ import type {
   ItemKind,
   ItemStatus,
   Priority,
+  Procedure,
+  ProcedureStep,
   QuickCapture,
   StatusUpdate,
   Subtask,
@@ -534,6 +536,98 @@ export async function addQuickCapture(text: string): Promise<QuickCapture | null
 export async function deleteQuickCapture(id: string): Promise<void> {
   await db.quickCaptures.delete(id);
   deleteRecord("quickCaptures", id);
+}
+
+// ---------- Procedures ----------
+
+export async function createProcedure(input: { title: string; categoryId?: string | null; notes?: string }): Promise<Procedure> {
+  const ts = nowIso();
+  const procedure: Procedure = {
+    id: newId(),
+    title: input.title,
+    categoryId: input.categoryId ?? null,
+    steps: [],
+    notes: input.notes ?? "",
+    lastUsedAt: null,
+    createdAt: ts,
+    updatedAt: ts,
+  };
+  await db.procedures.add(procedure);
+  pushRecord("procedures", procedure);
+  return procedure;
+}
+
+export async function updateProcedure(
+  id: string,
+  changes: Partial<Pick<Procedure, "title" | "categoryId" | "notes">>,
+): Promise<void> {
+  await db.procedures.update(id, { ...changes, updatedAt: nowIso() });
+  const updated = await db.procedures.get(id);
+  if (updated) pushRecord("procedures", updated);
+}
+
+export async function deleteProcedure(id: string): Promise<void> {
+  await db.procedures.delete(id);
+  deleteRecord("procedures", id);
+}
+
+/** Bumps lastUsedAt to now — a quick "I used this" tap, so stale procedures are easy to spot. */
+export async function markProcedureUsed(id: string): Promise<void> {
+  const ts = nowIso();
+  await db.procedures.update(id, { lastUsedAt: ts, updatedAt: ts });
+  const updated = await db.procedures.get(id);
+  if (updated) pushRecord("procedures", updated);
+}
+
+export async function addProcedureStep(procedureId: string, text: string): Promise<ProcedureStep | null> {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const procedure = await db.procedures.get(procedureId);
+  if (!procedure) return null;
+  const step: ProcedureStep = { id: newId(), text: trimmed, createdAt: nowIso() };
+  await db.procedures.update(procedureId, { steps: [...procedure.steps, step], updatedAt: nowIso() });
+  const updated = await db.procedures.get(procedureId);
+  if (updated) pushRecord("procedures", updated);
+  return step;
+}
+
+export async function updateProcedureStep(procedureId: string, stepId: string, text: string): Promise<void> {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  const procedure = await db.procedures.get(procedureId);
+  if (!procedure) return;
+  await db.procedures.update(procedureId, {
+    steps: procedure.steps.map((s) => (s.id === stepId ? { ...s, text: trimmed } : s)),
+    updatedAt: nowIso(),
+  });
+  const updated = await db.procedures.get(procedureId);
+  if (updated) pushRecord("procedures", updated);
+}
+
+export async function deleteProcedureStep(procedureId: string, stepId: string): Promise<void> {
+  const procedure = await db.procedures.get(procedureId);
+  if (!procedure) return;
+  await db.procedures.update(procedureId, {
+    steps: procedure.steps.filter((s) => s.id !== stepId),
+    updatedAt: nowIso(),
+  });
+  const updated = await db.procedures.get(procedureId);
+  if (updated) pushRecord("procedures", updated);
+}
+
+/** Swaps a step with its neighbor — order is the array position itself, there's no separate order field. */
+export async function moveProcedureStep(procedureId: string, stepId: string, direction: "up" | "down"): Promise<void> {
+  const procedure = await db.procedures.get(procedureId);
+  if (!procedure) return;
+  const idx = procedure.steps.findIndex((s) => s.id === stepId);
+  if (idx === -1) return;
+  const swapWith = direction === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= procedure.steps.length) return;
+  const steps = [...procedure.steps];
+  [steps[idx], steps[swapWith]] = [steps[swapWith], steps[idx]];
+  await db.procedures.update(procedureId, { steps, updatedAt: nowIso() });
+  const updated = await db.procedures.get(procedureId);
+  if (updated) pushRecord("procedures", updated);
 }
 
 export async function deleteItem(id: string): Promise<void> {
