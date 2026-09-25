@@ -49,6 +49,10 @@ winStartM = input.int(0, title="Start Min", minval=0, maxval=59, inline="winStar
 winEndH   = input.int(7, title="End Hour", minval=0, maxval=23, inline="winEnd", group="Secondary Window")
 winEndM   = input.int(30, title="End Min", minval=0, maxval=59, inline="winEnd", group="Secondary Window")
 
+pullbackTrackEnabled = input.bool(true, title="Track London pullback -> New York continuation", group="London Pullback (NY)")
+pullbackCutoffH = input.int(22, title="Cutoff Hour", minval=0, maxval=23, inline="pbCutoff", group="London Pullback (NY)", tooltip="A pullback that hasn't resolved into a continuation by this time (in the timezone above) counts as failed rather than pending.")
+pullbackCutoffM = input.int(0, title="Cutoff Min", minval=0, maxval=59, inline="pbCutoff", group="London Pullback (NY)")
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -66,6 +70,9 @@ pipSize = syminfo.mintick * (syminfo.mintick == 0.00001 or syminfo.mintick == 0.
 // idx encoding used throughout: 0 = Up, 1 = Down, 2 = Flat (never broke)
 dirLabel(int idx) =>
     idx == 0 ? "Up" : idx == 1 ? "Down" : "Flat"
+
+outcomeLabel(int idx) =>
+    idx == 0 ? "Direct" : idx == 1 ? "Pullback->Continue" : "Pullback->Failed"
 
 // ---------------------------------------------------------------------------
 // Per-session scan state
@@ -144,12 +151,54 @@ scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay
     true
 
 // ---------------------------------------------------------------------------
+// London pullback -> New York continuation tracker
+//
+// For days London broke its own range, checks whether price later traded
+// back into London's range (a "pullback") before the trading-day cutoff,
+// and if so, whether it went on to re-break London's range in the same
+// original direction ("continued") or never did ("failed"). Days with no
+// pullback at all are "direct" continuations.
+// ---------------------------------------------------------------------------
+
+type PullbackState
+    bool pulledBackToday = false
+    bool continuedAfterPullback = false
+    array<int> outcomeCounts
+
+// outcomeCounts index = dirIdx * 3 + outcomeIdx
+// dirIdx: 0 = London broke Up, 1 = London broke Down
+// outcomeIdx: 0 = Direct (no pullback), 1 = Pullback then continued, 2 = Pullback then failed
+trackPullback(PullbackState pb, ScanState sess, bool enabled, bool isNewDay, bool withinLookback, bool withinWindow) =>
+    if enabled
+        if isNewDay
+            if sess.finalizedValid and sess.finalizedDir != 0 and withinLookback
+                dirIdx = sess.finalizedDir == 1 ? 0 : 1
+                outcomeIdx = not pb.pulledBackToday ? 0 : pb.continuedAfterPullback ? 1 : 2
+                idx = dirIdx * 3 + outcomeIdx
+                pb.outcomeCounts.set(idx, pb.outcomeCounts.get(idx) + 1)
+            pb.pulledBackToday := false
+            pb.continuedAfterPullback := false
+        else if withinWindow and sess.breakDirectionToday != 0 and not na(sess.rangeHigh)
+            if sess.breakDirectionToday == 1
+                if not pb.pulledBackToday and low <= sess.rangeHigh
+                    pb.pulledBackToday := true
+                if pb.pulledBackToday and not pb.continuedAfterPullback and close > sess.rangeHigh
+                    pb.continuedAfterPullback := true
+            else
+                if not pb.pulledBackToday and high >= sess.rangeLow
+                    pb.pulledBackToday := true
+                if pb.pulledBackToday and not pb.continuedAfterPullback and close < sess.rangeLow
+                    pb.continuedAfterPullback := true
+    true
+
+// ---------------------------------------------------------------------------
 // Run all three sessions
 // ---------------------------------------------------------------------------
 
 var ScanState asianScan  = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
 var ScanState londonScan = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
 var ScanState nyScan     = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
+var PullbackState londonPullback = PullbackState.new(outcomeCounts=array.new<int>(6, 0))
 
 var int dayKey = na
 curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
@@ -161,9 +210,15 @@ withinLookback = time >= (last_bar_time - lookbackDays * 24 * 60 * 60 * 1000)
 winStartMinutes = winStartH * 60 + winStartM
 winEndMinutes = winEndH * 60 + winEndM
 
+pbCutoffMinutes = pullbackCutoffH * 60 + pullbackCutoffM
+curMinutesOfDay = hour(time, tzInput) * 60 + minute(time, tzInput)
+withinPullbackWindow = curMinutesOfDay < pbCutoffMinutes
+
 scanSession(asianScan, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, isNewDay, withinLookback, trackAsianSecondaryWindow, winStartMinutes, winEndMinutes)
 scanSession(londonScan, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, isNewDay, withinLookback, false, winStartMinutes, winEndMinutes)
 scanSession(nyScan, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, isNewDay, withinLookback, false, winStartMinutes, winEndMinutes)
+
+trackPullback(londonPullback, londonScan, pullbackTrackEnabled and londonEnabled, isNewDay, withinLookback, withinPullbackWindow)
 
 // ---------------------------------------------------------------------------
 // Asian -> London -> New York transition tally
@@ -286,3 +341,35 @@ if barstate.islast
                 table.cell(pathTable, 3, rowNum, str.tostring(cnt), text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
                 table.cell(pathTable, 4, rowNum, str.tostring(pct, "#.#") + "%", text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
                 table.cell(pathTable, 5, rowNum, str.tostring(expectedPct, "#.#") + "%", text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+
+// ---------------------------------------------------------------------------
+// London pullback -> New York continuation results
+//
+// For days London broke Up or Down: "Direct" = New York never dipped back
+// into London's range at all, "Pullback -> Continue" = it dipped back into
+// London's range and later re-broke it in the same original direction
+// (the "UK trend, NY pulls back then follows" pattern), "Pullback ->
+// Failed" = it dipped back in and never re-broke that direction before the
+// cutoff.
+// ---------------------------------------------------------------------------
+
+var table pullbackTable = table.new(position.bottom_right, 4, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+
+if barstate.islast and pullbackTrackEnabled
+    table.cell(pullbackTable, 0, 0, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pullbackTable, 1, 0, "NY Outcome", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pullbackTable, 2, 0, "Days", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pullbackTable, 3, 0, "%", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+    for dirIdx = 0 to 1
+        dirTotal = londonPullback.outcomeCounts.get(dirIdx * 3) + londonPullback.outcomeCounts.get(dirIdx * 3 + 1) + londonPullback.outcomeCounts.get(dirIdx * 3 + 2)
+        for outcomeIdx = 0 to 2
+            idx = dirIdx * 3 + outcomeIdx
+            cnt = londonPullback.outcomeCounts.get(idx)
+            pct = dirTotal == 0 ? 0.0 : (cnt / dirTotal) * 100
+            rowNum = idx + 1
+            rowBg = cnt == 0 ? color.new(color.black, 15) : outcomeIdx == 1 ? color.new(color.lime, 65) : color.new(color.teal, 80)
+            table.cell(pullbackTable, 0, rowNum, dirIdx == 0 ? "Up" : "Down", text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+            table.cell(pullbackTable, 1, rowNum, outcomeLabel(outcomeIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+            table.cell(pullbackTable, 2, rowNum, str.tostring(cnt), text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
+            table.cell(pullbackTable, 3, rowNum, str.tostring(pct, "#.#") + "%", text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
