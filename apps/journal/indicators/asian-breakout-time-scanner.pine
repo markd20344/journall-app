@@ -163,11 +163,19 @@ scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay
 type PullbackState
     bool pulledBackToday = false
     bool continuedAfterPullback = false
+    bool clearedRangeToday = false
     array<int> outcomeCounts
 
 // outcomeCounts index = dirIdx * 3 + outcomeIdx
 // dirIdx: 0 = London broke Up, 1 = London broke Down
 // outcomeIdx: 0 = Direct (no pullback), 1 = Pullback then continued, 2 = Pullback then failed
+//
+// A breakout is defined by its CLOSE being outside the range, so the
+// breakout bar itself very often still has its low/high sitting inside the
+// range - that's normal candle shape, not a pullback. `clearedRangeToday`
+// requires seeing one bar fully (both high and low) outside the range
+// before pullback-watching starts, so the breakout candle's own wick can't
+// trip the check.
 trackPullback(PullbackState pb, ScanState sess, bool enabled, bool isNewDay, bool withinLookback, bool withinWindow) =>
     if enabled
         if isNewDay
@@ -178,17 +186,26 @@ trackPullback(PullbackState pb, ScanState sess, bool enabled, bool isNewDay, boo
                 pb.outcomeCounts.set(idx, pb.outcomeCounts.get(idx) + 1)
             pb.pulledBackToday := false
             pb.continuedAfterPullback := false
+            pb.clearedRangeToday := false
         else if withinWindow and sess.breakDirectionToday != 0 and not na(sess.rangeHigh)
             if sess.breakDirectionToday == 1
-                if not pb.pulledBackToday and low <= sess.rangeHigh
-                    pb.pulledBackToday := true
-                if pb.pulledBackToday and not pb.continuedAfterPullback and close > sess.rangeHigh
-                    pb.continuedAfterPullback := true
+                if not pb.clearedRangeToday
+                    if low > sess.rangeHigh
+                        pb.clearedRangeToday := true
+                else
+                    if not pb.pulledBackToday and low <= sess.rangeHigh
+                        pb.pulledBackToday := true
+                    if pb.pulledBackToday and not pb.continuedAfterPullback and close > sess.rangeHigh
+                        pb.continuedAfterPullback := true
             else
-                if not pb.pulledBackToday and high >= sess.rangeLow
-                    pb.pulledBackToday := true
-                if pb.pulledBackToday and not pb.continuedAfterPullback and close < sess.rangeLow
-                    pb.continuedAfterPullback := true
+                if not pb.clearedRangeToday
+                    if high < sess.rangeLow
+                        pb.clearedRangeToday := true
+                else
+                    if not pb.pulledBackToday and high >= sess.rangeLow
+                        pb.pulledBackToday := true
+                    if pb.pulledBackToday and not pb.continuedAfterPullback and close < sess.rangeLow
+                        pb.continuedAfterPullback := true
     true
 
 // ---------------------------------------------------------------------------
