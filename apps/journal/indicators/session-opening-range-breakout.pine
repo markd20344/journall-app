@@ -30,6 +30,7 @@ showBreakoutMarkersInput = input.bool(true, title="Show breakout markers", group
 lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, group="General")
 cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval=23, inline="cutoff", group="General", tooltip="Rays stop extending at this time (in the session timezone above) instead of running to midnight.")
 cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
+showTableInput = input.bool(true, title="Show pip range table", group="General")
 
 asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
 asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
@@ -73,6 +74,7 @@ type SessionState
     int   rangeDay = na
     bool  breakUpFired = false
     bool  breakDownFired = false
+    bool  currentlyInSession = false
     array<line>  topHist
     array<line>  botHist
     array<box>   boxHist
@@ -87,6 +89,25 @@ pad2(n) =>
 
 sessionString(startH, startM, endH, endM) =>
     pad2(startH) + pad2(startM) + "-" + pad2(endH) + pad2(endM)
+
+// 5-decimal (0.00001) and 3-decimal (0.001) feeds are "fractional pip" quotes,
+// so a real pip there is 10 ticks; 4-decimal and 2-decimal (JPY) feeds already
+// quote in whole pips.
+pipSize = syminfo.mintick * (syminfo.mintick == 0.00001 or syminfo.mintick == 0.001 ? 10 : 1)
+
+// Short status for the table: "Pending" before the range starts today,
+// "Forming" while the first hour is still building, then the width in pips.
+sessionStatusText(SessionState state, bool enabled, int todayKey) =>
+    string txt = "Off"
+    if enabled
+        if state.currentlyInSession
+            txt := "Forming"
+        else if state.rangeDay == todayKey and not na(state.rangeHigh)
+            pips = (state.rangeHigh - state.rangeLow) / pipSize
+            txt := str.tostring(pips, "#.#") + " pips"
+        else
+            txt := "Pending"
+    txt
 
 trimLines(array<line> arr, int maxDays) =>
     if arr.size() > maxDays
@@ -172,6 +193,7 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
                 state.breakDownFired := true
 
         prevInSession := inSess
+        state.currentlyInSession := inSess
 
     [breakUp, breakDown]
 
@@ -215,3 +237,24 @@ alertcondition(nyBreakDown, title="New York Range Breakout Down", message="Price
 
 emaValue = ta.ema(emaSource, emaLength)
 plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth)
+
+// ---------------------------------------------------------------------------
+// Pip range table (top-right of the chart)
+// ---------------------------------------------------------------------------
+
+var table rangeTable = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+
+if showTableInput and barstate.islast
+    todayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
+
+    table.cell(rangeTable, 0, 0, "Session", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(rangeTable, 1, 0, "Range", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+    table.cell(rangeTable, 0, 1, "Asia", text_color=asianColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, 1, sessionStatusText(asianState, asianEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+    table.cell(rangeTable, 0, 2, "London", text_color=londonColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, 2, sessionStatusText(londonState, londonEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+    table.cell(rangeTable, 0, 3, "New York", text_color=nyColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, 3, sessionStatusText(nyState, nyEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
