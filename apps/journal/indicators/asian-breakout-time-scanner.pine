@@ -188,6 +188,21 @@ if isNewDay and asianScan.finalizedValid and londonScan.finalizedValid and nySca
     pathCounts.set(pathIdx, pathCounts.get(pathIdx) + 1)
     pathDaysTotal += 1
 
+// How many days had a given session (0=Asian, 1=London, 2=NY) sit at a
+// given direction (0=Up, 1=Down, 2=Flat), regardless of the other two -
+// each session's own unconditional (marginal) rate, derived by summing the
+// matching slice of the joint table rather than tracking it separately.
+marginalCount(int sessionPos, int wantIdx) =>
+    total = 0
+    for a = 0 to 2
+        for l = 0 to 2
+            for n = 0 to 2
+                idx = a * 9 + l * 3 + n
+                matches = sessionPos == 0 ? a == wantIdx : sessionPos == 1 ? l == wantIdx : n == wantIdx
+                if matches
+                    total += pathCounts.get(idx)
+    total
+
 // ---------------------------------------------------------------------------
 // Results table: Hour | Asian | London | New York
 // ---------------------------------------------------------------------------
@@ -242,7 +257,7 @@ if barstate.islast
 // each session's own "Days scanned" above.
 // ---------------------------------------------------------------------------
 
-var table pathTable = table.new(position.top_left, 5, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table pathTable = table.new(position.top_left, 6, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast
     table.cell(pathTable, 0, 0, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
@@ -250,6 +265,7 @@ if barstate.islast
     table.cell(pathTable, 2, 0, "New York", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
     table.cell(pathTable, 3, 0, "Days", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
     table.cell(pathTable, 4, 0, "%", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 5, 0, "Expected %", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
 
     for asianIdx = 0 to 2
         for londonIdx = 0 to 2
@@ -257,6 +273,10 @@ if barstate.islast
                 pathIdx = asianIdx * 9 + londonIdx * 3 + nyIdx
                 cnt = pathCounts.get(pathIdx)
                 pct = pathDaysTotal == 0 ? 0.0 : (cnt / pathDaysTotal) * 100
+                asianMarginal = pathDaysTotal == 0 ? 0.0 : marginalCount(0, asianIdx) / pathDaysTotal
+                londonMarginal = pathDaysTotal == 0 ? 0.0 : marginalCount(1, londonIdx) / pathDaysTotal
+                nyMarginal = pathDaysTotal == 0 ? 0.0 : marginalCount(2, nyIdx) / pathDaysTotal
+                expectedPct = asianMarginal * londonMarginal * nyMarginal * 100
                 rowNum = pathIdx + 1
                 isFullChain = asianIdx == londonIdx and londonIdx == nyIdx and asianIdx != 2
                 rowBg = cnt == 0 ? color.new(color.black, 15) : isFullChain ? color.new(color.lime, 65) : color.new(color.teal, 80)
@@ -265,3 +285,4 @@ if barstate.islast
                 table.cell(pathTable, 2, rowNum, dirLabel(nyIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
                 table.cell(pathTable, 3, rowNum, str.tostring(cnt), text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
                 table.cell(pathTable, 4, rowNum, str.tostring(pct, "#.#") + "%", text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(pathTable, 5, rowNum, str.tostring(expectedPct, "#.#") + "%", text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
