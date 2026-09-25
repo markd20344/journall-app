@@ -1,0 +1,134 @@
+//@version=6
+
+// Asian Range Breakout Time Scanner
+// Answers "what time does the Asian range actually tend to break, and how
+// often does something happen in a specific follow-up window (default
+// 07:00-07:30)?" using the chart's own historical bars, instead of manually
+// eyeballing screenshots day by day.
+//
+// For each day in the lookback window it records:
+//  - the hour (in the timezone below) of the FIRST bar whose close is
+//    outside that day's opening-range high/low
+//  - whether ANY bar during the "secondary window" (default 07:00-07:30)
+//    closed outside the range, regardless of whether that was the day's
+//    first break or not
+//
+// Results are shown as an hourly histogram plus a summary line. Use an
+// intraday chart (1m-15m) with enough loaded history to cover the lookback
+// period you set.
+
+indicator("Asian Range Breakout Time Scanner", shorttitle="ORB Scanner", overlay=false, max_labels_count=500)
+
+// ---------------------------------------------------------------------------
+// Inputs
+// ---------------------------------------------------------------------------
+
+tzInput = input.string("Europe/London", title="Timezone", group="General")
+lookbackDays = input.int(90, title="Days to scan back", minval=5, maxval=730, group="General")
+
+rangeStartH = input.int(1, title="Start Hour", minval=0, maxval=23, inline="rangeStart", group="Opening Range")
+rangeStartM = input.int(0, title="Start Min", minval=0, maxval=59, inline="rangeStart", group="Opening Range")
+rangeEndH   = input.int(2, title="End Hour", minval=0, maxval=23, inline="rangeEnd", group="Opening Range")
+rangeEndM   = input.int(0, title="End Min", minval=0, maxval=59, inline="rangeEnd", group="Opening Range")
+
+winStartH = input.int(7, title="Start Hour", minval=0, maxval=23, inline="winStart", group="Secondary Window")
+winStartM = input.int(0, title="Start Min", minval=0, maxval=59, inline="winStart", group="Secondary Window")
+winEndH   = input.int(7, title="End Hour", minval=0, maxval=23, inline="winEnd", group="Secondary Window")
+winEndM   = input.int(30, title="End Min", minval=0, maxval=59, inline="winEnd", group="Secondary Window")
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+pad2(n) =>
+    n < 10 ? "0" + str.tostring(n) : str.tostring(n)
+
+// ---------------------------------------------------------------------------
+// Per-day range tracking
+// ---------------------------------------------------------------------------
+
+sessionStr = pad2(rangeStartH) + pad2(rangeStartM) + "-" + pad2(rangeEndH) + pad2(rangeEndM)
+t = time(timeframe.period, sessionStr, tzInput)
+inSess = not na(t)
+
+var bool prevInSess = false
+newSess = inSess and not prevInSess
+
+var float rangeHigh = na
+var float rangeLow = na
+var int   dayKey = na
+var bool  firstBreakDoneToday = false
+var bool  secondaryWindowHitToday = false
+var bool  dayHadRange = false
+
+curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
+isNewDay = na(dayKey) or curDayKey != dayKey
+
+withinLookback = time >= (last_bar_time - lookbackDays * 24 * 60 * 60 * 1000)
+
+var array<int> hourCounts = array.new<int>(24, 0)
+var int totalDaysScanned = 0
+var int secondaryWindowDays = 0
+
+if isNewDay
+    // Finalize the day that just ended (only if it's inside our lookback
+    // window and actually had a completed opening range).
+    if dayHadRange and withinLookback
+        totalDaysScanned += 1
+        if secondaryWindowHitToday
+            secondaryWindowDays += 1
+    dayKey := curDayKey
+    rangeHigh := na
+    rangeLow := na
+    firstBreakDoneToday := false
+    secondaryWindowHitToday := false
+    dayHadRange := false
+
+if newSess
+    rangeHigh := high
+    rangeLow := low
+    dayHadRange := true
+else if inSess
+    rangeHigh := math.max(rangeHigh, high)
+    rangeLow := math.min(rangeLow, low)
+
+if not inSess and dayHadRange
+    isBreakoutBar = close > rangeHigh or close < rangeLow
+    if isBreakoutBar
+        curHour = hour(time, tzInput)
+        curMin = minute(time, tzInput)
+        minutesNow = curHour * 60 + curMin
+        winStartMinutes = winStartH * 60 + winStartM
+        winEndMinutes = winEndH * 60 + winEndM
+
+        if not firstBreakDoneToday
+            firstBreakDoneToday := true
+            hourCounts.set(curHour, hourCounts.get(curHour) + 1)
+
+        if not secondaryWindowHitToday and minutesNow >= winStartMinutes and minutesNow < winEndMinutes
+            secondaryWindowHitToday := true
+
+prevInSess := inSess
+
+// ---------------------------------------------------------------------------
+// Results table
+// ---------------------------------------------------------------------------
+
+var table resultsTable = table.new(position.top_right, 2, 27, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+
+if barstate.islast
+    table.cell(resultsTable, 0, 0, "Hour (" + tzInput + ")", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 0, "First Breaks", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+    for h = 0 to 23
+        cnt = hourCounts.get(h)
+        rowColor = cnt > 0 ? color.new(color.teal, 70) : color.new(color.black, 15)
+        table.cell(resultsTable, 0, h + 1, pad2(h) + ":00", text_color=color.gray, bgcolor=color.new(color.black, 15), text_size=size.tiny)
+        table.cell(resultsTable, 1, h + 1, str.tostring(cnt), text_color=color.white, bgcolor=rowColor, text_size=size.tiny)
+
+    winLabel = pad2(winStartH) + ":" + pad2(winStartM) + "-" + pad2(winEndH) + ":" + pad2(winEndM)
+    secondaryPct = totalDaysScanned == 0 ? 0.0 : (secondaryWindowDays / totalDaysScanned) * 100
+    table.cell(resultsTable, 0, 25, "Days scanned", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 25, str.tostring(totalDaysScanned), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 0, 26, winLabel + " hit", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 26, str.tostring(secondaryWindowDays) + " (" + str.tostring(secondaryPct, "#.#") + "%)", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
