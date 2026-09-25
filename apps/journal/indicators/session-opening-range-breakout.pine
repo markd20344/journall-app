@@ -31,6 +31,8 @@ lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, 
 cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval=23, inline="cutoff", group="General", tooltip="Rays stop extending at this time (in the session timezone above) instead of running to midnight.")
 cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
 showTableInput = input.bool(true, title="Show pip range table", group="General")
+showDaysTableInput = input.bool(true, title="Show daily red/green day table", group="General")
+daysToShowInput = input.int(10, title="Days to show in red/green table", minval=5, maxval=20, group="General")
 
 asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
 asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
@@ -258,3 +260,44 @@ if showTableInput and barstate.islast
 
     table.cell(rangeTable, 0, 3, "New York", text_color=nyColor, bgcolor=color.new(color.black, 15), text_size=size.small)
     table.cell(rangeTable, 1, 3, sessionStatusText(nyState, nyEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+// ---------------------------------------------------------------------------
+// Daily red/green day tracker
+// ---------------------------------------------------------------------------
+
+var float dayOpenPrice = na
+var float dayClosePrice = na
+var int   dayKeyTracker = na
+var array<color> dayColorHist = array.new<color>()
+var array<int>   dayNumHist = array.new<int>()
+
+curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
+
+if na(dayKeyTracker) or curDayKey != dayKeyTracker
+    if not na(dayOpenPrice)
+        dayColorHist.push(dayClosePrice >= dayOpenPrice ? color.green : color.red)
+        dayNumHist.push(dayKeyTracker % 100)
+        if dayColorHist.size() > daysToShowInput
+            dayColorHist.shift()
+            dayNumHist.shift()
+    dayOpenPrice := open
+    dayKeyTracker := curDayKey
+
+dayClosePrice := close
+
+var table daysTable = table.new(position.bottom_right, daysToShowInput + 1, 1, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+
+if showDaysTableInput and barstate.islast
+    pastDaysCount = dayNumHist.size()
+    blankCols = daysToShowInput - pastDaysCount
+
+    if blankCols > 0
+        for i = 0 to blankCols - 1
+            table.cell(daysTable, i, 0, "", bgcolor=color.new(color.black, 15))
+
+    if pastDaysCount > 0
+        for i = 0 to pastDaysCount - 1
+            table.cell(daysTable, blankCols + i, 0, str.tostring(dayNumHist.get(i)), text_color=color.white, bgcolor=dayColorHist.get(i), text_size=size.small)
+
+    todayColor = dayClosePrice >= dayOpenPrice ? color.green : color.red
+    table.cell(daysTable, daysToShowInput, 0, str.tostring(dayKeyTracker % 100), text_color=color.white, bgcolor=todayColor, text_size=size.small)
