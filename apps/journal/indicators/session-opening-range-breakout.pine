@@ -32,7 +32,7 @@ cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval
 cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
 showTableInput = input.bool(true, title="Show pip range table", group="General")
 showDaysTableInput = input.bool(true, title="Show daily red/green day table", group="General")
-daysToShowInput = input.int(10, title="Days to show in red/green table", minval=5, maxval=20, group="General")
+daysToShowInput = input.int(28, title="Days to show in red/green table", minval=5, maxval=40, group="General")
 
 asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
 asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
@@ -60,6 +60,11 @@ emaSource  = input.source(close, title="Source", group="EMA")
 emaLength  = input.int(8, title="Length", minval=1, group="EMA")
 emaColor   = input.color(color.red, title="Color", group="EMA")
 emaWidth   = input.int(2, title="Line Width", minval=1, maxval=4, group="EMA")
+
+adrEnabled = input.bool(true, title="Show ADR (in pip table)", group="ADR")
+adrLength = input.int(10, title="ADR Lookback (completed days)", minval=1, maxval=50, group="ADR")
+adrShowLines = input.bool(true, title="Show projected high/low lines from today's open", group="ADR")
+adrLineColor = input.color(color.purple, title="ADR Line Color", group="ADR")
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +96,22 @@ pad2(n) =>
 
 sessionString(startH, startM, endH, endM) =>
     pad2(startH) + pad2(startM) + "-" + pad2(endH) + pad2(endM)
+
+// First letter of the day name (Tue/Thu and Sat/Sun share a letter, same as
+// most single-letter weekday strips).
+dayLetter(int dow) =>
+    string result = "S"
+    if dow == dayofweek.monday
+        result := "M"
+    else if dow == dayofweek.tuesday
+        result := "T"
+    else if dow == dayofweek.wednesday
+        result := "W"
+    else if dow == dayofweek.thursday
+        result := "T"
+    else if dow == dayofweek.friday
+        result := "F"
+    result
 
 // 5-decimal (0.00001) and 3-decimal (0.001) feeds are "fractional pip" quotes,
 // so a real pip there is 10 ticks; 4-decimal and 2-decimal (JPY) feeds already
@@ -241,10 +262,72 @@ emaValue = ta.ema(emaSource, emaLength)
 plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth)
 
 // ---------------------------------------------------------------------------
+// Daily tracker: red/green day history, day-of-week and ADR (average daily range)
+// ---------------------------------------------------------------------------
+
+var float dayOpenPrice = na
+var float dayHighPrice = na
+var float dayLowPrice = na
+var float dayClosePrice = na
+var int   dayKeyTracker = na
+var int   dowTracker = na
+var int   dayStartIdx = na
+var array<color> dayColorHist = array.new<color>()
+var array<int>   dayNumHist = array.new<int>()
+var array<int>   dayDowHist = array.new<int>()
+var array<float> dayRangeHist = array.new<float>()
+
+curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
+isNewDay = na(dayKeyTracker) or curDayKey != dayKeyTracker
+
+if isNewDay
+    if not na(dayOpenPrice)
+        dayColorHist.push(dayClosePrice >= dayOpenPrice ? color.green : color.red)
+        dayNumHist.push(dayKeyTracker % 100)
+        dayDowHist.push(dowTracker)
+        dayRangeHist.push(dayHighPrice - dayLowPrice)
+        if dayColorHist.size() > daysToShowInput
+            dayColorHist.shift()
+            dayNumHist.shift()
+            dayDowHist.shift()
+        if dayRangeHist.size() > adrLength
+            dayRangeHist.shift()
+    dayOpenPrice := open
+    dayHighPrice := high
+    dayLowPrice := low
+    dayKeyTracker := curDayKey
+    dowTracker := dayofweek(time, tzInput)
+    dayStartIdx := bar_index
+else
+    dayHighPrice := math.max(dayHighPrice, high)
+    dayLowPrice := math.min(dayLowPrice, low)
+
+dayClosePrice := close
+
+adrPips = dayRangeHist.size() == 0 ? na : array.sum(dayRangeHist) / dayRangeHist.size() / pipSize
+
+// Projected high/low for today: one persistent pair of lines, repositioned to
+// the new day's open and extended forward each bar (no new object per day).
+var line adrHighLine = na
+var line adrLowLine = na
+
+if adrEnabled and adrShowLines and not na(adrPips)
+    adrHalfPrice = (adrPips / 2) * pipSize
+    projHigh = dayOpenPrice + adrHalfPrice
+    projLow = dayOpenPrice - adrHalfPrice
+    if na(adrHighLine)
+        adrHighLine := line.new(x1=dayStartIdx, y1=projHigh, x2=dayStartIdx, y2=projHigh, color=adrLineColor, style=line.style_dashed, width=1)
+        adrLowLine := line.new(x1=dayStartIdx, y1=projLow, x2=dayStartIdx, y2=projLow, color=adrLineColor, style=line.style_dashed, width=1)
+    line.set_xy1(adrHighLine, dayStartIdx, projHigh)
+    line.set_xy2(adrHighLine, bar_index, projHigh)
+    line.set_xy1(adrLowLine, dayStartIdx, projLow)
+    line.set_xy2(adrLowLine, bar_index, projLow)
+
+// ---------------------------------------------------------------------------
 // Pip range table (top-right of the chart)
 // ---------------------------------------------------------------------------
 
-var table rangeTable = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table rangeTable = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if showTableInput and barstate.islast
     todayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
@@ -261,43 +344,39 @@ if showTableInput and barstate.islast
     table.cell(rangeTable, 0, 3, "New York", text_color=nyColor, bgcolor=color.new(color.black, 15), text_size=size.small)
     table.cell(rangeTable, 1, 3, sessionStatusText(nyState, nyEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
 
+    if adrEnabled
+        adrText = na(adrPips) ? "..." : str.tostring(adrPips, "#.#") + " pips"
+        table.cell(rangeTable, 0, 4, "ADR (" + str.tostring(adrLength) + "d)", text_color=adrLineColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 1, 4, adrText, text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
 // ---------------------------------------------------------------------------
-// Daily red/green day tracker
+// Daily red/green day table: 4 weeks, day-of-week letter, week separators
 // ---------------------------------------------------------------------------
 
-var float dayOpenPrice = na
-var float dayClosePrice = na
-var int   dayKeyTracker = na
-var array<color> dayColorHist = array.new<color>()
-var array<int>   dayNumHist = array.new<int>()
-
-curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
-
-if na(dayKeyTracker) or curDayKey != dayKeyTracker
-    if not na(dayOpenPrice)
-        dayColorHist.push(dayClosePrice >= dayOpenPrice ? color.green : color.red)
-        dayNumHist.push(dayKeyTracker % 100)
-        if dayColorHist.size() > daysToShowInput
-            dayColorHist.shift()
-            dayNumHist.shift()
-    dayOpenPrice := open
-    dayKeyTracker := curDayKey
-
-dayClosePrice := close
-
-var table daysTable = table.new(position.bottom_right, daysToShowInput + 1, 1, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+tableCols = daysToShowInput * 2
+var table daysTable = table.new(position.bottom_right, tableCols, 2, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if showDaysTableInput and barstate.islast
     pastDaysCount = dayNumHist.size()
-    blankCols = daysToShowInput - pastDaysCount
-
-    if blankCols > 0
-        for i = 0 to blankCols - 1
-            table.cell(daysTable, i, 0, "", bgcolor=color.new(color.black, 15))
+    col = 0
+    int prevDow = na
 
     if pastDaysCount > 0
         for i = 0 to pastDaysCount - 1
-            table.cell(daysTable, blankCols + i, 0, str.tostring(dayNumHist.get(i)), text_color=color.white, bgcolor=dayColorHist.get(i), text_size=size.small)
+            dow = dayDowHist.get(i)
+            if not na(prevDow) and dow <= prevDow
+                table.cell(daysTable, col, 0, "", bgcolor=color.new(color.black, 15))
+                table.cell(daysTable, col, 1, "", bgcolor=color.new(color.black, 15))
+                col += 1
+            table.cell(daysTable, col, 0, dayLetter(dow), text_color=color.gray, bgcolor=color.new(color.black, 15), text_size=size.tiny)
+            table.cell(daysTable, col, 1, str.tostring(dayNumHist.get(i)), text_color=color.white, bgcolor=dayColorHist.get(i), text_size=size.small)
+            col += 1
+            prevDow := dow
 
+    if not na(prevDow) and dowTracker <= prevDow
+        table.cell(daysTable, col, 0, "", bgcolor=color.new(color.black, 15))
+        table.cell(daysTable, col, 1, "", bgcolor=color.new(color.black, 15))
+        col += 1
     todayColor = dayClosePrice >= dayOpenPrice ? color.green : color.red
-    table.cell(daysTable, daysToShowInput, 0, str.tostring(dayKeyTracker % 100), text_color=color.white, bgcolor=todayColor, text_size=size.small)
+    table.cell(daysTable, col, 0, dayLetter(dowTracker), text_color=color.gray, bgcolor=color.new(color.black, 15), text_size=size.tiny)
+    table.cell(daysTable, col, 1, str.tostring(dayKeyTracker % 100), text_color=color.white, bgcolor=todayColor, text_size=size.small)
