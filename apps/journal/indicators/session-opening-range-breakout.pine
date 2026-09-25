@@ -79,6 +79,15 @@ openLineEnabled = input.bool(true, title="Show today's open as a ray", group="Op
 openLineColor = input.color(color.yellow, title="Color", group="Open Line")
 openLineWidth = input.int(2, title="Width", minval=1, maxval=4, group="Open Line")
 
+pivotsEnabled = input.bool(true, title="Show Mauro Pivot Levels (PP/R1/R2/S1/S2)", group="Mauro Pivots")
+pivotShowMidpoints = input.bool(true, title="Show Midpoint Levels (M1-M4)", group="Mauro Pivots")
+pivotShowLabels = input.bool(true, title="Show Level Labels", group="Mauro Pivots")
+pivotLineWidth = input.int(1, title="Major Level Line Width", minval=1, maxval=4, group="Mauro Pivots")
+ppColor = input.color(color.white, title="PP Color", group="Mauro Pivots")
+resistanceColor = input.color(#ff5252, title="Resistance (R1/R2) Color", group="Mauro Pivots")
+supportColor = input.color(#4fc3f7, title="Support (S1/S2) Color", group="Mauro Pivots")
+midColor = input.color(color.gray, title="Midpoint (M1-M4) Color", group="Mauro Pivots")
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -144,6 +153,32 @@ sessionStatusText(SessionState state, bool enabled, int todayKey) =>
         else
             txt := "Pending"
     txt
+
+// Repositions a single persistent pivot-level line (and its optional label)
+// to today's value each day, extending it to bar_index while `extend` is
+// true and freezing it once the trading-day cutoff is passed. `dashed`
+// picks solid (major levels) vs dashed (midpoint levels) style. Lines are
+// drawn with extra transparency to stay subtle rather than bold; the label
+// sits at the line's right (current) end, away from the candles.
+pivotLevel(line ln, label lbl, float price, string levelName, color col, int widthPx, int startIdx, int curIdx, bool extend, bool showLabel, bool dashed) =>
+    line resultLine = ln
+    label resultLabel = lbl
+    lineColor = color.new(col, 45)
+    if not na(price)
+        if na(resultLine)
+            resultLine := line.new(x1=startIdx, y1=price, x2=startIdx, y2=price, color=lineColor, width=widthPx, style=dashed ? line.style_dashed : line.style_solid)
+        if extend
+            line.set_xy1(resultLine, startIdx, price)
+            line.set_xy2(resultLine, curIdx, price)
+        if showLabel
+            if na(resultLabel)
+                resultLabel := label.new(x=curIdx, y=price, text=levelName, style=label.style_label_right, color=color.new(color.black, 30), textcolor=color.new(col, 15), size=size.tiny)
+            if extend
+                label.set_xy(resultLabel, curIdx, price)
+        else if not na(resultLabel)
+            label.delete(resultLabel)
+            resultLabel := na
+    [resultLine, resultLabel]
 
 trimLines(array<line> arr, int maxDays) =>
     if arr.size() > maxDays
@@ -302,6 +337,16 @@ var array<int>   dayNumHist = array.new<int>()
 var array<int>   dayDowHist = array.new<int>()
 var array<float> dayRangeHist = array.new<float>()
 
+var float pivotPP = na
+var float pivotR1 = na
+var float pivotR2 = na
+var float pivotS1 = na
+var float pivotS2 = na
+var float pivotM1 = na
+var float pivotM2 = na
+var float pivotM3 = na
+var float pivotM4 = na
+
 curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
 isNewDay = na(dayKeyTracker) or curDayKey != dayKeyTracker
 
@@ -311,6 +356,19 @@ if isNewDay
         dayNumHist.push(dayKeyTracker % 100)
         dayDowHist.push(dowTracker)
         dayRangeHist.push(dayHighPrice - dayLowPrice)
+
+        // Classic floor pivots from the day that just finished, plus Mauro's
+        // midpoints between each pair of adjacent major levels.
+        pivotPP := (dayHighPrice + dayLowPrice + dayClosePrice) / 3
+        pivotR1 := 2 * pivotPP - dayLowPrice
+        pivotS1 := 2 * pivotPP - dayHighPrice
+        pivotR2 := pivotPP + (dayHighPrice - dayLowPrice)
+        pivotS2 := pivotPP - (dayHighPrice - dayLowPrice)
+        pivotM4 := (pivotR1 + pivotR2) / 2
+        pivotM3 := (pivotPP + pivotR1) / 2
+        pivotM2 := (pivotPP + pivotS1) / 2
+        pivotM1 := (pivotS1 + pivotS2) / 2
+
         if dayColorHist.size() > daysToShowInput
             dayColorHist.shift()
             dayNumHist.shift()
@@ -328,6 +386,13 @@ else
     dayLowPrice := math.min(dayLowPrice, low)
 
 dayClosePrice := close
+
+// Shared "still within today's trading day" flag: true until the configured
+// cutoff time, used to freeze all of today's rays at end-of-day rather than
+// letting them run into the next session.
+minutesOfDayGlobal = hour(time, tzInput) * 60 + minute(time, tzInput)
+cutoffMinutesGlobal = cutoffHourInput * 60 + cutoffMinuteInput
+withinTradingDayGlobal = minutesOfDayGlobal < cutoffMinutesGlobal
 
 adrPips = dayRangeHist.size() == 0 ? na : array.sum(dayRangeHist) / dayRangeHist.size() / pipSize
 
@@ -354,14 +419,64 @@ if adrEnabled and adrShowLines and not na(adrPips)
 var line openLine = na
 
 if openLineEnabled
-    openMinutesOfDay = hour(time, tzInput) * 60 + minute(time, tzInput)
-    openCutoffMinutes = cutoffHourInput * 60 + cutoffMinuteInput
-    openWithinTradingDay = openMinutesOfDay < openCutoffMinutes
     if na(openLine)
         openLine := line.new(x1=dayStartIdx, y1=dayOpenPrice, x2=dayStartIdx, y2=dayOpenPrice, color=openLineColor, style=line.style_solid, width=openLineWidth)
-    if openWithinTradingDay
+    if withinTradingDayGlobal
         line.set_xy1(openLine, dayStartIdx, dayOpenPrice)
         line.set_xy2(openLine, bar_index, dayOpenPrice)
+
+// Mauro pivot grid: floor pivots (PP/R1/R2/S1/S2) plus the four midpoints,
+// recalculated once per day from the previous day's H/L/C (see above), drawn
+// as rays for today and frozen at the same trading-day cutoff as everything
+// else.
+var line ppLine = na
+var line r1Line = na
+var line r2Line = na
+var line s1Line = na
+var line s2Line = na
+var line m1Line = na
+var line m2Line = na
+var line m3Line = na
+var line m4Line = na
+var label ppLabel = na
+var label r1Label = na
+var label r2Label = na
+var label s1Label = na
+var label s2Label = na
+var label m1Label = na
+var label m2Label = na
+var label m3Label = na
+var label m4Label = na
+
+if pivotsEnabled
+    [newPPLine, newPPLabel] = pivotLevel(ppLine, ppLabel, pivotPP, "PP", ppColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    ppLine := newPPLine
+    ppLabel := newPPLabel
+    [newR1Line, newR1Label] = pivotLevel(r1Line, r1Label, pivotR1, "R1", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    r1Line := newR1Line
+    r1Label := newR1Label
+    [newR2Line, newR2Label] = pivotLevel(r2Line, r2Label, pivotR2, "R2", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    r2Line := newR2Line
+    r2Label := newR2Label
+    [newS1Line, newS1Label] = pivotLevel(s1Line, s1Label, pivotS1, "S1", supportColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    s1Line := newS1Line
+    s1Label := newS1Label
+    [newS2Line, newS2Label] = pivotLevel(s2Line, s2Label, pivotS2, "S2", supportColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    s2Line := newS2Line
+    s2Label := newS2Label
+    if pivotShowMidpoints
+        [newM1Line, newM1Label] = pivotLevel(m1Line, m1Label, pivotM1, "M1", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        m1Line := newM1Line
+        m1Label := newM1Label
+        [newM2Line, newM2Label] = pivotLevel(m2Line, m2Label, pivotM2, "M2", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        m2Line := newM2Line
+        m2Label := newM2Label
+        [newM3Line, newM3Label] = pivotLevel(m3Line, m3Label, pivotM3, "M3", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        m3Line := newM3Line
+        m3Label := newM3Label
+        [newM4Line, newM4Label] = pivotLevel(m4Line, m4Label, pivotM4, "M4", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        m4Line := newM4Line
+        m4Label := newM4Label
 
 // ---------------------------------------------------------------------------
 // Pip range table (top-right of the chart)
