@@ -28,6 +28,8 @@ showBoxBorderInput = input.bool(false, title="Show box border (vertical/horizont
 showLabelsInput = input.bool(true, title="Show session name labels", group="General")
 showBreakoutMarkersInput = input.bool(true, title="Show breakout markers", group="General")
 lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, group="General")
+cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval=23, inline="cutoff", group="General", tooltip="Rays stop extending at this time (in the session timezone above) instead of running to midnight.")
+cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
 
 asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
 asianColor   = input.color(color.yellow, title="Color", inline="asianEnable", group="Asian Session")
@@ -100,7 +102,7 @@ trimLabels(array<label> arr, int maxDays) =>
 
 // Builds/updates one session's opening-range lines, box and label, and
 // returns [breakoutUp, breakoutDown] flags that fire once per finished range.
-processSession(SessionState state, bool enabled, string sess, string tz, color col, bool showBox, bool showBoxBorder, bool showLabel, string labelText, int maxDays, int widthPx) =>
+processSession(SessionState state, bool enabled, string sess, string tz, color col, bool showBox, bool showBoxBorder, bool showLabel, string labelText, int maxDays, int widthPx, int cutoffHour, int cutoffMinute) =>
     var bool prevInSession = false
     bool breakUp = false
     bool breakDown = false
@@ -111,6 +113,9 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
         newSess = inSess and not prevInSession
         currentDay = year(time, tz) * 10000 + month(time, tz) * 100 + dayofmonth(time, tz)
         sameDay = currentDay == state.rangeDay
+        curMinutesOfDay = hour(time, tz) * 60 + minute(time, tz)
+        cutoffMinutesOfDay = cutoffHour * 60 + cutoffMinute
+        withinTradingDay = sameDay and curMinutesOfDay < cutoffMinutesOfDay
 
         if newSess
             state.rangeHigh := high
@@ -154,11 +159,11 @@ processSession(SessionState state, bool enabled, string sess, string tz, color c
                 box.set_right(state.rangeBox, bar_index)
             if not na(state.rangeLabel)
                 label.set_xy(state.rangeLabel, state.startIdx, state.rangeHigh)
-        else if not inSess and not na(state.topLine) and sameDay
+        else if not inSess and not na(state.topLine) and withinTradingDay
             line.set_xy2(state.topLine, bar_index, state.rangeHigh)
             line.set_xy2(state.botLine, bar_index, state.rangeLow)
 
-        if not inSess and not na(state.rangeHigh) and sameDay
+        if not inSess and not na(state.rangeHigh) and withinTradingDay
             if not state.breakUpFired and close > state.rangeHigh
                 breakUp := true
                 state.breakUpFired := true
@@ -182,9 +187,9 @@ var SessionState nyState     = SessionState.new(topHist=array.new<line>(), botHi
 // Run each session
 // ---------------------------------------------------------------------------
 
-[asianBreakUp, asianBreakDown] = processSession(asianState, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, asianColor, showBoxInput, showBoxBorderInput, showLabelsInput, "ASIA", maxDaysHistory, lineWidthInput)
-[londonBreakUp, londonBreakDown] = processSession(londonState, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, londonColor, showBoxInput, showBoxBorderInput, showLabelsInput, "LONDON", maxDaysHistory, lineWidthInput)
-[nyBreakUp, nyBreakDown] = processSession(nyState, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, nyColor, showBoxInput, showBoxBorderInput, showLabelsInput, "NEW YORK", maxDaysHistory, lineWidthInput)
+[asianBreakUp, asianBreakDown] = processSession(asianState, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, asianColor, showBoxInput, showBoxBorderInput, showLabelsInput, "ASIA", maxDaysHistory, lineWidthInput, cutoffHourInput, cutoffMinuteInput)
+[londonBreakUp, londonBreakDown] = processSession(londonState, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, londonColor, showBoxInput, showBoxBorderInput, showLabelsInput, "LONDON", maxDaysHistory, lineWidthInput, cutoffHourInput, cutoffMinuteInput)
+[nyBreakUp, nyBreakDown] = processSession(nyState, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, nyColor, showBoxInput, showBoxBorderInput, showLabelsInput, "NEW YORK", maxDaysHistory, lineWidthInput, cutoffHourInput, cutoffMinuteInput)
 
 // ---------------------------------------------------------------------------
 // Breakout markers
