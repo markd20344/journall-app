@@ -59,6 +59,14 @@ pad2(n) =>
 sessionString(startH, startM, endH, endM) =>
     pad2(startH) + pad2(startM) + "-" + pad2(endH) + pad2(endM)
 
+// 5-decimal and 3-decimal feeds are "fractional pip" quotes (pip = 10
+// ticks); 4-decimal and 2-decimal (JPY) feeds already quote in whole pips.
+pipSize = syminfo.mintick * (syminfo.mintick == 0.00001 or syminfo.mintick == 0.001 ? 10 : 1)
+
+// idx encoding used throughout: 0 = Up, 1 = Down, 2 = Flat (never broke)
+dirLabel(int idx) =>
+    idx == 0 ? "Up" : idx == 1 ? "Down" : "Flat"
+
 // ---------------------------------------------------------------------------
 // Per-session scan state
 // ---------------------------------------------------------------------------
@@ -70,9 +78,16 @@ type ScanState
     bool  firstBreakDoneToday = false
     bool  secondaryWindowHitToday = false
     bool  prevInSess = false
+    int   breakDirectionToday = 0
+    int   finalizedDir = 0
+    bool  finalizedValid = false
     int   totalDaysScanned = 0
     int   secondaryWindowDays = 0
-    array<int> hourCounts
+    array<int>   hourCounts
+    array<float> dayRangeHist
+
+avgRangePips(ScanState state) =>
+    state.dayRangeHist.size() == 0 ? na : array.sum(state.dayRangeHist) / state.dayRangeHist.size() / pipSize
 
 // Tracks one session's opening range across the whole chart history and
 // accumulates its hourly first-break histogram (plus, optionally, the
@@ -90,11 +105,17 @@ scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay
                 state.totalDaysScanned += 1
                 if checkSecondaryWindow and state.secondaryWindowHitToday
                     state.secondaryWindowDays += 1
+                state.dayRangeHist.push(state.rangeHigh - state.rangeLow)
+                state.finalizedDir := state.breakDirectionToday
+                state.finalizedValid := true
+            else
+                state.finalizedValid := false
             state.rangeHigh := na
             state.rangeLow := na
             state.firstBreakDoneToday := false
             state.secondaryWindowHitToday := false
             state.dayHadRange := false
+            state.breakDirectionToday := 0
 
         if newSess
             state.rangeHigh := high
@@ -110,6 +131,7 @@ scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay
                 curHour = hour(time, tz)
                 if not state.firstBreakDoneToday
                     state.firstBreakDoneToday := true
+                    state.breakDirectionToday := close > state.rangeHigh ? 1 : -1
                     if withinLookback
                         state.hourCounts.set(curHour, state.hourCounts.get(curHour) + 1)
                 if checkSecondaryWindow and not state.secondaryWindowHitToday
@@ -125,9 +147,9 @@ scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay
 // Run all three sessions
 // ---------------------------------------------------------------------------
 
-var ScanState asianScan  = ScanState.new(hourCounts=array.new<int>(24, 0))
-var ScanState londonScan = ScanState.new(hourCounts=array.new<int>(24, 0))
-var ScanState nyScan     = ScanState.new(hourCounts=array.new<int>(24, 0))
+var ScanState asianScan  = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
+var ScanState londonScan = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
+var ScanState nyScan     = ScanState.new(hourCounts=array.new<int>(24, 0), dayRangeHist=array.new<float>())
 
 var int dayKey = na
 curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
@@ -144,10 +166,33 @@ scanSession(londonScan, londonEnabled, sessionString(londonStartH, londonStartM,
 scanSession(nyScan, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, isNewDay, withinLookback, false, winStartMinutes, winEndMinutes)
 
 // ---------------------------------------------------------------------------
+// Asian -> London -> New York transition tally
+//
+// Each session's day outcome is Up (broke and closed above its range),
+// Down (broke and closed below), or Flat (never closed outside its own
+// range that day). A day only counts here if all three sessions are
+// enabled and completed a valid range on it - only "London continued/
+// reversed Asian" is derived by comparing directions; New York's outcome
+// is tallied against the full (Asian, London) pair, not London alone, so
+// the table reads as a genuine 3-level chain.
+// ---------------------------------------------------------------------------
+
+var array<int> pathCounts = array.new<int>(27, 0)
+var int pathDaysTotal = 0
+
+if isNewDay and asianScan.finalizedValid and londonScan.finalizedValid and nyScan.finalizedValid
+    asianIdx = asianScan.finalizedDir == 1 ? 0 : asianScan.finalizedDir == -1 ? 1 : 2
+    londonIdx = londonScan.finalizedDir == 1 ? 0 : londonScan.finalizedDir == -1 ? 1 : 2
+    nyIdx = nyScan.finalizedDir == 1 ? 0 : nyScan.finalizedDir == -1 ? 1 : 2
+    pathIdx = asianIdx * 9 + londonIdx * 3 + nyIdx
+    pathCounts.set(pathIdx, pathCounts.get(pathIdx) + 1)
+    pathDaysTotal += 1
+
+// ---------------------------------------------------------------------------
 // Results table: Hour | Asian | London | New York
 // ---------------------------------------------------------------------------
 
-var table resultsTable = table.new(position.top_right, 4, 27, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table resultsTable = table.new(position.top_right, 4, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast
     table.cell(resultsTable, 0, 0, "Hour (" + tzInput + ")", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
@@ -176,3 +221,47 @@ if barstate.islast
     table.cell(resultsTable, 1, 26, secondaryText, text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
     table.cell(resultsTable, 2, 26, "-", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
     table.cell(resultsTable, 3, 26, "-", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+    asianAvgRange = avgRangePips(asianScan)
+    londonAvgRange = avgRangePips(londonScan)
+    nyAvgRange = avgRangePips(nyScan)
+    table.cell(resultsTable, 0, 27, "Avg Range (pips)", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 27, na(asianAvgRange) ? "-" : str.tostring(asianAvgRange, "#.#"), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 2, 27, na(londonAvgRange) ? "-" : str.tostring(londonAvgRange, "#.#"), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 3, 27, na(nyAvgRange) ? "-" : str.tostring(nyAvgRange, "#.#"), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+// ---------------------------------------------------------------------------
+// Session transition matrix: Asian -> London -> New York
+//
+// "London" and "New York" here are each session's OWN range breakout
+// direction, not a derived continuation/reversal label - read a row by
+// comparing the three directions yourself, e.g. Up/Up/Up is a full
+// continuation day, Up/Down/Up is a London fade that New York reversed
+// back through. Only days where all three sessions completed a valid
+// range are counted (see pathDaysTotal), so this total can be lower than
+// each session's own "Days scanned" above.
+// ---------------------------------------------------------------------------
+
+var table pathTable = table.new(position.bottom_right, 5, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+
+if barstate.islast
+    table.cell(pathTable, 0, 0, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 1, 0, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 2, 0, "New York", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 3, 0, "Days", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 4, 0, "%", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+
+    for asianIdx = 0 to 2
+        for londonIdx = 0 to 2
+            for nyIdx = 0 to 2
+                pathIdx = asianIdx * 9 + londonIdx * 3 + nyIdx
+                cnt = pathCounts.get(pathIdx)
+                pct = pathDaysTotal == 0 ? 0.0 : (cnt / pathDaysTotal) * 100
+                rowNum = pathIdx + 1
+                isFullChain = asianIdx == londonIdx and londonIdx == nyIdx and asianIdx != 2
+                rowBg = cnt == 0 ? color.new(color.black, 15) : isFullChain ? color.new(color.lime, 65) : color.new(color.teal, 80)
+                table.cell(pathTable, 0, rowNum, dirLabel(asianIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(pathTable, 1, rowNum, dirLabel(londonIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(pathTable, 2, rowNum, dirLabel(nyIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(pathTable, 3, rowNum, str.tostring(cnt), text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
+                table.cell(pathTable, 4, rowNum, str.tostring(pct, "#.#") + "%", text_color=color.white, bgcolor=rowBg, text_size=size.tiny)
