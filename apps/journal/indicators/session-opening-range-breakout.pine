@@ -31,7 +31,7 @@ lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, 
 cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval=23, inline="cutoff", group="General", tooltip="Rays stop extending at this time (in the session timezone above) instead of running to midnight.")
 cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
 showTableInput = input.bool(true, title="Show pip range table", group="General")
-tableTopOffsetInput = input.int(3, title="Push pip table down (blank rows, avoids TradingView icons)", minval=0, maxval=10, group="General")
+tableTopOffsetInput = input.int(1, title="Push pip table down (blank rows, avoids TradingView icons)", minval=0, maxval=10, group="General")
 showDaysTableInput = input.bool(true, title="Show daily red/green day table", group="General")
 daysToShowInput = input.int(28, title="Days to show in red/green table", minval=5, maxval=40, group="General")
 
@@ -70,6 +70,14 @@ adrLineColor = input.color(color.purple, title="ADR Line Color", group="ADR")
 tdiEnabled = input.bool(true, title="Show TDI reading (in pip table)", group="TDI")
 tdiRsiLength = input.int(13, title="RSI Period", minval=1, group="TDI")
 tdiPriceLineLength = input.int(2, title="Price Line Smoothing", minval=1, group="TDI")
+
+adxEnabled = input.bool(true, title="Show ADX reading (in pip table)", group="ADX")
+adxDiLength = input.int(14, title="DI Length", minval=1, group="ADX")
+adxSmoothing = input.int(14, title="ADX Smoothing", minval=1, group="ADX")
+
+openLineEnabled = input.bool(true, title="Show today's open as a ray", group="Open Line")
+openLineColor = input.color(color.yellow, title="Color", group="Open Line")
+openLineWidth = input.int(2, title="Width", minval=1, maxval=4, group="Open Line")
 
 // ---------------------------------------------------------------------------
 // Types
@@ -273,6 +281,12 @@ plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth
 tdiValue = ta.sma(ta.rsi(close, tdiRsiLength), tdiPriceLineLength)
 
 // ---------------------------------------------------------------------------
+// ADX reading (trend strength, no chart plot, this is a number in the table)
+// ---------------------------------------------------------------------------
+
+[adxDiPlus, adxDiMinus, adxValue] = ta.dmi(adxDiLength, adxSmoothing)
+
+// ---------------------------------------------------------------------------
 // Daily tracker: red/green day history, day-of-week and ADR (average daily range)
 // ---------------------------------------------------------------------------
 
@@ -334,11 +348,26 @@ if adrEnabled and adrShowLines and not na(adrPips)
     line.set_xy1(adrLowLine, dayStartIdx, projLow)
     line.set_xy2(adrLowLine, bar_index, projLow)
 
+// Today's open as a ray: one persistent line, repositioned to the new day's
+// open, extended forward each bar only up to the trading-day cutoff (same
+// end-of-day rule as the session rays), then frozen for the rest of the day.
+var line openLine = na
+
+if openLineEnabled
+    openMinutesOfDay = hour(time, tzInput) * 60 + minute(time, tzInput)
+    openCutoffMinutes = cutoffHourInput * 60 + cutoffMinuteInput
+    openWithinTradingDay = openMinutesOfDay < openCutoffMinutes
+    if na(openLine)
+        openLine := line.new(x1=dayStartIdx, y1=dayOpenPrice, x2=dayStartIdx, y2=dayOpenPrice, color=openLineColor, style=line.style_solid, width=openLineWidth)
+    if openWithinTradingDay
+        line.set_xy1(openLine, dayStartIdx, dayOpenPrice)
+        line.set_xy2(openLine, bar_index, dayOpenPrice)
+
 // ---------------------------------------------------------------------------
 // Pip range table (top-right of the chart)
 // ---------------------------------------------------------------------------
 
-var table rangeTable = table.new(position.top_right, 2, tableTopOffsetInput + 6, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table rangeTable = table.new(position.top_right, 2, tableTopOffsetInput + 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if showTableInput and barstate.islast
     todayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
@@ -372,6 +401,11 @@ if showTableInput and barstate.islast
         tdiColor = tdiValue >= 50 ? color.green : color.red
         table.cell(rangeTable, 0, headerRow + 5, "TDI", text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
         table.cell(rangeTable, 1, headerRow + 5, str.tostring(tdiValue, "#.#"), text_color=tdiColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+    if adxEnabled
+        adxColor = adxValue >= 25 ? color.green : color.gray
+        table.cell(rangeTable, 0, headerRow + 6, "ADX", text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 1, headerRow + 6, str.tostring(adxValue, "#.#"), text_color=adxColor, bgcolor=color.new(color.black, 15), text_size=size.small)
 
 // ---------------------------------------------------------------------------
 // Daily red/green day table: 4 weeks, day-of-week letter, week separators
