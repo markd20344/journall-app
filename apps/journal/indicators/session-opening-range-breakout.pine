@@ -66,6 +66,10 @@ adrLength = input.int(10, title="ADR Lookback (completed days)", minval=1, maxva
 adrShowLines = input.bool(true, title="Show projected high/low lines from today's open", group="ADR")
 adrLineColor = input.color(color.purple, title="ADR Line Color", group="ADR")
 
+tdiEnabled = input.bool(true, title="Show TDI reading (in pip table)", group="TDI")
+tdiRsiLength = input.int(13, title="RSI Period", minval=1, group="TDI")
+tdiPriceLineLength = input.int(2, title="Price Line Smoothing", minval=1, group="TDI")
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -262,6 +266,12 @@ emaValue = ta.ema(emaSource, emaLength)
 plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth)
 
 // ---------------------------------------------------------------------------
+// TDI reading (Price Line value only - no chart plot, this is a number in the table)
+// ---------------------------------------------------------------------------
+
+tdiValue = ta.sma(ta.rsi(close, tdiRsiLength), tdiPriceLineLength)
+
+// ---------------------------------------------------------------------------
 // Daily tracker: red/green day history, day-of-week and ADR (average daily range)
 // ---------------------------------------------------------------------------
 
@@ -327,7 +337,7 @@ if adrEnabled and adrShowLines and not na(adrPips)
 // Pip range table (top-right of the chart)
 // ---------------------------------------------------------------------------
 
-var table rangeTable = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table rangeTable = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if showTableInput and barstate.islast
     todayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
@@ -348,6 +358,11 @@ if showTableInput and barstate.islast
         adrText = na(adrPips) ? "..." : str.tostring(adrPips, "#.#") + " pips"
         table.cell(rangeTable, 0, 4, "ADR (" + str.tostring(adrLength) + "d)", text_color=adrLineColor, bgcolor=color.new(color.black, 15), text_size=size.small)
         table.cell(rangeTable, 1, 4, adrText, text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+    if tdiEnabled
+        tdiColor = tdiValue >= 50 ? color.green : color.red
+        table.cell(rangeTable, 0, 5, "TDI", text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 1, 5, str.tostring(tdiValue, "#.#"), text_color=tdiColor, bgcolor=color.new(color.black, 15), text_size=size.small)
 
 // ---------------------------------------------------------------------------
 // Daily red/green day table: 4 weeks, day-of-week letter, week separators
