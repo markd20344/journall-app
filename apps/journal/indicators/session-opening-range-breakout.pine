@@ -87,6 +87,7 @@ ppColor = input.color(color.white, title="PP Color", group="Mauro Pivots")
 resistanceColor = input.color(#ff5252, title="Resistance (R1/R2) Color", group="Mauro Pivots")
 supportColor = input.color(#4fc3f7, title="Support (S1/S2) Color", group="Mauro Pivots")
 midColor = input.color(color.gray, title="Midpoint (M1-M4) Color", group="Mauro Pivots")
+pivotExtendBars = input.int(15, title="Extend lines past price for label room (bars)", minval=0, maxval=100, group="Mauro Pivots")
 
 // ---------------------------------------------------------------------------
 // Types
@@ -155,26 +156,29 @@ sessionStatusText(SessionState state, bool enabled, int todayKey) =>
     txt
 
 // Repositions a single persistent pivot-level line (and its optional label)
-// to today's value each day, extending it to bar_index while `extend` is
-// true and freezing it once the trading-day cutoff is passed. `dashed`
-// picks solid (major levels) vs dashed (midpoint levels) style. Lines are
-// drawn with extra transparency to stay subtle rather than bold; the label
-// sits at the line's right (current) end, away from the candles.
-pivotLevel(line ln, label lbl, float price, string levelName, color col, int widthPx, int startIdx, int curIdx, bool extend, bool showLabel, bool dashed) =>
+// to today's value each day, extending it to bar_index + extendBars while
+// `extend` is true and freezing it once the trading-day cutoff is passed.
+// The extra bars beyond the current price give the label clear space to sit
+// in instead of getting clipped against the last candle. `dashed` picks
+// solid (major levels) vs dashed (midpoint levels) style. Lines are drawn
+// with extra transparency to stay subtle rather than bold; the label is
+// opaque and normal-sized so it stays legible despite the subtle line.
+pivotLevel(line ln, label lbl, float price, string levelName, color col, int widthPx, int startIdx, int curIdx, int extendBars, bool extend, bool showLabel, bool dashed) =>
     line resultLine = ln
     label resultLabel = lbl
     lineColor = color.new(col, 45)
+    lineEndIdx = curIdx + extendBars
     if not na(price)
         if na(resultLine)
             resultLine := line.new(x1=startIdx, y1=price, x2=startIdx, y2=price, color=lineColor, width=widthPx, style=dashed ? line.style_dashed : line.style_solid)
         if extend
             line.set_xy1(resultLine, startIdx, price)
-            line.set_xy2(resultLine, curIdx, price)
+            line.set_xy2(resultLine, lineEndIdx, price)
         if showLabel
             if na(resultLabel)
-                resultLabel := label.new(x=curIdx, y=price, text=levelName, style=label.style_label_right, color=color.new(color.black, 30), textcolor=color.new(col, 15), size=size.tiny)
+                resultLabel := label.new(x=lineEndIdx, y=price, text=levelName, style=label.style_label_right, color=color.new(color.black, 10), textcolor=col, size=size.small)
             if extend
-                label.set_xy(resultLabel, curIdx, price)
+                label.set_xy(resultLabel, lineEndIdx, price)
         else if not na(resultLabel)
             label.delete(resultLabel)
             resultLabel := na
@@ -449,32 +453,32 @@ var label m3Label = na
 var label m4Label = na
 
 if pivotsEnabled
-    [newPPLine, newPPLabel] = pivotLevel(ppLine, ppLabel, pivotPP, "PP", ppColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    [newPPLine, newPPLabel] = pivotLevel(ppLine, ppLabel, pivotPP, "PP", ppColor, pivotLineWidth, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, false)
     ppLine := newPPLine
     ppLabel := newPPLabel
-    [newR1Line, newR1Label] = pivotLevel(r1Line, r1Label, pivotR1, "R1", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    [newR1Line, newR1Label] = pivotLevel(r1Line, r1Label, pivotR1, "R1", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, false)
     r1Line := newR1Line
     r1Label := newR1Label
-    [newR2Line, newR2Label] = pivotLevel(r2Line, r2Label, pivotR2, "R2", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    [newR2Line, newR2Label] = pivotLevel(r2Line, r2Label, pivotR2, "R2", resistanceColor, pivotLineWidth, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, false)
     r2Line := newR2Line
     r2Label := newR2Label
-    [newS1Line, newS1Label] = pivotLevel(s1Line, s1Label, pivotS1, "S1", supportColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    [newS1Line, newS1Label] = pivotLevel(s1Line, s1Label, pivotS1, "S1", supportColor, pivotLineWidth, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, false)
     s1Line := newS1Line
     s1Label := newS1Label
-    [newS2Line, newS2Label] = pivotLevel(s2Line, s2Label, pivotS2, "S2", supportColor, pivotLineWidth, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, false)
+    [newS2Line, newS2Label] = pivotLevel(s2Line, s2Label, pivotS2, "S2", supportColor, pivotLineWidth, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, false)
     s2Line := newS2Line
     s2Label := newS2Label
     if pivotShowMidpoints
-        [newM1Line, newM1Label] = pivotLevel(m1Line, m1Label, pivotM1, "M1", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        [newM1Line, newM1Label] = pivotLevel(m1Line, m1Label, pivotM1, "M1", midColor, 1, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, true)
         m1Line := newM1Line
         m1Label := newM1Label
-        [newM2Line, newM2Label] = pivotLevel(m2Line, m2Label, pivotM2, "M2", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        [newM2Line, newM2Label] = pivotLevel(m2Line, m2Label, pivotM2, "M2", midColor, 1, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, true)
         m2Line := newM2Line
         m2Label := newM2Label
-        [newM3Line, newM3Label] = pivotLevel(m3Line, m3Label, pivotM3, "M3", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        [newM3Line, newM3Label] = pivotLevel(m3Line, m3Label, pivotM3, "M3", midColor, 1, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, true)
         m3Line := newM3Line
         m3Label := newM3Label
-        [newM4Line, newM4Label] = pivotLevel(m4Line, m4Label, pivotM4, "M4", midColor, 1, dayStartIdx, bar_index, withinTradingDayGlobal, pivotShowLabels, true)
+        [newM4Line, newM4Label] = pivotLevel(m4Line, m4Label, pivotM4, "M4", midColor, 1, dayStartIdx, bar_index, pivotExtendBars, withinTradingDayGlobal, pivotShowLabels, true)
         m4Line := newM4Line
         m4Label := newM4Label
 
