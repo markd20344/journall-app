@@ -43,7 +43,7 @@ londonEnabled = input.bool(true, title="Enable", inline="londonEnable", group="L
 londonColor   = input.color(color.blue, title="Color", inline="londonEnable", group="London Session")
 londonStartH  = input.int(8, title="Start Hour", minval=0, maxval=23, inline="londonStart", group="London Session")
 londonStartM  = input.int(0, title="Start Min", minval=0, maxval=59, inline="londonStart", group="London Session")
-londonEndH    = input.int(10, title="End Hour", minval=0, maxval=23, inline="londonEnd", group="London Session")
+londonEndH    = input.int(9, title="End Hour", minval=0, maxval=23, inline="londonEnd", group="London Session")
 londonEndM    = input.int(0, title="End Min", minval=0, maxval=59, inline="londonEnd", group="London Session")
 
 nyEnabled = input.bool(true, title="Enable", inline="nyEnable", group="New York Session")
