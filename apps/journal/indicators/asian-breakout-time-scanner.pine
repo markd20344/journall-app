@@ -312,15 +312,24 @@ if barstate.islast
 // each session's own "Days scanned" above.
 // ---------------------------------------------------------------------------
 
-var table pathTable = table.new(position.top_left, 6, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table pathTable = table.new(position.top_left, 6, 29, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast
-    table.cell(pathTable, 0, 0, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(pathTable, 1, 0, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(pathTable, 2, 0, "New York", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(pathTable, 3, 0, "Days", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(pathTable, 4, 0, "%", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(pathTable, 5, 0, "Expected %", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    // Row 0 stays blank so this table's header clears the pane's own
+    // top-left script-name legend instead of sitting under it.
+    table.cell(pathTable, 0, 0, "", bgcolor=color.new(color.black, 100))
+    table.cell(pathTable, 1, 0, "", bgcolor=color.new(color.black, 100))
+    table.cell(pathTable, 2, 0, "", bgcolor=color.new(color.black, 100))
+    table.cell(pathTable, 3, 0, "", bgcolor=color.new(color.black, 100))
+    table.cell(pathTable, 4, 0, "", bgcolor=color.new(color.black, 100))
+    table.cell(pathTable, 5, 0, "", bgcolor=color.new(color.black, 100))
+
+    table.cell(pathTable, 0, 1, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 1, 1, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 2, 1, "New York", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 3, 1, "Days", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 4, 1, "%", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(pathTable, 5, 1, "Expected %", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
 
     for asianIdx = 0 to 2
         for londonIdx = 0 to 2
@@ -332,7 +341,7 @@ if barstate.islast
                 londonMarginal = pathDaysTotal == 0 ? 0.0 : marginalCount(1, londonIdx) / pathDaysTotal
                 nyMarginal = pathDaysTotal == 0 ? 0.0 : marginalCount(2, nyIdx) / pathDaysTotal
                 expectedPct = asianMarginal * londonMarginal * nyMarginal * 100
-                rowNum = pathIdx + 1
+                rowNum = pathIdx + 2
                 isFullChain = asianIdx == londonIdx and londonIdx == nyIdx and asianIdx != 2
                 rowBg = cnt == 0 ? color.new(color.black, 15) : isFullChain ? color.new(color.lime, 65) : color.new(color.teal, 80)
                 table.cell(pathTable, 0, rowNum, dirLabel(asianIdx), text_color=color.gray, bgcolor=rowBg, text_size=size.tiny)
@@ -353,7 +362,7 @@ if barstate.islast
 // cutoff.
 // ---------------------------------------------------------------------------
 
-var table pullbackTable = table.new(position.bottom_right, 4, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table pullbackTable = table.new(position.top_center, 4, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast and pullbackTrackEnabled
     table.cell(pullbackTable, 0, 0, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
