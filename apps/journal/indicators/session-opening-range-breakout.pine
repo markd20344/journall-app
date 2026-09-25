@@ -272,7 +272,7 @@ alertcondition(nyBreakDown, title="New York Range Breakout Down", message="Price
 // ---------------------------------------------------------------------------
 
 emaValue = ta.ema(emaSource, emaLength)
-plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth)
+plot(emaEnabled ? emaValue : na, title="EMA", color=emaColor, linewidth=emaWidth, display=display.pane + display.status_line)
 
 // ---------------------------------------------------------------------------
 // TDI reading (Price Line value only - no chart plot, this is a number in the table)
