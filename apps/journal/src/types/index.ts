@@ -109,6 +109,30 @@ export interface Book {
   updatedAt: string;
 }
 
+// A single ordered step in a Procedure — deliberately just text, no
+// status/done state: a procedure is a reusable reference (how do I do this
+// again?), not a one-off checklist that gets completed and discarded.
+export interface ProcedureStep {
+  id: string;
+  text: string;
+  createdAt: string; // ISO timestamp
+}
+
+// A written-down (usually dictated) how-to for something you only do once
+// in a while and forget the steps to — "post an eBay sale via Evri". Order
+// is the array order; steps carry no field of their own to sort by, they're
+// reordered by moving them within the array (see moveProcedureStep).
+export interface Procedure {
+  id: string;
+  title: string;
+  categoryId: string | null; // optional — same Category table Tasks use, for filtering by domain
+  steps: ProcedureStep[];
+  notes: string; // freeform extras/gotchas that don't fit as a discrete step
+  lastUsedAt: string | null; // set via a "I used this" quick action, so you can see what's gone stale
+  createdAt: string;
+  updatedAt: string;
+}
+
 // A photo attached to an Item — the file itself lives in Firebase Storage
 // (not this record, and not the Item record either), the same way Family
 // Tree media works and for the same reason: Firestore documents cap out at

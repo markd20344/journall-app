@@ -17,10 +17,11 @@ import CalendarPage from "./pages/CalendarPage";
 import LogPage from "./pages/LogPage";
 import BrowsePage from "./pages/BrowsePage";
 import BooksPage from "./pages/BooksPage";
+import ProceduresPage from "./pages/ProceduresPage";
 import MarketsPage from "./pages/MarketsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "markets" | "settings";
+export type View = "today" | "write" | "calendar" | "log" | "browse" | "books" | "procedures" | "markets" | "settings";
 
 async function onSignedIn(user: User): Promise<void> {
   // Sequential, not parallel: these can touch the same item rows, and
@@ -90,6 +91,7 @@ export default function App() {
             {view === "log" && <LogPage />}
             {view === "browse" && <BrowsePage />}
             {view === "books" && <BooksPage />}
+            {view === "procedures" && <ProceduresPage />}
             {view === "markets" && <MarketsPage />}
             {view === "settings" && <SettingsPage />}
           </ErrorBoundary>

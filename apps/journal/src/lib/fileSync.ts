@@ -11,13 +11,14 @@
 //   <folder>/entries/<date>__<id>.json
 //   <folder>/items/<date>__<id>.json
 //   <folder>/books/<dateAdded>__<id>.json
+//   <folder>/procedures/<createdAt-date>__<id>.json
 //
-// Each entries/*.json, items/*.json and books/*.json file is fully
-// self-describing (includes category/topic names, linked-item ids, or the
-// resized cover image inline, not just internal ids) so it stays
+// Each entries/*.json, items/*.json, books/*.json and procedures/*.json file
+// is fully self-describing (includes category/topic names, linked-item ids,
+// or the resized cover image inline, not just internal ids) so it stays
 // human-readable and useful even without this app.
 import { db } from "../db/db";
-import type { Book, Category, Entry, Item, Topic } from "../types";
+import type { Book, Category, Entry, Item, Procedure, Topic } from "../types";
 import { importDump, type JournalDump } from "./exportImport";
 
 const SETTINGS_KEY = "syncDirectoryHandle";
@@ -85,6 +86,10 @@ function bookFileName(book: Book): string {
   return `${book.dateAdded}__${book.id}.json`;
 }
 
+function procedureFileName(procedure: Procedure): string {
+  return `${procedure.createdAt.slice(0, 10)}__${procedure.id}.json`;
+}
+
 /** Pull: read the folder's contents and merge them into the local database. */
 export async function pullFromFolder(root: FileSystemDirectoryHandle): Promise<{ added: number; updated: number }> {
   const categories = (await readJsonFile<Category[]>(root, "categories.json")) ?? [];
@@ -138,18 +143,35 @@ export async function pullFromFolder(root: FileSystemDirectoryHandle): Promise<{
     // No books/ subdirectory yet — nothing to pull.
   }
 
-  const dump: JournalDump = { exportedAt: new Date().toISOString(), categories, topics, entries, items, books };
+  const procedures: Procedure[] = [];
+  try {
+    const proceduresDir = await root.getDirectoryHandle("procedures");
+    for await (const [name, handle] of proceduresDir.entries()) {
+      if (handle.kind !== "file" || !name.endsWith(".json")) continue;
+      const file = await handle.getFile();
+      try {
+        procedures.push(JSON.parse(await file.text()) as Procedure);
+      } catch {
+        // Skip unreadable/corrupt files rather than aborting the whole sync.
+      }
+    }
+  } catch {
+    // No procedures/ subdirectory yet — nothing to pull.
+  }
+
+  const dump: JournalDump = { exportedAt: new Date().toISOString(), categories, topics, entries, items, books, procedures };
   return importDump(dump);
 }
 
 /** Push: write the full local database out to the folder as individual files. */
 export async function pushToFolder(root: FileSystemDirectoryHandle): Promise<void> {
-  const [categories, topics, entries, items, books] = await Promise.all([
+  const [categories, topics, entries, items, books, procedures] = await Promise.all([
     db.categories.toArray(),
     db.topics.toArray(),
     db.entries.toArray(),
     db.items.toArray(),
     db.books.toArray(),
+    db.procedures.toArray(),
   ]);
 
   await writeJsonFile(root, "categories.json", categories);
@@ -176,6 +198,14 @@ export async function pushToFolder(root: FileSystemDirectoryHandle): Promise<voi
     const fileHandle = await booksDir.getFileHandle(bookFileName(book), { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(book, null, 2));
+    await writable.close();
+  }
+
+  const proceduresDir = await root.getDirectoryHandle("procedures", { create: true });
+  for (const procedure of procedures) {
+    const fileHandle = await proceduresDir.getFileHandle(procedureFileName(procedure), { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(procedure, null, 2));
     await writable.close();
   }
 }
