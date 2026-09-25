@@ -1,23 +1,22 @@
 //@version=6
 
-// Asian Range Breakout Time Scanner
-// Answers "what time does the Asian range actually tend to break, and how
-// often does something happen in a specific follow-up window (default
-// 07:00-07:30)?" using the chart's own historical bars, instead of manually
-// eyeballing screenshots day by day.
+// Session Range Breakout Time Scanner
+// Answers "what time does each session's opening range actually tend to
+// break?" using the chart's own historical bars, instead of manually
+// reviewing screenshots day by day. Scans Asian, London and New York
+// opening ranges independently and shows their hourly first-break
+// histograms side by side for comparison.
 //
-// For each day in the lookback window it records:
-//  - the hour (in the timezone below) of the FIRST bar whose close is
-//    outside that day's opening-range high/low
-//  - whether ANY bar during the "secondary window" (default 07:00-07:30)
-//    closed outside the range, regardless of whether that was the day's
-//    first break or not
-//
-// Results are shown as an hourly histogram plus a summary line. Use an
-// intraday chart (1m-15m) with enough loaded history to cover the lookback
-// period you set.
+// For each enabled session, for each day in the lookback window, it
+// records the hour (in the timezone below) of the FIRST bar whose close is
+// outside that day's opening-range high/low. Asian additionally gets a
+// "secondary window" check (default 07:00-07:30): how many days had a
+// close outside the Asian range at some point during that window,
+// regardless of whether it was the day's first break. Note this measures
+// "still outside the range" rather than "a fresh event" - a day that broke
+// hours earlier and simply kept drifting also counts.
 
-indicator("Asian Range Breakout Time Scanner", shorttitle="ORB Scanner", overlay=false, max_labels_count=500)
+indicator("Session Range Breakout Time Scanner", shorttitle="Range Scanner", overlay=false, max_labels_count=500)
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -26,11 +25,25 @@ indicator("Asian Range Breakout Time Scanner", shorttitle="ORB Scanner", overlay
 tzInput = input.string("Europe/London", title="Timezone", group="General")
 lookbackDays = input.int(90, title="Days to scan back", minval=5, maxval=730, group="General")
 
-rangeStartH = input.int(1, title="Start Hour", minval=0, maxval=23, inline="rangeStart", group="Opening Range")
-rangeStartM = input.int(0, title="Start Min", minval=0, maxval=59, inline="rangeStart", group="Opening Range")
-rangeEndH   = input.int(2, title="End Hour", minval=0, maxval=23, inline="rangeEnd", group="Opening Range")
-rangeEndM   = input.int(0, title="End Min", minval=0, maxval=59, inline="rangeEnd", group="Opening Range")
+asianEnabled = input.bool(true, title="Enable", inline="asianEnable", group="Asian Session")
+asianStartH  = input.int(1, title="Start Hour", minval=0, maxval=23, inline="asianStart", group="Asian Session")
+asianStartM  = input.int(0, title="Start Min", minval=0, maxval=59, inline="asianStart", group="Asian Session")
+asianEndH    = input.int(2, title="End Hour", minval=0, maxval=23, inline="asianEnd", group="Asian Session")
+asianEndM    = input.int(0, title="End Min", minval=0, maxval=59, inline="asianEnd", group="Asian Session")
 
+londonEnabled = input.bool(true, title="Enable", inline="londonEnable", group="London Session")
+londonStartH  = input.int(8, title="Start Hour", minval=0, maxval=23, inline="londonStart", group="London Session")
+londonStartM  = input.int(0, title="Start Min", minval=0, maxval=59, inline="londonStart", group="London Session")
+londonEndH    = input.int(9, title="End Hour", minval=0, maxval=23, inline="londonEnd", group="London Session")
+londonEndM    = input.int(0, title="End Min", minval=0, maxval=59, inline="londonEnd", group="London Session")
+
+nyEnabled = input.bool(true, title="Enable", inline="nyEnable", group="New York Session")
+nyStartH  = input.int(14, title="Start Hour", minval=0, maxval=23, inline="nyStart", group="New York Session")
+nyStartM  = input.int(30, title="Start Min", minval=0, maxval=59, inline="nyStart", group="New York Session")
+nyEndH    = input.int(15, title="End Hour", minval=0, maxval=23, inline="nyEnd", group="New York Session")
+nyEndM    = input.int(30, title="End Min", minval=0, maxval=59, inline="nyEnd", group="New York Session")
+
+trackAsianSecondaryWindow = input.bool(true, title="Track secondary window (Asian only)", group="Secondary Window")
 winStartH = input.int(7, title="Start Hour", minval=0, maxval=23, inline="winStart", group="Secondary Window")
 winStartM = input.int(0, title="Start Min", minval=0, maxval=59, inline="winStart", group="Secondary Window")
 winEndH   = input.int(7, title="End Hour", minval=0, maxval=23, inline="winEnd", group="Secondary Window")
@@ -43,92 +56,123 @@ winEndM   = input.int(30, title="End Min", minval=0, maxval=59, inline="winEnd",
 pad2(n) =>
     n < 10 ? "0" + str.tostring(n) : str.tostring(n)
 
+sessionString(startH, startM, endH, endM) =>
+    pad2(startH) + pad2(startM) + "-" + pad2(endH) + pad2(endM)
+
 // ---------------------------------------------------------------------------
-// Per-day range tracking
+// Per-session scan state
 // ---------------------------------------------------------------------------
 
-sessionStr = pad2(rangeStartH) + pad2(rangeStartM) + "-" + pad2(rangeEndH) + pad2(rangeEndM)
-t = time(timeframe.period, sessionStr, tzInput)
-inSess = not na(t)
+type ScanState
+    float rangeHigh = na
+    float rangeLow = na
+    bool  dayHadRange = false
+    bool  firstBreakDoneToday = false
+    bool  secondaryWindowHitToday = false
+    bool  prevInSess = false
+    int   totalDaysScanned = 0
+    int   secondaryWindowDays = 0
+    array<int> hourCounts
 
-var bool prevInSess = false
-newSess = inSess and not prevInSess
+// Tracks one session's opening range across the whole chart history and
+// accumulates its hourly first-break histogram (plus, optionally, the
+// secondary-window tally). `isNewDay`/`withinLookback` are computed once,
+// shared across all three sessions since the calendar day is the same
+// for all of them.
+scanSession(ScanState state, bool enabled, string sess, string tz, bool isNewDay, bool withinLookback, bool checkSecondaryWindow, int winStartMinutes, int winEndMinutes) =>
+    if enabled
+        t = time(timeframe.period, sess, tz)
+        inSess = not na(t)
+        newSess = inSess and not state.prevInSess
 
-var float rangeHigh = na
-var float rangeLow = na
-var int   dayKey = na
-var bool  firstBreakDoneToday = false
-var bool  secondaryWindowHitToday = false
-var bool  dayHadRange = false
+        if isNewDay
+            if state.dayHadRange and withinLookback
+                state.totalDaysScanned += 1
+                if checkSecondaryWindow and state.secondaryWindowHitToday
+                    state.secondaryWindowDays += 1
+            state.rangeHigh := na
+            state.rangeLow := na
+            state.firstBreakDoneToday := false
+            state.secondaryWindowHitToday := false
+            state.dayHadRange := false
 
+        if newSess
+            state.rangeHigh := high
+            state.rangeLow := low
+            state.dayHadRange := true
+        else if inSess
+            state.rangeHigh := math.max(state.rangeHigh, high)
+            state.rangeLow := math.min(state.rangeLow, low)
+
+        if not inSess and state.dayHadRange
+            isBreakoutBar = close > state.rangeHigh or close < state.rangeLow
+            if isBreakoutBar
+                curHour = hour(time, tz)
+                if not state.firstBreakDoneToday
+                    state.firstBreakDoneToday := true
+                    if withinLookback
+                        state.hourCounts.set(curHour, state.hourCounts.get(curHour) + 1)
+                if checkSecondaryWindow and not state.secondaryWindowHitToday
+                    curMin = minute(time, tz)
+                    minutesNow = curHour * 60 + curMin
+                    if minutesNow >= winStartMinutes and minutesNow < winEndMinutes
+                        state.secondaryWindowHitToday := true
+
+        state.prevInSess := inSess
+    true
+
+// ---------------------------------------------------------------------------
+// Run all three sessions
+// ---------------------------------------------------------------------------
+
+var ScanState asianScan  = ScanState.new(hourCounts=array.new<int>(24, 0))
+var ScanState londonScan = ScanState.new(hourCounts=array.new<int>(24, 0))
+var ScanState nyScan     = ScanState.new(hourCounts=array.new<int>(24, 0))
+
+var int dayKey = na
 curDayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
 isNewDay = na(dayKey) or curDayKey != dayKey
+dayKey := curDayKey
 
 withinLookback = time >= (last_bar_time - lookbackDays * 24 * 60 * 60 * 1000)
 
-var array<int> hourCounts = array.new<int>(24, 0)
-var int totalDaysScanned = 0
-var int secondaryWindowDays = 0
+winStartMinutes = winStartH * 60 + winStartM
+winEndMinutes = winEndH * 60 + winEndM
 
-if isNewDay
-    // Finalize the day that just ended (only if it's inside our lookback
-    // window and actually had a completed opening range).
-    if dayHadRange and withinLookback
-        totalDaysScanned += 1
-        if secondaryWindowHitToday
-            secondaryWindowDays += 1
-    dayKey := curDayKey
-    rangeHigh := na
-    rangeLow := na
-    firstBreakDoneToday := false
-    secondaryWindowHitToday := false
-    dayHadRange := false
-
-if newSess
-    rangeHigh := high
-    rangeLow := low
-    dayHadRange := true
-else if inSess
-    rangeHigh := math.max(rangeHigh, high)
-    rangeLow := math.min(rangeLow, low)
-
-if not inSess and dayHadRange
-    isBreakoutBar = close > rangeHigh or close < rangeLow
-    if isBreakoutBar
-        curHour = hour(time, tzInput)
-        curMin = minute(time, tzInput)
-        minutesNow = curHour * 60 + curMin
-        winStartMinutes = winStartH * 60 + winStartM
-        winEndMinutes = winEndH * 60 + winEndM
-
-        if not firstBreakDoneToday
-            firstBreakDoneToday := true
-            hourCounts.set(curHour, hourCounts.get(curHour) + 1)
-
-        if not secondaryWindowHitToday and minutesNow >= winStartMinutes and minutesNow < winEndMinutes
-            secondaryWindowHitToday := true
-
-prevInSess := inSess
+scanSession(asianScan, asianEnabled, sessionString(asianStartH, asianStartM, asianEndH, asianEndM), tzInput, isNewDay, withinLookback, trackAsianSecondaryWindow, winStartMinutes, winEndMinutes)
+scanSession(londonScan, londonEnabled, sessionString(londonStartH, londonStartM, londonEndH, londonEndM), tzInput, isNewDay, withinLookback, false, winStartMinutes, winEndMinutes)
+scanSession(nyScan, nyEnabled, sessionString(nyStartH, nyStartM, nyEndH, nyEndM), tzInput, isNewDay, withinLookback, false, winStartMinutes, winEndMinutes)
 
 // ---------------------------------------------------------------------------
-// Results table
+// Results table: Hour | Asian | London | New York
 // ---------------------------------------------------------------------------
 
-var table resultsTable = table.new(position.top_right, 2, 27, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table resultsTable = table.new(position.top_right, 4, 27, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast
     table.cell(resultsTable, 0, 0, "Hour (" + tzInput + ")", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(resultsTable, 1, 0, "First Breaks", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 0, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 2, 0, "London", text_color=color.blue, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 3, 0, "New York", text_color=color.red, bgcolor=color.new(color.gray, 60), text_size=size.small)
 
     for h = 0 to 23
-        cnt = hourCounts.get(h)
-        rowColor = cnt > 0 ? color.new(color.teal, 70) : color.new(color.black, 15)
+        asianCnt = asianScan.hourCounts.get(h)
+        londonCnt = londonScan.hourCounts.get(h)
+        nyCnt = nyScan.hourCounts.get(h)
         table.cell(resultsTable, 0, h + 1, pad2(h) + ":00", text_color=color.gray, bgcolor=color.new(color.black, 15), text_size=size.tiny)
-        table.cell(resultsTable, 1, h + 1, str.tostring(cnt), text_color=color.white, bgcolor=rowColor, text_size=size.tiny)
+        table.cell(resultsTable, 1, h + 1, str.tostring(asianCnt), text_color=color.white, bgcolor=asianCnt > 0 ? color.new(color.teal, 70) : color.new(color.black, 15), text_size=size.tiny)
+        table.cell(resultsTable, 2, h + 1, str.tostring(londonCnt), text_color=color.white, bgcolor=londonCnt > 0 ? color.new(color.teal, 70) : color.new(color.black, 15), text_size=size.tiny)
+        table.cell(resultsTable, 3, h + 1, str.tostring(nyCnt), text_color=color.white, bgcolor=nyCnt > 0 ? color.new(color.teal, 70) : color.new(color.black, 15), text_size=size.tiny)
+
+    table.cell(resultsTable, 0, 25, "Days scanned", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 25, str.tostring(asianScan.totalDaysScanned), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 2, 25, str.tostring(londonScan.totalDaysScanned), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 3, 25, str.tostring(nyScan.totalDaysScanned), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
 
     winLabel = pad2(winStartH) + ":" + pad2(winStartM) + "-" + pad2(winEndH) + ":" + pad2(winEndM)
-    secondaryPct = totalDaysScanned == 0 ? 0.0 : (secondaryWindowDays / totalDaysScanned) * 100
-    table.cell(resultsTable, 0, 25, "Days scanned", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(resultsTable, 1, 25, str.tostring(totalDaysScanned), text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    asianSecondaryPct = asianScan.totalDaysScanned == 0 ? 0.0 : (asianScan.secondaryWindowDays / asianScan.totalDaysScanned) * 100
+    secondaryText = trackAsianSecondaryWindow ? str.tostring(asianScan.secondaryWindowDays) + " (" + str.tostring(asianSecondaryPct, "#.#") + "%)" : "off"
     table.cell(resultsTable, 0, 26, winLabel + " hit", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(resultsTable, 1, 26, str.tostring(secondaryWindowDays) + " (" + str.tostring(secondaryPct, "#.#") + "%)", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 1, 26, secondaryText, text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 2, 26, "-", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(resultsTable, 3, 26, "-", text_color=color.gray, bgcolor=color.new(color.gray, 60), text_size=size.small)
