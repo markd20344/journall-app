@@ -31,6 +31,7 @@ lineWidthInput = input.int(1, title="Range ray line width", minval=1, maxval=4, 
 cutoffHourInput = input.int(22, title="Cut off rays at (Hour)", minval=0, maxval=23, inline="cutoff", group="General", tooltip="Rays stop extending at this time (in the session timezone above) instead of running to midnight.")
 cutoffMinuteInput = input.int(0, title="Min", minval=0, maxval=59, inline="cutoff", group="General")
 showTableInput = input.bool(true, title="Show pip range table", group="General")
+tableTopOffsetInput = input.int(3, title="Push pip table down (blank rows, avoids TradingView icons)", minval=0, maxval=10, group="General")
 showDaysTableInput = input.bool(true, title="Show daily red/green day table", group="General")
 daysToShowInput = input.int(28, title="Days to show in red/green table", minval=5, maxval=40, group="General")
 
@@ -337,32 +338,40 @@ if adrEnabled and adrShowLines and not na(adrPips)
 // Pip range table (top-right of the chart)
 // ---------------------------------------------------------------------------
 
-var table rangeTable = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table rangeTable = table.new(position.top_right, 2, tableTopOffsetInput + 6, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if showTableInput and barstate.islast
     todayKey = year(time, tzInput) * 10000 + month(time, tzInput) * 100 + dayofmonth(time, tzInput)
 
-    table.cell(rangeTable, 0, 0, "Session", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
-    table.cell(rangeTable, 1, 0, "Range", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    // Blank rows so the table's top edge clears TradingView's own top-right
+    // chart icons instead of sitting under them.
+    if tableTopOffsetInput > 0
+        for r = 0 to tableTopOffsetInput - 1
+            table.cell(rangeTable, 0, r, " ", bgcolor=color.new(color.black, 100), text_size=size.tiny)
+            table.cell(rangeTable, 1, r, " ", bgcolor=color.new(color.black, 100), text_size=size.tiny)
 
-    table.cell(rangeTable, 0, 1, "Asia", text_color=asianColor, bgcolor=color.new(color.black, 15), text_size=size.small)
-    table.cell(rangeTable, 1, 1, sessionStatusText(asianState, asianEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+    headerRow = tableTopOffsetInput
+    table.cell(rangeTable, 0, headerRow, "Session", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
+    table.cell(rangeTable, 1, headerRow, "Range", text_color=color.white, bgcolor=color.new(color.gray, 60), text_size=size.small)
 
-    table.cell(rangeTable, 0, 2, "London", text_color=londonColor, bgcolor=color.new(color.black, 15), text_size=size.small)
-    table.cell(rangeTable, 1, 2, sessionStatusText(londonState, londonEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 0, headerRow + 1, "Asia", text_color=asianColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, headerRow + 1, sessionStatusText(asianState, asianEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
 
-    table.cell(rangeTable, 0, 3, "New York", text_color=nyColor, bgcolor=color.new(color.black, 15), text_size=size.small)
-    table.cell(rangeTable, 1, 3, sessionStatusText(nyState, nyEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 0, headerRow + 2, "London", text_color=londonColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, headerRow + 2, sessionStatusText(londonState, londonEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+
+    table.cell(rangeTable, 0, headerRow + 3, "New York", text_color=nyColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+    table.cell(rangeTable, 1, headerRow + 3, sessionStatusText(nyState, nyEnabled, todayKey), text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
 
     if adrEnabled
         adrText = na(adrPips) ? "..." : str.tostring(adrPips, "#.#") + " pips"
-        table.cell(rangeTable, 0, 4, "ADR (" + str.tostring(adrLength) + "d)", text_color=adrLineColor, bgcolor=color.new(color.black, 15), text_size=size.small)
-        table.cell(rangeTable, 1, 4, adrText, text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 0, headerRow + 4, "ADR (" + str.tostring(adrLength) + "d)", text_color=adrLineColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 1, headerRow + 4, adrText, text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
 
     if tdiEnabled
         tdiColor = tdiValue >= 50 ? color.green : color.red
-        table.cell(rangeTable, 0, 5, "TDI", text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
-        table.cell(rangeTable, 1, 5, str.tostring(tdiValue, "#.#"), text_color=tdiColor, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 0, headerRow + 5, "TDI", text_color=color.white, bgcolor=color.new(color.black, 15), text_size=size.small)
+        table.cell(rangeTable, 1, headerRow + 5, str.tostring(tdiValue, "#.#"), text_color=tdiColor, bgcolor=color.new(color.black, 15), text_size=size.small)
 
 // ---------------------------------------------------------------------------
 // Daily red/green day table: 4 weeks, day-of-week letter, week separators
