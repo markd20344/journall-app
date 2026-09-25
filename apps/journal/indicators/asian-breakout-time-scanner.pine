@@ -242,7 +242,7 @@ if barstate.islast
 // each session's own "Days scanned" above.
 // ---------------------------------------------------------------------------
 
-var table pathTable = table.new(position.bottom_right, 5, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
+var table pathTable = table.new(position.top_left, 5, 28, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 50), frame_width=1, frame_color=color.new(color.gray, 50))
 
 if barstate.islast
     table.cell(pathTable, 0, 0, "Asian", text_color=color.yellow, bgcolor=color.new(color.gray, 60), text_size=size.small)
