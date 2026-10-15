@@ -61,7 +61,7 @@ apps/mumu/src/
   data/repo.ts        the ONLY module that writes to Firestore
   data/selectors.ts   derived views (notes for a record, people at a company, tags, picker options)
   data/syncStatus.ts  offline / pending / error state for the header badge
-  lib/                pure helpers (format, search, labels, blanks) + small hooks
+  lib/                pure helpers (format, search, labels, blanks, dates) + small hooks
   components/         Layout (tab bar / sidebar), NoteCard, GoBackCard, pickers...
   pages/              one file per route
 ```
@@ -84,7 +84,10 @@ apps/mumu/src/
   compatible.
 - **Timestamps** are ISO strings (`createdAt`, `updatedAt`, `occurredAt`),
   matching Journall. Calendar-type dates are stored as plain `YYYY-MM-DD` or
-  month/day, never as timestamps (see the data model).
+  month/day, never as timestamps (see the data model). All date maths goes
+  through `lib/dates.ts`, which works in UTC on `YYYY-MM-DD` strings, with
+  "today" from `todayLocal()`. A 29 February date falls on 28 February in
+  non-leap years. The Phase 4 digest must reuse these functions.
 
 ## Data model
 
@@ -100,7 +103,8 @@ All data is at `users/{uid}/{collection}/{id}`. Every doc has `id`,
 | `importantDates` | `personId`, `kind` (birthday, anniversary, other), `label`, `month`, `day`, `year \| null`, `warnDays[]` (default `[14, 3, 0]`) | 2 |
 | `entries`, `categories`, `topics` | Journall's existing docs, read where they are (no migration). Entries gain optional `personIds[]`, `companyIds[]` | 3 |
 | `items`, `books`, `quickCaptures`, `itemAttachments` | Journall's existing docs, read where they are | 5 |
-| `settings/{doc}` | `reminders {email, enabled, hour}`, `recent {refs[]}` | 2/4 |
+| `settings/recent` | `refs[{kind: person \| company \| engagement, id, at}]`, newest first, max 12 (`trackView` in `repo.ts`) | 2 |
+| `settings/reminders` | `email`, `enabled`, `hour` | 4 |
 
 Rules for the model:
 - A note can link to any mix of companies, people and engagements, and shows
@@ -136,7 +140,9 @@ Rules for the model:
 - Search uses `lib/search.ts` (`matches`, `fold`), which ignores accents and
   apostrophes, so "sean oriordan" finds "Seán O'Riordan".
 - Interactive elements need unambiguous accessible names; e2e tests select by
-  role and name.
+  role and name. e2e tests share one emulator and reset it in `beforeEach`,
+  so they run with `workers: 1`. Wait for a saved record to show on screen
+  before a full page load (`page.goto`), or the local write can be lost.
 - UK English in the UI, `en-GB` date formats, Europe/London.
 - Comments explain *why*, matching the existing code's density.
 - Commit after each working step. Run `npm run lint`, `npx tsc -b apps/mumu`
@@ -146,7 +152,7 @@ Rules for the model:
 
 1. Auth, companies, people, notes. **Done.**
 2. Engagements, important dates, Home dashboard (upcoming 30 days, pinned,
-   recently viewed).
+   current work, recently viewed). **Done.**
 3. Calendar (month + agenda), journal on the existing Journall entries,
    global search.
 4. Daily email digest (scheduled Cloud Function, Blaze plan, Gmail app
