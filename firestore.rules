@@ -1,10 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each signed-in user reads and writes only their own data, scoped under
-    // /users/{their uid}/{categories|topics|entries|items}/{docId}.
+    // Personal data (Journall OS, Kit Runs, Mumu) lives under
+    // /users/{uid}/{collection}/{docId} and is single-owner: only the owner's
+    // own account can touch it. ownerUid() is the Firebase Auth UID of that
+    // account (Authentication > Users in the console). A UID isn't secret, so
+    // it's fine in a public repo — unlike an email address.
+    //
+    // While ownerUid() is still the placeholder, this falls back to the old
+    // behaviour (each signed-in user reaches only their own uid's data), so
+    // these rules are safe to publish before the UID is filled in.
+    function ownerUid() {
+      return 'SET_OWNER_UID';
+    }
+    function isOwnerOf(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && (ownerUid() == 'SET_OWNER_UID' || request.auth.uid == ownerUid());
+    }
+
     match /users/{uid}/{collection}/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwnerOf(uid);
     }
 
     // The shared Family Tree — a single tree (id "family", see
