@@ -13,7 +13,7 @@ export default function GoBackCard({ notes }: { notes: Note[] }) {
         <div key={n.id} className="go-back-item">
           {n.body}
           <span className="meta">
-            {formatDate(n.occurredAt)} · <Link to={`/notes/${n.id}/edit`}>Edit</Link>
+            {formatDate(n.occurredAt)} · <Link to={`/notes/${n.id}/edit`} aria-label="Edit note">Edit</Link>
           </span>
         </div>
       ))}

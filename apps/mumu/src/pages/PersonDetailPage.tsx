@@ -24,7 +24,7 @@ export default function PersonDetailPage() {
     <div className="page">
       <div className="page-head">
         <BackLink fallback="/people" label="People" />
-        <Link className="btn" to={`/people/${person.id}/edit`}>
+        <Link className="btn" to={`/people/${person.id}/edit`} aria-label="Edit person">
           Edit
         </Link>
       </div>

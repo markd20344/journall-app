@@ -61,7 +61,7 @@ export default function NoteCard({ note, context }: Props) {
         <button type="button" className="ghost small" onClick={() => updateRecord("notes", note.id, { pinned: !note.pinned })}>
           {note.pinned ? "Unpin" : "Pin"}
         </button>
-        <Link className="btn ghost small" to={`/notes/${note.id}/edit`}>
+        <Link className="btn ghost small" to={`/notes/${note.id}/edit`} aria-label="Edit note">
           Edit
         </Link>
       </div>

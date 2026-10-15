@@ -23,7 +23,8 @@
     "test:mumu": "npm run test -w apps/mumu",
     "test:rules": "firebase emulators:exec --only firestore --project demo-mumu \"vitest run --root tests/rules\"",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-mumu",
-    "test:rules:running": "vitest run --root tests/rules"
+    "test:rules:running": "vitest run --root tests/rules",
+    "test:e2e:mumu": "firebase emulators:exec --only auth,firestore --project demo-mumu \"npm run test:e2e -w apps/mumu\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

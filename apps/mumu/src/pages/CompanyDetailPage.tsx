@@ -22,7 +22,7 @@ export default function CompanyDetailPage() {
     <div className="page">
       <div className="page-head">
         <BackLink fallback="/companies" label="Companies" />
-        <Link className="btn" to={`/companies/${company.id}/edit`}>
+        <Link className="btn" to={`/companies/${company.id}/edit`} aria-label="Edit company">
           Edit
         </Link>
       </div>

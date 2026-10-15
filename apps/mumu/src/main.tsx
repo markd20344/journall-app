@@ -9,8 +9,9 @@ import "./styles.css";
 // without the emulator's fake Google popup. The Auth emulator accepts an
 // unsigned credential; production auth never would.
 if (usingEmulators && auth) {
+  const emulatorAuth = auth;
   (window as unknown as { __mumuTestSignIn: (uid?: string) => Promise<unknown> }).__mumuTestSignIn = (uid = "owner-uid") =>
-    signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: uid, email: `${uid}@example.com`, email_verified: true })));
+    signInWithCredential(emulatorAuth, GoogleAuthProvider.credential(JSON.stringify({ sub: uid, email: `${uid}@example.com`, email_verified: true })));
 }
 
 createRoot(document.getElementById("root")!).render(
