@@ -6,6 +6,7 @@ import NoteCard from "./NoteCard";
 interface Props {
   companyId?: string;
   personId?: string;
+  alsoEngagementIds?: string[];
 }
 
 export function GoBackFor(ctx: Props) {

@@ -1,10 +1,12 @@
 import { Link, useParams } from "react-router";
 import BackLink from "../components/BackLink";
+import EngagementRow from "../components/EngagementRow";
 import NotesSection, { GoBackFor } from "../components/NotesSection";
-import { usePeopleAtCompany } from "../data/selectors";
+import { useEngagementsForCompany, usePeopleAtCompany } from "../data/selectors";
 import { useRecord, useStoreReady } from "../data/store";
 import { initials, mapsHref, personName, websiteHref, websiteLabel } from "../lib/format";
 import { COMPANY_STATUSES, COMPANY_TYPES, labelFor } from "../lib/labels";
+import { useTrackView } from "../lib/useTrackView";
 import NotFound from "./NotFound";
 
 export default function CompanyDetailPage() {
@@ -12,6 +14,9 @@ export default function CompanyDetailPage() {
   const company = useRecord("companies", id);
   const people = usePeopleAtCompany(id);
   const ready = useStoreReady();
+  const engagements = useEngagementsForCompany(id);
+  const engagementIds = engagements.map((e) => e.id);
+  useTrackView("company", id, Boolean(company && !company.deleted));
 
   if (!company || company.deleted) return ready ? <NotFound what="company" /> : null;
 
@@ -37,7 +42,7 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
-      <GoBackFor companyId={company.id} />
+      <GoBackFor companyId={company.id} alsoEngagementIds={engagementIds} />
 
       {(site || map) && (
         <div className="chips">
@@ -79,6 +84,24 @@ export default function CompanyDetailPage() {
           )}
         </div>
       )}
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Work here</h2>
+          <Link className="btn small" to={`/engagements/new?company=${company.id}`}>
+            ＋ Engagement
+          </Link>
+        </div>
+        {engagements.length === 0 ? (
+          <p className="empty">No engagements recorded.</p>
+        ) : (
+          <div className="list">
+            {engagements.map((e) => (
+              <EngagementRow key={e.id} engagement={e} showCompany={false} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="section">
         <div className="section-head">

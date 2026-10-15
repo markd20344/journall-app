@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { personName } from "../lib/format";
 import { byText } from "../lib/search";
-import type { Note, Person } from "../types";
+import { formatMonthYear, todayLocal, upcoming, type Upcoming } from "../lib/dates";
+import type { Engagement, ImportantDate, Note, Person } from "../types";
 import { useCollection, useStore } from "./store";
 import type { PickerOption } from "../components/RecordPicker";
 
@@ -12,17 +13,83 @@ export function sortNotes(notes: Note[]): Note[] {
   return [...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.occurredAt.localeCompare(a.occurredAt));
 }
 
-export function useNotesFor(ctx: { companyId?: string; personId?: string }): Note[] {
+export interface NoteContext {
+  companyId?: string;
+  personId?: string;
+  engagementId?: string;
+  /** Also include notes on these engagements (a company page shows its engagements' notes). */
+  alsoEngagementIds?: string[];
+}
+
+export function useNotesFor(ctx: NoteContext): Note[] {
   const notes = useCollection("notes");
+  const also = (ctx.alsoEngagementIds ?? []).join(",");
+  return useMemo(() => {
+    const extra = new Set(also ? also.split(",") : []);
+    return sortNotes(
+      notes.filter(
+        (n) =>
+          (ctx.companyId && n.companyIds.includes(ctx.companyId)) ||
+          (ctx.personId && n.personIds.includes(ctx.personId)) ||
+          (ctx.engagementId && (n.engagementIds ?? []).includes(ctx.engagementId)) ||
+          (n.engagementIds ?? []).some((id) => extra.has(id)),
+      ),
+    );
+  }, [notes, ctx.companyId, ctx.personId, ctx.engagementId, also]);
+}
+
+/** Newest first; ongoing ones before finished ones. */
+export function sortEngagements(list: Engagement[]): Engagement[] {
+  return [...list].sort((a, b) => Number(b.endDate === null) - Number(a.endDate === null) || b.startDate.localeCompare(a.startDate));
+}
+
+export function useEngagementsForCompany(companyId: string | undefined): Engagement[] {
+  const engagements = useCollection("engagements");
+  return useMemo(() => (companyId ? sortEngagements(engagements.filter((e) => e.companyId === companyId)) : []), [engagements, companyId]);
+}
+
+/** Engagements where this person was a key contact or put me forward. */
+export function useEngagementsForPerson(personId: string | undefined): Engagement[] {
+  const engagements = useCollection("engagements");
+  return useMemo(
+    () => (personId ? sortEngagements(engagements.filter((e) => e.keyContactIds.includes(personId) || e.viaPersonId === personId)) : []),
+    [engagements, personId],
+  );
+}
+
+export function useDatesForPerson(personId: string | undefined): Upcoming<ImportantDate>[] {
+  const dates = useCollection("importantDates");
+  return useMemo(() => (personId ? upcoming(dates.filter((d) => d.personId === personId), todayLocal(), 366) : []), [dates, personId]);
+}
+
+/** Dates within `windowDays`, skipping any whose person has been deleted. */
+export function useUpcomingDates(windowDays: number): Upcoming<ImportantDate>[] {
+  const s = useStore();
+  return useMemo(() => {
+    const live = s.importantDates.live.filter((d) => {
+      const p = s.people.byId.get(d.personId);
+      return p && !p.deleted;
+    });
+    return upcoming(live, todayLocal(), windowDays);
+  }, [s, windowDays]);
+}
+
+export function useEngagementOptions(): PickerOption[] {
+  const engagements = useCollection("engagements");
+  const companies = useStore().companies.byId;
   return useMemo(
     () =>
-      sortNotes(
-        notes.filter(
-          (n) => (ctx.companyId && n.companyIds.includes(ctx.companyId)) || (ctx.personId && n.personIds.includes(ctx.personId)),
-        ),
-      ),
-    [notes, ctx.companyId, ctx.personId],
+      sortEngagements(engagements).map((e) => ({
+        id: e.id,
+        label: engagementLabel(e, companies.get(e.companyId)?.name),
+        sub: formatMonthYear(e.startDate),
+      })),
+    [engagements, companies],
   );
+}
+
+export function engagementLabel(e: Engagement, companyName?: string): string {
+  return [companyName, e.title || e.myRole].filter(Boolean).join(" · ") || "(untitled engagement)";
 }
 
 export function usePeopleAtCompany(companyId: string | undefined): Person[] {
@@ -37,7 +104,7 @@ export function useAllTags(): string[] {
   const s = useStore();
   return useMemo(() => {
     const set = new Set<string>();
-    for (const r of [...s.companies.live, ...s.people.live, ...s.notes.live]) r.tags?.forEach((t) => set.add(t));
+    for (const r of [...s.companies.live, ...s.people.live, ...s.notes.live, ...s.engagements.live]) r.tags?.forEach((t) => set.add(t));
     return Array.from(set).sort();
   }, [s]);
 }

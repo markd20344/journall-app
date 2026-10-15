@@ -3,10 +3,21 @@ import ErrorBoundary from "@journall/shared/components/ErrorBoundary";
 import Icon from "./Icon";
 import SyncBadge from "./SyncBadge";
 
-const NAV = [
+// Phone tab bar: five slots. The desktop sidebar has room for everything.
+const TABS = [
   { to: "/", label: "Home", icon: "home" },
   { to: "/people", label: "People", icon: "people" },
   { to: "/companies", label: "Companies", icon: "companies" },
+  { to: "/notes", label: "Notes", icon: "notes" },
+  { to: "/more", label: "More", icon: "more" },
+];
+
+const SIDEBAR = [
+  { to: "/", label: "Home", icon: "home" },
+  { to: "/people", label: "People", icon: "people" },
+  { to: "/companies", label: "Companies", icon: "companies" },
+  { to: "/engagements", label: "Work history", icon: "work" },
+  { to: "/dates", label: "Dates", icon: "cake" },
   { to: "/notes", label: "Notes", icon: "notes" },
   { to: "/more", label: "More", icon: "more" },
 ];
@@ -28,7 +39,7 @@ export default function Layout() {
     <div className="shell">
       <nav className="sidebar" aria-label="Main">
         <Brand />
-        {NAV.map((n) => (
+        {SIDEBAR.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.to === "/"} className={({ isActive }) => `side-link${isActive ? " active" : ""}`}>
             <Icon name={n.icon} />
             {n.label}
@@ -45,7 +56,7 @@ export default function Layout() {
         </ErrorBoundary>
       </main>
       <nav className="tabbar" aria-label="Main">
-        {NAV.map((n) => (
+        {TABS.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.to === "/"} className={({ isActive }) => `tab${isActive ? " active" : ""}`}>
             <Icon name={n.icon} />
             {n.label}

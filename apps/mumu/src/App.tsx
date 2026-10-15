@@ -10,6 +10,11 @@ import { startStore, stopStore } from "./data/store";
 import CompaniesPage from "./pages/CompaniesPage";
 import CompanyDetailPage from "./pages/CompanyDetailPage";
 import CompanyEditPage from "./pages/CompanyEditPage";
+import DateEditPage from "./pages/DateEditPage";
+import DatesPage from "./pages/DatesPage";
+import EngagementDetailPage from "./pages/EngagementDetailPage";
+import EngagementEditPage from "./pages/EngagementEditPage";
+import EngagementsPage from "./pages/EngagementsPage";
 import HomePage from "./pages/HomePage";
 import MorePage from "./pages/MorePage";
 import NoteEditPage from "./pages/NoteEditPage";
@@ -59,6 +64,13 @@ export default function App() {
             <Route path="companies/new" element={<CompanyEditPage />} />
             <Route path="companies/:id" element={<CompanyDetailPage />} />
             <Route path="companies/:id/edit" element={<CompanyEditPage />} />
+            <Route path="people/:personId/dates/new" element={<DateEditPage />} />
+            <Route path="dates" element={<DatesPage />} />
+            <Route path="dates/:id/edit" element={<DateEditPage />} />
+            <Route path="engagements" element={<EngagementsPage />} />
+            <Route path="engagements/new" element={<EngagementEditPage />} />
+            <Route path="engagements/:id" element={<EngagementDetailPage />} />
+            <Route path="engagements/:id/edit" element={<EngagementEditPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="notes/new" element={<NoteEditPage />} />
             <Route path="notes/:id/edit" element={<NoteEditPage />} />

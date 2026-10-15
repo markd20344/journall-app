@@ -78,10 +78,50 @@ export interface Note extends BaseDoc {
   occurredAt: string; // ISO timestamp — when it happened; defaults to creation
 }
 
-export type CollectionName = "companies" | "people" | "notes";
+// A stint of work for a company: enough detail to pick it up again if I go back.
+export interface Engagement extends BaseDoc {
+  companyId: string;
+  title: string; // short name for the job, e.g. "Mallow resignalling"
+  myRole: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string | null; // null = ongoing
+  whatIDid: string;
+  howIGotIt: string;
+  viaCompanyId: string | null; // the agency, if one placed me
+  viaPersonId: string | null; // the recruiter / person who put me forward
+  keyContactIds: string[];
+  rate: string; // free text: "£350/day", "£18/hr"...
+  tags: string[];
+}
+
+export type DateKind = "birthday" | "anniversary" | "other";
+
+// A yearly date linked to a person. Stored as month/day (+ optional year),
+// never as a timestamp, so time zones and BST can't move it.
+export interface ImportantDate extends BaseDoc {
+  personId: string;
+  kind: DateKind;
+  label: string; // e.g. "Wedding anniversary"; blank for birthdays
+  month: number; // 1-12
+  day: number; // 1-31
+  year: number | null;
+  warnDays: number[]; // days before to remind; 0 = on the day
+}
+
+export type CollectionName = "companies" | "people" | "notes" | "engagements" | "importantDates";
 
 export interface CollectionTypes {
   companies: Company;
   people: Person;
   notes: Note;
+  engagements: Engagement;
+  importantDates: ImportantDate;
+}
+
+export type RecordKind = "person" | "company" | "engagement";
+
+export interface RecentRef {
+  kind: RecordKind;
+  id: string;
+  at: string; // ISO timestamp
 }

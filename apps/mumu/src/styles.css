@@ -158,6 +158,7 @@ button.small, .btn.small { min-height: 40px; padding: 0 0.8em; font-size: 0.9rem
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  width: max-content;
   max-width: calc(100vw - 32px);
   padding: 0.5rem 0.6rem 0.5rem 1rem;
   border-radius: 14px;
