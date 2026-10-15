@@ -1,9 +1,13 @@
 import { Link, useParams } from "react-router";
 import BackLink from "../components/BackLink";
+import DateRow from "../components/DateRow";
+import EngagementRow from "../components/EngagementRow";
 import NotesSection, { GoBackFor } from "../components/NotesSection";
+import { useDatesForPerson, useEngagementsForPerson } from "../data/selectors";
 import { useRecord, useStore, useStoreReady } from "../data/store";
 import { initials, mailHref, mapsHref, personName, smsHref, telHref } from "../lib/format";
 import { CIRCLES, labelFor } from "../lib/labels";
+import { useTrackView } from "../lib/useTrackView";
 import NotFound from "./NotFound";
 
 export default function PersonDetailPage() {
@@ -11,6 +15,9 @@ export default function PersonDetailPage() {
   const person = useRecord("people", id);
   const companies = useStore().companies.byId;
   const ready = useStoreReady();
+  const dates = useDatesForPerson(id);
+  const engagements = useEngagementsForPerson(id);
+  useTrackView("person", id, Boolean(person && !person.deleted));
 
   if (!person || person.deleted) return ready ? <NotFound what="person" /> : null;
 
@@ -89,6 +96,35 @@ export default function PersonDetailPage() {
                 </Link>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Dates</h2>
+          <Link className="btn small" to={`/people/${person.id}/dates/new`}>
+            ＋ Date
+          </Link>
+        </div>
+        {dates.length === 0 ? (
+          <p className="empty">No birthday or anniversary yet.</p>
+        ) : (
+          <div className="list">
+            {dates.map((d) => (
+              <DateRow key={d.item.id} entry={d} onPersonPage />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {engagements.length > 0 && (
+        <section className="section">
+          <h2>Worked together</h2>
+          <div className="list">
+            {engagements.map((e) => (
+              <EngagementRow key={e.id} engagement={e} />
+            ))}
           </div>
         </section>
       )}

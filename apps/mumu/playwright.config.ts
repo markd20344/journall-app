@@ -9,6 +9,8 @@ const BASE_URL = `http://localhost:${PORT}/`
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
+  // Every test resets the one shared emulator, so they must run one at a time.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',

@@ -6,13 +6,13 @@
 // fully offline: Firestore's persistent cache answers the listener from
 // IndexedDB before the network does, and pushes server changes in as they
 // arrive. Writes never go through here — see repo.ts.
-import { collection, onSnapshot, type Unsubscribe } from "firebase/firestore";
+import { collection, doc, onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { useSyncExternalStore } from "react";
 import { firestore } from "@journall/shared/firebase/config";
-import type { CollectionName, CollectionTypes } from "../types";
+import type { CollectionName, CollectionTypes, RecentRef } from "../types";
 import { setCollectionPending } from "./syncStatus";
 
-export const COLLECTIONS: CollectionName[] = ["companies", "people", "notes"];
+export const COLLECTIONS: CollectionName[] = ["companies", "people", "notes", "engagements", "importantDates"];
 
 interface Slice<T> {
   all: T[]; // includes soft-deleted records (Trash, backups)
@@ -27,7 +27,19 @@ function emptySlice<T>(): Slice<T> {
   return { all: [], live: [], byId: new Map(), ready: false };
 }
 
-let state: State = { companies: emptySlice(), people: emptySlice(), notes: emptySlice() };
+function emptyState(): State {
+  return {
+    companies: emptySlice(),
+    people: emptySlice(),
+    notes: emptySlice(),
+    engagements: emptySlice(),
+    importantDates: emptySlice(),
+  };
+}
+
+let state: State = emptyState();
+// users/{uid}/settings/recent — recently viewed records, shared across devices.
+let recent: RecentRef[] = [];
 let uid: string | null = null;
 let unsubscribers: Unsubscribe[] = [];
 const listeners = new Set<() => void>();
@@ -64,13 +76,24 @@ export function startStore(userId: string): void {
     );
     unsubscribers.push(unsub);
   }
+  unsubscribers.push(
+    onSnapshot(
+      doc(firestore!, "users", userId, "settings", "recent"),
+      (snap) => {
+        recent = (snap.data()?.refs as RecentRef[] | undefined) ?? [];
+        emit();
+      },
+      (err) => console.error("Firestore listener error for settings/recent", err),
+    ),
+  );
 }
 
 export function stopStore(): void {
   unsubscribers.forEach((u) => u());
   unsubscribers = [];
   uid = null;
-  state = { companies: emptySlice(), people: emptySlice(), notes: emptySlice() };
+  state = emptyState();
+  recent = [];
   emit();
 }
 
@@ -105,4 +128,12 @@ export function useStoreReady(): boolean {
 /** Non-hook read for event handlers. */
 export function getRecord<K extends CollectionName>(name: K, id: string): CollectionTypes[K] | undefined {
   return state[name].byId.get(id) as CollectionTypes[K] | undefined;
+}
+
+export function useRecent(): RecentRef[] {
+  return useSyncExternalStore(subscribe, () => recent);
+}
+
+export function getRecent(): RecentRef[] {
+  return recent;
 }
