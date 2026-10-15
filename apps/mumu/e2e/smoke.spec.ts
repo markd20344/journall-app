@@ -65,6 +65,7 @@ test('companies, people and notes work together', async ({ page }) => {
   await expect(page.getByText('No one here yet')).toBeVisible()
   await page.goto('/trash')
   await page.getByRole('button', { name: 'Restore' }).click()
+  await expect(page.getByText('Nothing in the trash.')).toBeVisible()
   await page.goto('/people')
   await page.reload()
   await expect(page.getByText("Siobhán O'Riordan")).toBeVisible()
@@ -76,7 +77,10 @@ test('a pinned note shows on Home', async ({ page }) => {
   await page.locator('textarea').fill('Tender for Limerick Junction due in spring')
   await page.getByLabel(/Pin to Home/).check()
   await page.getByRole('button', { name: 'Add note' }).click()
-  await page.goto('/')
+  // The saved note is on screen only once Firestore has it in the local
+  // cache; wait for that before moving on, as a person would.
+  await expect(page.getByText('Tender for Limerick Junction')).toBeVisible()
+  await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Home' }).click()
   await expect(page.getByRole('heading', { name: /Pinned/ })).toBeVisible()
   await expect(page.getByText('Tender for Limerick Junction')).toBeVisible()
 })
