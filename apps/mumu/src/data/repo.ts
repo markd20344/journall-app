@@ -9,8 +9,8 @@
 import { doc, setDoc } from "firebase/firestore";
 import { firestore } from "@journall/shared/firebase/config";
 import { newId, nowIso } from "@journall/shared/lib/id";
-import type { BaseDoc, CollectionName, CollectionTypes } from "../types";
-import { currentUid } from "./store";
+import type { BaseDoc, CollectionName, CollectionTypes, RecentRef, RecordKind } from "../types";
+import { currentUid, getRecent } from "./store";
 import { reportWriteError } from "./syncStatus";
 
 export type NewRecord<K extends CollectionName> = Omit<CollectionTypes[K], keyof BaseDoc>;
@@ -52,4 +52,16 @@ export function softDelete(name: CollectionName, id: string): void {
 
 export function restore(name: CollectionName, id: string): void {
   updateRecord(name, id, { deleted: false });
+}
+
+const RECENT_LIMIT = 12;
+
+/** Moves a record to the top of "recently viewed". Skips the write if it's already there. */
+export function trackView(kind: RecordKind, id: string): void {
+  const uid = currentUid();
+  if (!uid || !firestore) return;
+  const current = getRecent();
+  if (current[0]?.kind === kind && current[0]?.id === id) return;
+  const refs: RecentRef[] = [{ kind, id, at: nowIso() }, ...current.filter((r) => !(r.kind === kind && r.id === id))].slice(0, RECENT_LIMIT);
+  track("Update recently viewed failed", setDoc(doc(firestore, "users", uid, "settings", "recent"), { refs, updatedAt: nowIso() }));
 }

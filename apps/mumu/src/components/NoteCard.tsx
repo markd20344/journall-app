@@ -9,14 +9,15 @@ import type { Note } from "../types";
 interface Props {
   note: Note;
   /** The page this card is shown on — its own link chip is left out. */
-  context?: { companyId?: string; personId?: string };
+  context?: { companyId?: string; personId?: string; engagementId?: string };
 }
 
 export default function NoteCard({ note, context }: Props) {
-  const { companies, people } = useStore();
+  const { companies, people, engagements } = useStore();
   const meta = noteTypeMeta(note.type);
   const companyLinks = note.companyIds.filter((id) => id !== context?.companyId);
   const personLinks = note.personIds.filter((id) => id !== context?.personId);
+  const engagementLinks = (note.engagementIds ?? []).filter((id) => id !== context?.engagementId);
 
   return (
     <article className={`note${note.pinned ? " pinned" : ""}${note.type === "if-i-go-back" ? " go-back-note" : ""}`}>
@@ -32,7 +33,7 @@ export default function NoteCard({ note, context }: Props) {
       </div>
       <div className="note-body">{note.body}</div>
       <DetectedLinks text={note.body} />
-      {(companyLinks.length > 0 || personLinks.length > 0 || note.tags.length > 0) && (
+      {(companyLinks.length > 0 || personLinks.length > 0 || engagementLinks.length > 0 || note.tags.length > 0) && (
         <div className="note-links">
           {companyLinks.map((id) => {
             const c = companies.byId.get(id);
@@ -47,6 +48,14 @@ export default function NoteCard({ note, context }: Props) {
             return p && !p.deleted ? (
               <Link key={id} to={`/people/${id}`} className="chip">
                 👤 {personName(p)}
+              </Link>
+            ) : null;
+          })}
+          {engagementLinks.map((id) => {
+            const e = engagements.byId.get(id);
+            return e && !e.deleted ? (
+              <Link key={id} to={`/engagements/${id}`} className="chip">
+                💼 {e.title || e.myRole || "Engagement"}
               </Link>
             ) : null;
           })}

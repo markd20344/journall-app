@@ -9,7 +9,7 @@ import ChoiceChips from "../components/ChoiceChips";
 import RecordPicker from "../components/RecordPicker";
 import TagInput from "../components/TagInput";
 import { createRecord, updateRecord, type NewRecord } from "../data/repo";
-import { useAllTags, useCompanyOptions, usePeopleOptions } from "../data/selectors";
+import { useAllTags, useCompanyOptions, useEngagementOptions, usePeopleOptions } from "../data/selectors";
 import { useRecord, useStoreReady } from "../data/store";
 import { blankCompany, blankNote, blankPerson } from "../lib/blanks";
 import { fromLocalInput, toLocalInput } from "../lib/format";
@@ -35,6 +35,7 @@ function NoteForm({ existing }: { existing?: Note }) {
   const tags = useAllTags();
   const companyOptions = useCompanyOptions();
   const peopleOptions = usePeopleOptions();
+  const engagementOptions = useEngagementOptions();
 
   const [draft, setDraft] = useState<Draft>(() => {
     if (existing) return { ...blankNote(), ...existing };
@@ -43,6 +44,8 @@ function NoteForm({ existing }: { existing?: Note }) {
     const person = params.get("person");
     if (company) d.companyIds = [company];
     if (person) d.personIds = [person];
+    const engagement = params.get("engagement");
+    if (engagement) d.engagementIds = [engagement];
     return d;
   });
   const [dirty, setDirty] = useState(false);
@@ -62,14 +65,19 @@ function NoteForm({ existing }: { existing?: Note }) {
   // Back to wherever the note was started from.
   const returnTo = existing
     ? -1
-    : params.get("company")
+    : params.get("engagement")
+      ? `/engagements/${params.get("engagement")}`
+      : params.get("company")
       ? `/companies/${params.get("company")}`
       : params.get("person")
         ? `/people/${params.get("person")}`
         : "/notes";
 
+  // Usually the form was opened from the page it returns to, so step back
+  // rather than stacking a second copy of that page in history.
   function leave() {
-    if (typeof returnTo === "number") navigate(returnTo);
+    const hasHistory = (window.history.state?.idx ?? 0) > 0;
+    if (typeof returnTo === "number" || hasHistory) navigate(-1);
     else navigate(returnTo, { replace: true });
   }
 
@@ -124,6 +132,13 @@ function NoteForm({ existing }: { existing?: Note }) {
         People
         <RecordPicker options={peopleOptions} selected={draft.personIds} onChange={(personIds) => patch({ personIds })} placeholder="Link a person" onCreate={(name) => createRecord("people", blankPerson(name))} />
       </div>
+
+      {(engagementOptions.length > 0 || draft.engagementIds.length > 0) && (
+        <div className="label">
+          Engagements
+          <RecordPicker options={engagementOptions} selected={draft.engagementIds} onChange={(engagementIds) => patch({ engagementIds })} placeholder="Link an engagement" />
+        </div>
+      )}
 
       <div className="two">
         <label>

@@ -1,4 +1,4 @@
-import type { Circle, CompanyStatus, CompanyType, NoteType } from "../types";
+import type { Circle, CompanyStatus, CompanyType, DateKind, ImportantDate, NoteType } from "../types";
 
 export const COMPANY_TYPES: Array<{ value: CompanyType; label: string }> = [
   { value: "employer", label: "Employer" },
@@ -39,4 +39,29 @@ export function labelFor<T extends string>(options: Array<{ value: T; label: str
 
 export function noteTypeMeta(type: NoteType) {
   return NOTE_TYPES.find((t) => t.value === type) ?? NOTE_TYPES[0];
+}
+
+export const DATE_KINDS: Array<{ value: DateKind; label: string; icon: string }> = [
+  { value: "birthday", label: "Birthday", icon: "🎂" },
+  { value: "anniversary", label: "Anniversary", icon: "💍" },
+  { value: "other", label: "Other", icon: "📅" },
+];
+
+export const WARN_DAY_OPTIONS = [
+  { value: 0, label: "On the day" },
+  { value: 1, label: "1 day before" },
+  { value: 3, label: "3 days before" },
+  { value: 7, label: "1 week before" },
+  { value: 14, label: "2 weeks before" },
+  { value: 30, label: "1 month before" },
+];
+
+/** "Birthday", "Wedding anniversary"... */
+export function dateTitle(d: Pick<ImportantDate, "kind" | "label">): string {
+  if (d.label.trim()) return d.label.trim();
+  return DATE_KINDS.find((k) => k.value === d.kind)?.label ?? "Date";
+}
+
+export function dateIcon(kind: DateKind): string {
+  return DATE_KINDS.find((k) => k.value === kind)?.icon ?? "📅";
 }

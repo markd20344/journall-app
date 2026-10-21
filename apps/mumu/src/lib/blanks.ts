@@ -2,7 +2,8 @@
 // or hand-edited docs before they reach a form.
 import { newId } from "@journall/shared/lib/id";
 import type { NewRecord } from "../data/repo";
-import type { NoteType } from "../types";
+import type { DateKind, NoteType } from "../types";
+import { todayLocal } from "./dates";
 
 export function blankCompany(name = ""): NewRecord<"companies"> {
   return { name, type: "client", status: "active", address: "", postcode: "", website: "", summary: "", tags: [] };
@@ -50,4 +51,27 @@ export function blankPhone(label = "mobile") {
 
 export function blankEmail(label = "personal") {
   return { id: newId(), label, address: "" };
+}
+
+export function blankEngagement(companyId = ""): NewRecord<"engagements"> {
+  return {
+    companyId,
+    title: "",
+    myRole: "",
+    startDate: todayLocal(),
+    endDate: null,
+    whatIDid: "",
+    howIGotIt: "",
+    viaCompanyId: null,
+    viaPersonId: null,
+    keyContactIds: [],
+    rate: "",
+    tags: [],
+  };
+}
+
+export const DEFAULT_WARN_DAYS = [14, 3, 0];
+
+export function blankImportantDate(personId = "", kind: DateKind = "birthday"): NewRecord<"importantDates"> {
+  return { personId, kind, label: "", month: 1, day: 1, year: null, warnDays: [...DEFAULT_WARN_DAYS] };
 }
