@@ -17,6 +17,7 @@ a nav bar, a database, or a home-screen icon with it.
 | **Journall OS** | `apps/journal` | Journal entries, calendar, tasks/log items (actions, risks, decisions, stories, ...), books, and the Markets dashboard | `/journall-app/` |
 | **Kit Runs** | `apps/kit-runs` | Daily kit-collection round tracker: import jobs, plan the route, track visits and drop-offs | `/journall-app/kit-runs/` |
 | **Family Tree** | `apps/family-tree` | Shared, invite-only genealogy tree | `/journall-app/family-tree/` |
+| **Mumu** | `apps/mumu` | Personal CRM + journal: people, companies, notes (and, in later phases, engagements, dates, calendar, journal). Will replace Journall OS | Firebase Hosting (`<project>.web.app`) — see `CLAUDE.md` and `docs/FIREBASE_SETUP.md` |
 
 Code shared by all three (auth, the sign-in gate, toast/update-prompt UI,
 voice dictation, id/date helpers, ...) lives in `packages/shared`. Each app

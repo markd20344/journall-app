@@ -4,10 +4,20 @@ service firebase.storage {
     // Task/Item photo attachments — single-owner, so this mirrors
     // firestore.rules' generic /users/{uid}/{collection}/{docId} rule
     // rather than the Family Tree's shared-membership one below.
+    // Same owner lock as firestore.rules — keep ownerUid() in step with it.
+    function ownerUid() {
+      return 'SET_OWNER_UID';
+    }
+    function isOwnerOf(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && (ownerUid() == 'SET_OWNER_UID' || request.auth.uid == ownerUid());
+    }
+
     match /users/{uid}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid
-        && request.resource.size < 20 * 1024 * 1024;
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow read: if isOwnerOf(uid);
+      allow write: if isOwnerOf(uid) && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if isOwnerOf(uid);
     }
 
     // Family Tree photos and record scans — role checks mirror

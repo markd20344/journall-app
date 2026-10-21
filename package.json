@@ -16,11 +16,22 @@
     "build:family-tree": "npm run build -w apps/family-tree",
     "build": "npm run build:journal && npm run build:kit-runs && npm run build:family-tree && node scripts/assemble-site.mjs",
     "lint": "oxlint",
-    "test:e2e": "npm run test:e2e -w apps/journal"
+    "test:e2e": "npm run test:e2e -w apps/journal",
+    "dev:mumu": "npm run dev -w apps/mumu",
+    "dev:mumu:emulator": "npm run dev -w apps/mumu -- --mode emulator",
+    "build:mumu": "npm run build -w apps/mumu",
+    "test:mumu": "npm run test -w apps/mumu",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-mumu \"vitest run --root tests/rules\"",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-mumu",
+    "test:rules:running": "vitest run --root tests/rules",
+    "test:e2e:mumu": "firebase emulators:exec --only auth,firestore --project demo-mumu \"npm run test:e2e -w apps/mumu\""
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/node": "^24.13.3",
+    "firebase-tools": "^15.34.0",
     "oxlint": "^1.75.0",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
   }
 }

@@ -3,6 +3,7 @@ import type { User } from "firebase/auth";
 import {
   completeEmailSignIn,
   consumeRedirectResult,
+  signOutUser,
   getStoredSignInEmail,
   isEmailSignInLink,
   sendEmailSignInLink,
@@ -27,6 +28,12 @@ export interface AuthGateProps {
   onSignedOut?: () => void;
   /** See SignInOptions.forceRedirectInStandalone — only set this where popup is confirmed broken in an installed PWA. */
   forceRedirectInStandalone?: boolean;
+  /**
+   * Single-owner apps: return false to sign a user straight back out with a
+   * "not authorised" message. Security rules are the real enforcement; this
+   * just stops a stranger seeing an empty app shell.
+   */
+  isAllowed?: (user: User) => boolean;
 }
 
 type EmailLinkState =
@@ -45,6 +52,7 @@ export default function AuthGate({
   onSignedIn,
   onSignedOut,
   forceRedirectInStandalone,
+  isAllowed,
 }: AuthGateProps) {
   const [checkedRedirect, setCheckedRedirect] = useState(false);
   const [checkedEmailLink, setCheckedEmailLink] = useState(false);
@@ -94,10 +102,18 @@ export default function AuthGate({
 
   useEffect(() => {
     const unsubscribe = watchAuthState((u) => {
+      if (u && isAllowed && !isAllowed(u)) {
+        setError(`${u.email ?? "That account"} isn't allowed to use ${appTitle}.`);
+        void signOutUser();
+        setUser(null);
+        setAuthReady(true);
+        return;
+      }
       setUser(u);
       setAuthReady(true);
     });
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

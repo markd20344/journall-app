@@ -119,10 +119,38 @@ function familyTreeGlyph(sx, sy, cx, w, h) {
   return inTrunk || inCanopy;
 }
 
+function mumuGlyph(sx, sy, cx, w, h) {
+  // Three crowns, two over one, after the Munster flag.
+  function crown(x0, y0, cw, ch) {
+    const u = (sx - x0) / cw;
+    const v = (sy - y0) / ch;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return false;
+    if (v >= 0.68) return true; // band
+    const peaks = [0.08, 0.5, 0.92];
+    const inPoint = v >= 0.16 && peaks.some((p) => Math.abs(u - p) < ((v - 0.16) / 0.52) * 0.26);
+    const inBall = peaks.some((p) => {
+      const du = (u - p) * cw;
+      const dv = (v - 0.1) * ch;
+      return Math.sqrt(du * du + dv * dv) < cw * 0.075;
+    });
+    return inPoint || inBall;
+  }
+  const cw = w * 0.24;
+  const ch = w * 0.19;
+  return (
+    crown(cx - w * 0.15 - cw / 2, h * 0.27, cw, ch) ||
+    crown(cx + w * 0.15 - cw / 2, h * 0.27, cw, ch) ||
+    crown(cx - cw / 2, h * 0.53, cw, ch)
+  );
+}
+
 const APPS = [
   { name: "journal", bg: [37, 99, 235], glyph: journalGlyph }, // matches --accent (#2563eb)
   { name: "kit-runs", bg: [217, 119, 6], glyph: kitRunsGlyph }, // amber (#d97706)
   { name: "family-tree", bg: [21, 128, 61], glyph: familyTreeGlyph }, // green (#15803d)
+  // Munster blue with gold crowns. Square, not round: iOS masks home-screen
+  // icons itself and paints any transparent corners black.
+  { name: "mumu", bg: [30, 58, 138], fg: [245, 196, 66], glyph: mumuGlyph, square: true, appleTouch: true },
 ];
 
 function makeDraw(app, maskable) {
@@ -132,7 +160,7 @@ function makeDraw(app, maskable) {
     const radius = w * 0.5;
     const dx = x + 0.5 - cx;
     const dy = y + 0.5 - cy;
-    if (Math.sqrt(dx * dx + dy * dy) > radius) return [0, 0, 0, 0];
+    if (!app.square && Math.sqrt(dx * dx + dy * dy) > radius) return [0, 0, 0, 0];
 
     // Maskable icons get masked to arbitrary shapes by the OS, so the mark
     // needs to sit inside a smaller safe zone (~70%) or it gets clipped.
@@ -140,7 +168,7 @@ function makeDraw(app, maskable) {
     const sx = cx + (x + 0.5 - cx) / scale;
     const sy = cy + (y + 0.5 - cy) / scale;
 
-    const [r, g, b] = app.glyph(sx, sy, cx, w, h) ? WHITE : app.bg;
+    const [r, g, b] = app.glyph(sx, sy, cx, w, h) ? (app.fg ?? WHITE) : app.bg;
     return [r, g, b, 255];
   };
 }
@@ -153,5 +181,8 @@ for (const app of APPS) {
     fs.writeFileSync(path.join(outDir, `icon-${size}.png`), buildPng(size, makeDraw(app, false)));
   }
   fs.writeFileSync(path.join(outDir, "icon-maskable-512.png"), buildPng(512, makeDraw(app, true)));
+  if (app.appleTouch) {
+    fs.writeFileSync(path.join(outDir, "apple-touch-icon.png"), buildPng(180, makeDraw(app, false)));
+  }
   console.log(`wrote icons for ${app.name}`);
 }
