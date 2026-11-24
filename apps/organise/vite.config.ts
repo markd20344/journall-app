@@ -11,7 +11,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 // scripts/assemble-site.mjs). Its own base/scope is what makes it install as
 // a separate home-screen icon from Journall OS and Kit Runs.
 export default defineConfig({
-  base: '/journall-app/shopping/',
+  base: '/journall-app/organise/',
   resolve: {
     alias: {
       '@journall/shared': path.resolve(dirname, '../../packages/shared/src'),
@@ -22,22 +22,24 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       manifest: {
-        name: 'Shopping List',
-        short_name: 'Shopping',
-        description: 'Say what has run out and it goes on the list.',
+        name: 'Organise',
+        short_name: 'Organise',
+        description: 'Food shopping, clothes and to-dos: tap the mic and say it.',
         theme_color: '#15803d',
         background_color: '#f1f7f2',
         display: 'standalone',
-        start_url: '/journall-app/shopping/',
-        scope: '/journall-app/shopping/',
+        start_url: '/journall-app/organise/',
+        scope: '/journall-app/organise/',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
-        // Long-press the home-screen icon (Android) to jump straight to the mic.
+        // Long-press the home-screen icon (Android) to jump straight to a list's mic.
         shortcuts: [
-          { name: 'Add by voice', short_name: 'Speak', url: '/journall-app/shopping/?voice=1', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Add food', short_name: 'Food', url: '/journall-app/organise/?list=food&voice=1', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Add clothes', short_name: 'Clothes', url: '/journall-app/organise/?list=clothes&voice=1', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Add a to-do', short_name: 'To-do', url: '/journall-app/organise/?list=todo&voice=1', icons: [{ src: 'icons/icon-192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {

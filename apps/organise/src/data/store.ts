@@ -65,7 +65,7 @@ export function startStore(userId: string): void {
       setItems(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as ShoppingItem));
     },
     (err) => {
-      console.error("Shopping list listener failed", err);
+      console.error("Organise listener failed", err);
       setSync({ lastError: err.message });
     },
   );

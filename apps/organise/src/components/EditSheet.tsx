@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { AISLES, type Aisle, type ShoppingItem } from "../types";
+import type { ShoppingItem } from "../types";
+import type { ListConfig } from "../lib/lists";
 import { KNOWN_SHOPS } from "../lib/shops";
 
 interface Props {
   item: ShoppingItem;
+  config: ListConfig;
   shops: string[];
-  onSave: (patch: { name: string; shop: string | null; aisle: Aisle; note: string }) => void;
+  onSave: (patch: { name: string; shop: string | null; aisle: string; note: string }) => void;
   onRemove: () => void;
   onForget: () => void;
   onClose: () => void;
 }
 
-export default function EditSheet({ item, shops, onSave, onRemove, onForget, onClose }: Props) {
+export default function EditSheet({ item, config, shops, onSave, onRemove, onForget, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState(item.name);
   const [shop, setShop] = useState(item.shop ?? "");
-  const [aisle, setAisle] = useState<Aisle>(item.aisle);
+  const [aisle, setAisle] = useState(item.aisle);
   const [note, setNote] = useState(item.note ?? "");
 
   useEffect(() => {
@@ -43,14 +45,15 @@ export default function EditSheet({ item, shops, onSave, onRemove, onForget, onC
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          onSave({ name: name.trim(), shop: shop.trim() || null, aisle, note: note.trim() });
+          onSave({ name: name.trim(), shop: config.usesShops ? shop.trim() || null : null, aisle, note: note.trim() });
         }}
       >
-        <h2>Edit item</h2>
+        <h2>{config.sections.length ? "Edit item" : "Edit job"}</h2>
         <label>
-          Item
+          {config.sections.length ? "Item" : "Job"}
           <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         </label>
+        {config.usesShops && (
         <label>
           Shop
           <input value={shop} onChange={(e) => setShop(e.target.value)} list="shop-options" placeholder="Any shop" autoComplete="off" />
@@ -60,19 +63,22 @@ export default function EditSheet({ item, shops, onSave, onRemove, onForget, onC
             ))}
           </datalist>
         </label>
-        <label>
-          Aisle
-          <select value={aisle} onChange={(e) => setAisle(e.target.value as Aisle)}>
-            {AISLES.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </label>
+        )}
+        {config.sections.length > 0 && (
+          <label>
+            Section
+            <select value={config.sections.includes(aisle) ? aisle : "Other"} onChange={(e) => setAisle(e.target.value)}>
+              {config.sections.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Note
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 2 packs, the 0% one" autoComplete="off" />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={config.kind === "clothes" ? "e.g. Size M, navy" : config.kind === "todo" ? "e.g. before Friday" : "e.g. 2 packs, the 0% one"} autoComplete="off" />
         </label>
         <div className="sheet-actions">
           <button type="submit" className="primary">
@@ -89,7 +95,7 @@ export default function EditSheet({ item, shops, onSave, onRemove, onForget, onC
             </button>
           )}
           <button type="button" className="danger" onClick={onForget}>
-            Forget this item
+            Delete
           </button>
         </div>
       </form>

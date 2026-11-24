@@ -2,8 +2,24 @@
 // order you walk round. First matching rule wins, which is why "lentil
 // crisps" is checked as a snack before "lentil" as cupboard, and "fruit
 // juice" as a drink before "fruit". The aisle can be changed on the item.
-import type { Aisle } from "../types";
 import { fold } from "./text";
+
+export const AISLES = [
+  "Fruit & veg",
+  "Bread & bakery",
+  "Meat & fish",
+  "Dairy & eggs",
+  "Cupboard",
+  "Herbs & spices",
+  "Frozen",
+  "Drinks",
+  "Snacks",
+  "Household",
+  "Toiletries",
+  "Other",
+] as const;
+
+type Aisle = (typeof AISLES)[number];
 
 const RULES: [Aisle, string[]][] = [
   // Phrases whose last word would otherwise send them to the wrong aisle.
