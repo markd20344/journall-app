@@ -1,6 +1,6 @@
-// Combines the three apps' independent Vite builds into one dist/ folder
+// Combines the apps' independent Vite builds into one dist/ folder
 // for a single GitHub Pages deploy — the journal app at the site root (it
-// keeps the URL the whole site has always used), Kit Runs and Family Tree
+// keeps the URL the whole site has always used), Kit Runs, Family Tree and Shopping List
 // as subpaths (matching the `base` each app's vite.config.ts builds with).
 // Each app's own Dexie database name and PWA scope keep them fully
 // independent even though they share an origin.
@@ -15,6 +15,7 @@ const apps = [
   { name: "journal", subpath: "" },
   { name: "kit-runs", subpath: "kit-runs" },
   { name: "family-tree", subpath: "family-tree" },
+  { name: "shopping", subpath: "shopping" },
 ];
 
 rmSync(siteDir, { recursive: true, force: true });

@@ -11,10 +11,12 @@
     "dev:journal": "npm run dev -w apps/journal",
     "dev:kit-runs": "npm run dev -w apps/kit-runs",
     "dev:family-tree": "npm run dev -w apps/family-tree",
+    "dev:shopping": "npm run dev -w apps/shopping",
     "build:journal": "npm run build -w apps/journal",
     "build:kit-runs": "npm run build -w apps/kit-runs",
     "build:family-tree": "npm run build -w apps/family-tree",
-    "build": "npm run build:journal && npm run build:kit-runs && npm run build:family-tree && node scripts/assemble-site.mjs",
+    "build:shopping": "npm run build -w apps/shopping",
+    "build": "npm run build:journal && npm run build:kit-runs && npm run build:family-tree && npm run build:shopping && node scripts/assemble-site.mjs",
     "lint": "oxlint",
     "test:e2e": "npm run test:e2e -w apps/journal",
     "dev:mumu": "npm run dev -w apps/mumu",
@@ -24,7 +26,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-mumu \"vitest run --root tests/rules\"",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-mumu",
     "test:rules:running": "vitest run --root tests/rules",
-    "test:e2e:mumu": "firebase emulators:exec --only auth,firestore --project demo-mumu \"npm run test:e2e -w apps/mumu\""
+    "test:e2e:mumu": "firebase emulators:exec --only auth,firestore --project demo-mumu \"npm run test:e2e -w apps/mumu\"",
+    "test:shopping": "npm run test -w apps/shopping"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
