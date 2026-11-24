@@ -10,6 +10,7 @@ import { capitaliseFirst } from "./text";
 export interface ParsedItem {
   name: string;
   shop: string | null;
+  note?: string;
 }
 
 // Repeated until nothing more comes off, so "and also we need some" all goes.

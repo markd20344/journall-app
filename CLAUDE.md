@@ -9,7 +9,7 @@ share one Firebase project:
 | Journall OS (being retired into Mumu, Phase 5) | `apps/journal` | GitHub Pages `/journall-app/` | Dexie, synced to Firestore |
 | Kit Runs | `apps/kit-runs` | GitHub Pages `/journall-app/kit-runs/` | Dexie, synced to Firestore |
 | Family Tree (shared with relatives) | `apps/family-tree` | GitHub Pages `/journall-app/family-tree/` | Dexie, synced to `trees/family` |
-| Shopping List (voice-first "we've run out" list) | `apps/shopping` | GitHub Pages `/journall-app/shopping/` | Firestore `users/{uid}/shoppingItems` + its offline cache |
+| Organise (voice-first Food, Clothes and To-do lists; was "Shopping List") | `apps/organise` | GitHub Pages `/journall-app/organise/` (`/shopping/` redirects) | Firestore `users/{uid}/shoppingItems` (`list` field; missing = food) + its offline cache |
 
 `packages/shared` holds auth (`AuthGate`), Firebase config, toast, update
 prompt, error boundary, voice dictation and small helpers. Changes there must

@@ -5,9 +5,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { firebaseEnabled, firestore } from "@journall/shared/firebase/config";
 import { newId, nowIso } from "@journall/shared/lib/id";
 import type { ParsedItem } from "../lib/parse";
-import { guessAisle } from "../lib/aisles";
+import { LISTS } from "../lib/lists";
 import { itemKey } from "../lib/text";
-import type { ShoppingItem } from "../types";
+import { listOf, type ListKind, type ShoppingItem } from "../types";
 import { COLLECTION, currentUid, getItem, getItems, reportWriteError, writeLocal } from "./store";
 
 function write(id: string, patch: Partial<ShoppingItem>): void {
@@ -22,7 +22,7 @@ function write(id: string, patch: Partial<ShoppingItem>): void {
   setDoc(doc(firestore, "users", uid, COLLECTION, id), withTime, { merge: true })
     .then(() => reportWriteError(null))
     .catch((err: Error) => {
-      console.error("Shopping list write failed", err);
+      console.error("Organise write failed", err);
       reportWriteError(err.message);
     });
 }
@@ -33,7 +33,7 @@ export interface AddResult {
   undo: () => void;
 }
 
-export function addItems(parsed: ParsedItem[]): AddResult {
+export function addItems(list: ListKind, parsed: ParsedItem[]): AddResult {
   const now = nowIso();
   const added: ShoppingItem[] = [];
   const restores: (() => void)[] = [];
@@ -43,14 +43,16 @@ export function addItems(parsed: ParsedItem[]): AddResult {
     const key = itemKey(p.name);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    const existing = getItems().find((i) => i.key === key);
+    // Only within the same list: "socks" on Clothes and a to-do are unrelated.
+    const existing = getItems().find((i) => i.key === key && listOf(i) === list);
 
     if (existing) {
-      const before = { status: existing.status, shop: existing.shop, addedAt: existing.addedAt, timesAdded: existing.timesAdded, gotAt: existing.gotAt };
+      const before = { status: existing.status, shop: existing.shop, note: existing.note, addedAt: existing.addedAt, timesAdded: existing.timesAdded, gotAt: existing.gotAt };
+      const shared = { shop: p.shop ?? existing.shop, note: p.note ?? existing.note };
       const patch: Partial<ShoppingItem> =
         existing.status === "needed"
-          ? { shop: p.shop ?? existing.shop } // already on the list: just take a newly named shop
-          : { status: "needed", shop: p.shop ?? existing.shop, addedAt: now, gotAt: null, timesAdded: (existing.timesAdded ?? 0) + 1 };
+          ? shared // already on the list: just take a newly named shop or size
+          : { ...shared, status: "needed", addedAt: now, gotAt: null, timesAdded: (existing.timesAdded ?? 0) + 1 };
       write(existing.id, patch);
       added.push({ ...existing, ...patch });
       restores.push(() => write(existing.id, before));
@@ -59,11 +61,12 @@ export function addItems(parsed: ParsedItem[]): AddResult {
 
     const item: ShoppingItem = {
       id: newId(),
+      list,
       name: p.name,
       key,
       shop: p.shop,
-      aisle: guessAisle(p.name),
-      note: "",
+      aisle: LISTS[list].guessSection(p.name),
+      note: p.note ?? "",
       status: "needed",
       timesAdded: 1,
       addedAt: now,
@@ -87,9 +90,9 @@ export function toggleGot(id: string): void {
 }
 
 /** Ticked items leave the list but stay as "Buy again" suggestions. */
-export function clearGot(): string[] {
+export function clearGot(list: ListKind): string[] {
   const ids = getItems()
-    .filter((i) => i.status === "got")
+    .filter((i) => i.status === "got" && listOf(i) === list)
     .map((i) => i.id);
   ids.forEach((id) => write(id, { status: "off" }));
   return ids;

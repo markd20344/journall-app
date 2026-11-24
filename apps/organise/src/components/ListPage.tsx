@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { showToast } from "@journall/shared/lib/toast";
-import { AISLES, type ShoppingItem } from "../types";
-import { useItems } from "../data/store";
+import { listOf, type ShoppingItem } from "../types";
+import type { ListConfig } from "../lib/lists";
 import { addItems, clearGot, forget, setStatus, toggleGot, unforget, updateItem } from "../data/repo";
-import { parseItems } from "../lib/parse";
 import { fold } from "../lib/text";
 import { listAsText } from "../lib/share";
 import { useVoice, voiceSupported } from "../lib/voice";
@@ -17,39 +16,47 @@ function names(items: { name: string }[]): string {
   return `${list.slice(0, 3).join(", ")} and ${list.length - 3} more`;
 }
 
-function addAndConfirm(text: string): boolean {
-  const parsed = parseItems(text);
-  if (parsed.length === 0) {
-    showToast("Didn't catch any items — try again");
-    return false;
-  }
-  const { added, undo } = addItems(parsed);
-  if (added.length === 0) return false;
-  showToast(`Added ${names(added)}`, { action: { label: "Undo", onClick: undo }, durationMs: 5000 });
-  return true;
+function shopsOf(items: ShoppingItem[]): string[] {
+  return Array.from(new Set(items.map((i) => i.shop).filter((s): s is string => Boolean(s)))).sort();
 }
 
-export default function ListPage() {
-  const { items, ready } = useItems();
+interface Props {
+  config: ListConfig;
+  /** Every item in the store; this page shows only its own list's. */
+  allItems: ShoppingItem[];
+  /** Start listening as soon as the page opens (home-screen shortcut). */
+  autoListen: boolean;
+}
+
+export default function ListPage({ config, allItems, autoListen }: Props) {
   const [text, setText] = useState("");
   const [chosenShop, setShopFilter] = useState(ALL);
   const [editing, setEditing] = useState<ShoppingItem | null>(null);
   const [showAllUsuals, setShowAllUsuals] = useState(false);
+  const isTodo = config.sections.length === 0;
 
-  const onHeard = useCallback((transcript: string) => {
-    addAndConfirm(transcript);
-  }, []);
+  const addAndConfirm = useCallback(
+    (spoken: string): boolean => {
+      const parsed = config.parse(spoken);
+      if (parsed.length === 0) {
+        showToast(`Didn't catch any ${isTodo ? "jobs" : "items"} — try again`);
+        return false;
+      }
+      const { added, undo } = addItems(config.kind, parsed);
+      if (added.length === 0) return false;
+      showToast(`Added ${names(added)}`, { action: { label: "Undo", onClick: undo }, durationMs: 5000 });
+      return true;
+    },
+    [config, isTodo],
+  );
+
+  const onHeard = useCallback((transcript: string) => void addAndConfirm(transcript), [addAndConfirm]);
   const voice = useVoice(onHeard);
   const canTalk = voiceSupported();
 
-  // The home-screen shortcut opens ?voice=1: go straight to listening where
-  // the browser allows it without a tap (it may not; then the button is there).
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("voice") === "1" && canTalk) {
-      window.history.replaceState(null, "", window.location.pathname);
-      voice.start();
-    }
+    // Where the browser allows it without a tap (it may not; then the mic button is there).
+    if (autoListen && canTalk) voice.start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,10 +64,18 @@ export default function ListPage() {
     if (voice.error) showToast(voice.error, { durationMs: 5000 });
   }, [voice.error]);
 
-  const needed = useMemo(() => items.filter((i) => i.status === "needed").sort((a, b) => a.name.localeCompare(b.name)), [items]);
+  const items = useMemo(() => allItems.filter((i) => listOf(i) === config.kind), [allItems, config.kind]);
+  const needed = useMemo(
+    () =>
+      items
+        .filter((i) => i.status === "needed")
+        // Jobs stay in the order they were added; shopping is alphabetical within each section.
+        .sort((a, b) => (isTodo ? a.addedAt.localeCompare(b.addedAt) : a.name.localeCompare(b.name))),
+    [items, isTodo],
+  );
   const got = useMemo(() => items.filter((i) => i.status === "got").sort((a, b) => (b.gotAt ?? "").localeCompare(a.gotAt ?? "")), [items]);
-  const shops = useMemo(() => Array.from(new Set(items.map((i) => i.shop).filter((s): s is string => Boolean(s)))).sort(), [items]);
-  const neededShops = useMemo(() => Array.from(new Set(needed.map((i) => i.shop).filter((s): s is string => Boolean(s)))).sort(), [needed]);
+  const shops = useMemo(() => shopsOf(items), [items]);
+  const neededShops = useMemo(() => (config.usesShops ? shopsOf(needed) : []), [needed, config.usesShops]);
 
   // Once the last thing from a shop is ticked off, go back to everything.
   const shopFilter = neededShops.includes(chosenShop) ? chosenShop : ALL;
@@ -70,10 +85,10 @@ export default function ListPage() {
   const typed = fold(text);
   const usuals = useMemo(
     () =>
-      items
-        .filter((i) => i.status === "off")
-        .sort((a, b) => (b.timesAdded ?? 0) - (a.timesAdded ?? 0) || b.updatedAt.localeCompare(a.updatedAt)),
-    [items],
+      config.againLabel
+        ? items.filter((i) => i.status === "off").sort((a, b) => (b.timesAdded ?? 0) - (a.timesAdded ?? 0) || b.updatedAt.localeCompare(a.updatedAt))
+        : [],
+    [items, config.againLabel],
   );
   const usualsShown = typed ? usuals.filter((i) => fold(i.name).includes(typed)) : usuals;
   const usualsLimit = showAllUsuals || typed ? usualsShown.length : 18;
@@ -85,7 +100,7 @@ export default function ListPage() {
   }
 
   async function share() {
-    const body = listAsText(visible);
+    const body = listAsText(config, visible);
     try {
       if (navigator.share) {
         await navigator.share({ text: body });
@@ -100,25 +115,29 @@ export default function ListPage() {
     }
   }
 
-  function clearBasket() {
-    const ids = clearGot();
-    showToast(`Cleared ${ids.length} from the basket`, {
+  function clearDone() {
+    const ids = clearGot(config.kind);
+    showToast(`Cleared ${ids.length}`, {
       action: { label: "Undo", onClick: () => ids.forEach((id) => setStatus(id, "got")) },
       durationMs: 5000,
     });
   }
 
-  if (!ready) return <div className="app-loading">Loading your list…</div>;
+  // Items whose section isn't one of this list's (e.g. edited by hand) go under the last, "Other".
+  const sectionOf = (i: ShoppingItem) => (config.sections.includes(i.aisle) ? i.aisle : config.sections[config.sections.length - 1]);
+  const groups: [string | null, ShoppingItem[]][] = isTodo
+    ? [[null, visible]]
+    : config.sections.map((s) => [s, visible.filter((i) => sectionOf(i) === s)] as [string, ShoppingItem[]]);
 
   return (
     <div className="list-page">
       <header className="top">
         <h1>
-          Shopping <span className="count">{needed.length > 0 ? needed.length : ""}</span>
+          {config.label} <span className="count">{needed.length > 0 ? needed.length : ""}</span>
         </h1>
         {needed.length > 0 && (
           <button type="button" className="ghost small" onClick={() => void share()}>
-            Share
+            Send list
           </button>
         )}
       </header>
@@ -137,19 +156,18 @@ export default function ListPage() {
         <div className="empty">
           <p className="empty-title">Nothing on the list.</p>
           <p>
-            {canTalk ? "Tap the mic and say what's run out, like" : "Type what's run out, like"} <em>"eggs, white onions and protein bread from Aldi"</em>.
+            {canTalk ? "Tap the mic and say it, like" : "Type it in, like"} <em>"{config.example}"</em>.
           </p>
         </div>
       )}
 
-      {AISLES.map((aisle) => {
-        const inAisle = visible.filter((i) => i.aisle === aisle);
-        if (inAisle.length === 0) return null;
+      {groups.map(([section, inSection]) => {
+        if (inSection.length === 0) return null;
         return (
-          <section key={aisle} className="aisle" aria-label={aisle}>
-            <h2>{aisle}</h2>
+          <section key={section ?? "all"} className="aisle" aria-label={section ?? config.label}>
+            {section && <h2>{section}</h2>}
             <ul>
-              {inAisle.map((item) => (
+              {inSection.map((item) => (
                 <ItemRow key={item.id} item={item} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
               ))}
             </ul>
@@ -158,10 +176,12 @@ export default function ListPage() {
       })}
 
       {got.length > 0 && (
-        <section className="aisle basket" aria-label="In the basket">
+        <section className="aisle basket" aria-label={config.doneLabel}>
           <div className="section-head">
-            <h2>In the basket ({got.length})</h2>
-            <button type="button" className="ghost small" onClick={clearBasket}>
+            <h2>
+              {config.doneLabel} ({got.length})
+            </h2>
+            <button type="button" className="ghost small" onClick={clearDone}>
               Clear
             </button>
           </div>
@@ -173,9 +193,9 @@ export default function ListPage() {
         </section>
       )}
 
-      {usualsShown.length > 0 && (
-        <section className="usuals" aria-label="Buy again">
-          <h2>{typed ? "Matching items you've bought before" : "Buy again"}</h2>
+      {config.againLabel && usualsShown.length > 0 && (
+        <section className="usuals" aria-label={config.againLabel}>
+          <h2>{typed ? "Matching items you've bought before" : config.againLabel}</h2>
           <div className="chips wrap">
             {usualsShown.slice(0, usualsLimit).map((item) => (
               <button
@@ -203,15 +223,14 @@ export default function ListPage() {
       {voice.listening && (
         <div className="listening" role="status" aria-live="polite">
           <p className="listening-label">
-            <span className="pulse" aria-hidden="true" /> Listening…
+            <span className="pulse" aria-hidden="true" /> Listening for {config.label.toLowerCase()}…
           </p>
-          <p className="live-text">{voice.transcript || "Say what's run out — pause or tap Done when you've finished."}</p>
+          <p className="live-text">{voice.transcript || "Say it — pause or tap Done when you've finished."}</p>
           {voice.transcript && (
             <div className="chips wrap preview">
-              {parseItems(voice.transcript).map((p, i) => (
+              {config.parse(voice.transcript).map((p, i) => (
                 <span key={i} className="chip on">
-                  {p.name}
-                  {p.shop ? ` · ${p.shop}` : ""}
+                  {[p.name, p.note, p.shop].filter(Boolean).join(" · ")}
                 </span>
               ))}
             </div>
@@ -232,8 +251,8 @@ export default function ListPage() {
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={canTalk ? "Type, or tap the mic…" : "Add items…"}
-          aria-label="Add items"
+          placeholder={canTalk ? "Type, or tap the mic…" : `Add to ${config.label}…`}
+          aria-label={`Add to ${config.label}`}
           enterKeyHint="done"
           autoComplete="off"
           autoCapitalize="sentences"
@@ -247,7 +266,7 @@ export default function ListPage() {
             <button
               type="button"
               className={`mic ${voice.listening ? "on" : ""}`}
-              aria-label={voice.listening ? "Stop listening" : "Speak items"}
+              aria-label={voice.listening ? "Stop listening" : `Speak to add to ${config.label}`}
               onClick={voice.listening ? voice.stop : voice.start}
             >
               <MicIcon />
@@ -259,6 +278,7 @@ export default function ListPage() {
       {editing && (
         <EditSheet
           item={editing}
+          config={config}
           shops={shops}
           onClose={() => setEditing(null)}
           onSave={(patch) => {
@@ -276,7 +296,7 @@ export default function ListPage() {
             const id = editing.id;
             forget(id);
             setEditing(null);
-            showToast(`Forgot ${editing.name}`, { action: { label: "Undo", onClick: () => unforget(id) }, durationMs: 5000 });
+            showToast(`Deleted ${editing.name}`, { action: { label: "Undo", onClick: () => unforget(id) }, durationMs: 5000 });
           }}
         />
       )}
