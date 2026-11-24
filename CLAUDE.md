@@ -9,10 +9,11 @@ share one Firebase project:
 | Journall OS (being retired into Mumu, Phase 5) | `apps/journal` | GitHub Pages `/journall-app/` | Dexie, synced to Firestore |
 | Kit Runs | `apps/kit-runs` | GitHub Pages `/journall-app/kit-runs/` | Dexie, synced to Firestore |
 | Family Tree (shared with relatives) | `apps/family-tree` | GitHub Pages `/journall-app/family-tree/` | Dexie, synced to `trees/family` |
+| Shopping List (voice-first "we've run out" list) | `apps/shopping` | GitHub Pages `/journall-app/shopping/` | Firestore `users/{uid}/shoppingItems` + its offline cache |
 
 `packages/shared` holds auth (`AuthGate`), Firebase config, toast, update
 prompt, error boundary, voice dictation and small helpers. Changes there must
-stay backwards-compatible for all four apps; Mumu-only behaviour goes behind an
+stay backwards-compatible for all five apps; Mumu-only behaviour goes behind an
 env flag (see `apps/mumu/.env`).
 
 The rest of this file is about **Mumu**. The README covers the other apps.

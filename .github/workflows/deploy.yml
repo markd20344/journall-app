@@ -32,7 +32,8 @@ jobs:
       # the deploy below. Kit Runs and Family Tree have no e2e suite of
       # their own yet.
       - run: npm run test:e2e
-      # Builds all three apps (journal, kit-runs, family-tree) and combines
+      - run: npm run test:shopping
+      # Builds the Pages apps (journal, kit-runs, family-tree, shopping) and combines
       # them into one dist/ for a single Pages deploy — see
       # scripts/assemble-site.mjs for how they're laid out.
       - run: npm run build
