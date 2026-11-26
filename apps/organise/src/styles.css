@@ -306,6 +306,7 @@ button.danger {
 
 .item-main {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -355,9 +356,58 @@ button.danger {
   color: var(--muted);
 }
 
+/* Quantity: small enough that the item name keeps most of the row. */
+.qty {
+  flex: none;
+  display: flex;
+  align-items: center;
+  align-self: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-sunk);
+}
+
+.qty button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.qty button:disabled {
+  color: var(--muted);
+  opacity: 0.35;
+  cursor: default;
+}
+
+.qty output {
+  min-width: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.qty output.more {
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.qty-done {
+  flex: none;
+  align-self: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .item .edit {
   flex: none;
-  width: 52px;
+  width: 44px;
   padding: 0;
   border: 0;
   border-radius: 0;

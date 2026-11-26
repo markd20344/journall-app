@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { showToast } from "@journall/shared/lib/toast";
-import { listOf, type ShoppingItem } from "../types";
+import { listOf, qtyOf, type ShoppingItem } from "../types";
 import type { ListConfig } from "../lib/lists";
-import { addItems, clearGot, forget, setStatus, toggleGot, unforget, updateItem } from "../data/repo";
+import { addItems, clearGot, forget, setQty, setStatus, toggleGot, unforget, updateItem } from "../data/repo";
 import { fold } from "../lib/text";
 import { listAsText } from "../lib/share";
 import { useVoice, voiceSupported } from "../lib/voice";
@@ -168,7 +168,7 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
             {section && <h2>{section}</h2>}
             <ul>
               {inSection.map((item) => (
-                <ItemRow key={item.id} item={item} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
+                <ItemRow key={item.id} item={item} showQty={config.usesQty} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
               ))}
             </ul>
           </section>
@@ -187,7 +187,7 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
           </div>
           <ul>
             {got.map((item) => (
-              <ItemRow key={item.id} item={item} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
+              <ItemRow key={item.id} item={item} showQty={config.usesQty} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
             ))}
           </ul>
         </section>
@@ -230,7 +230,7 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
             <div className="chips wrap preview">
               {config.parse(voice.transcript).map((p, i) => (
                 <span key={i} className="chip on">
-                  {[p.name, p.note, p.shop].filter(Boolean).join(" · ")}
+                  {[p.qty && p.qty > 1 ? `${p.qty} × ${p.name}` : p.name, p.note, p.shop].filter(Boolean).join(" · ")}
                 </span>
               ))}
             </div>
@@ -304,11 +304,12 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
   );
 }
 
-function ItemRow({ item, onToggle, onEdit }: { item: ShoppingItem; onToggle: () => void; onEdit: () => void }) {
+function ItemRow({ item, showQty, onToggle, onEdit }: { item: ShoppingItem; showQty: boolean; onToggle: () => void; onEdit: () => void }) {
   const done = item.status === "got";
+  const qty = qtyOf(item);
   return (
     <li className={`item ${done ? "done" : ""}`}>
-      <button type="button" className="item-main" role="checkbox" aria-checked={done} aria-label={item.name} onClick={onToggle}>
+      <button type="button" className="item-main" role="checkbox" aria-checked={done} aria-label={qty > 1 ? `${item.name}, ${qty}` : item.name} onClick={onToggle}>
         <span className="tick" aria-hidden="true">
           {done ? "✓" : ""}
         </span>
@@ -317,6 +318,22 @@ function ItemRow({ item, onToggle, onEdit }: { item: ShoppingItem; onToggle: () 
           {(item.shop || item.note) && <span className="item-meta">{[item.shop, item.note].filter(Boolean).join(" · ")}</span>}
         </span>
       </button>
+      {showQty &&
+        (done ? (
+          qty > 1 && <span className="qty-done">×{qty}</span>
+        ) : (
+          <span className="qty" role="group" aria-label={`How many ${item.name}`}>
+            <button type="button" aria-label={`One fewer ${item.name}`} disabled={qty <= 1} onClick={() => setQty(item.id, qty - 1)}>
+              −
+            </button>
+            <output className={qty > 1 ? "more" : ""} aria-live="polite">
+              {qty}
+            </output>
+            <button type="button" aria-label={`One more ${item.name}`} onClick={() => setQty(item.id, qty + 1)}>
+              +
+            </button>
+          </span>
+        ))}
       <button type="button" className="edit" aria-label={`Edit ${item.name}`} onClick={onEdit}>
         ⋯
       </button>

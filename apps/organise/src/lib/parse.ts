@@ -5,12 +5,15 @@
 // splitting is on "and", commas and a few other joiners, and the chatter
 // around the items ("I need", "we've run out of", "please") is dropped.
 import { SHOP_PREFIX, SHOP_SUFFIX, SHOPS_WITH_AND, isShop, shopName } from "./shops";
+import { extractQty } from "./quantity";
 import { capitaliseFirst } from "./text";
 
 export interface ParsedItem {
   name: string;
   shop: string | null;
   note?: string;
+  /** Only set when a number was said. */
+  qty?: number;
 }
 
 // Repeated until nothing more comes off, so "and also we need some" all goes.
@@ -117,7 +120,8 @@ export function parseItems(input: string): ParsedItem[] {
       if (!piece || piece.length > 80) continue;
       // A bare shop name left over ("...and Aldi") isn't an item.
       if (isShop(piece)) continue;
-      items.push({ name: capitaliseFirst(piece), shop });
+      const { name, qty } = extractQty(piece);
+      items.push(qty === undefined ? { name: capitaliseFirst(name), shop } : { name: capitaliseFirst(name), shop, qty });
     }
   }
   return items;

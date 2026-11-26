@@ -15,6 +15,8 @@ export interface ListConfig {
   guessSection: (name: string) => string;
   parse: (text: string) => ParsedItem[];
   usesShops: boolean;
+  /** Shows the − 1 + count on each item. */
+  usesQty: boolean;
   example: string;
   doneLabel: string;
   againLabel: string | null;
@@ -42,7 +44,8 @@ export const LISTS: Record<ListKind, ListConfig> = {
     guessSection: guessAisle,
     parse: parseItems,
     usesShops: true,
-    example: "eggs, white onions and protein bread from Aldi",
+    usesQty: true,
+    example: "eggs, white onions and 3 packets of protein wraps from Aldi",
     doneLabel: "In the basket",
     againLabel: "Buy again",
   },
@@ -53,6 +56,7 @@ export const LISTS: Record<ListKind, ListConfig> = {
     guessSection: guessClothesSection,
     parse: (text) => withSize(parseItems(text)),
     usesShops: true,
+    usesQty: true,
     example: "black socks, running shoes from JD and jeans size 32",
     doneLabel: "Bought",
     againLabel: "Buy again",
@@ -64,6 +68,7 @@ export const LISTS: Record<ListKind, ListConfig> = {
     guessSection: () => "",
     parse: parseTasks,
     usesShops: false,
+    usesQty: false,
     example: "ring the dentist, then book the MOT",
     doneLabel: "Done",
     againLabel: null,

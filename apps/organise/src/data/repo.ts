@@ -7,7 +7,7 @@ import { newId, nowIso } from "@journall/shared/lib/id";
 import type { ParsedItem } from "../lib/parse";
 import { LISTS } from "../lib/lists";
 import { itemKey } from "../lib/text";
-import { listOf, type ListKind, type ShoppingItem } from "../types";
+import { listOf, qtyOf, type ListKind, type ShoppingItem } from "../types";
 import { COLLECTION, currentUid, getItem, getItems, reportWriteError, writeLocal } from "./store";
 
 function write(id: string, patch: Partial<ShoppingItem>): void {
@@ -47,12 +47,14 @@ export function addItems(list: ListKind, parsed: ParsedItem[]): AddResult {
     const existing = getItems().find((i) => i.key === key && listOf(i) === list);
 
     if (existing) {
-      const before = { status: existing.status, shop: existing.shop, note: existing.note, addedAt: existing.addedAt, timesAdded: existing.timesAdded, gotAt: existing.gotAt };
+      const before = { status: existing.status, shop: existing.shop, note: existing.note, qty: qtyOf(existing), addedAt: existing.addedAt, timesAdded: existing.timesAdded, gotAt: existing.gotAt };
       const shared = { shop: p.shop ?? existing.shop, note: p.note ?? existing.note };
       const patch: Partial<ShoppingItem> =
         existing.status === "needed"
-          ? shared // already on the list: just take a newly named shop or size
-          : { ...shared, status: "needed", addedAt: now, gotAt: null, timesAdded: (existing.timesAdded ?? 0) + 1 };
+          ? // Already on the list: take a newly named shop, size or count.
+            { ...shared, qty: p.qty ?? qtyOf(existing) }
+          : // Back on the list: last trip's count doesn't carry over.
+            { ...shared, qty: p.qty ?? 1, status: "needed", addedAt: now, gotAt: null, timesAdded: (existing.timesAdded ?? 0) + 1 };
       write(existing.id, patch);
       added.push({ ...existing, ...patch });
       restores.push(() => write(existing.id, before));
@@ -67,6 +69,7 @@ export function addItems(list: ListKind, parsed: ParsedItem[]): AddResult {
       shop: p.shop,
       aisle: LISTS[list].guessSection(p.name),
       note: p.note ?? "",
+      qty: p.qty ?? 1,
       status: "needed",
       timesAdded: 1,
       addedAt: now,
@@ -96,6 +99,10 @@ export function clearGot(list: ListKind): string[] {
     .map((i) => i.id);
   ids.forEach((id) => write(id, { status: "off" }));
   return ids;
+}
+
+export function setQty(id: string, qty: number): void {
+  write(id, { qty: Math.min(99, Math.max(1, Math.round(qty))) });
 }
 
 export function setStatus(id: string, status: ShoppingItem["status"]): void {

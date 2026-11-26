@@ -1,4 +1,4 @@
-import type { ShoppingItem } from "../types";
+import { qtyOf, type ShoppingItem } from "../types";
 import type { ListConfig } from "./lists";
 
 /** Plain-text list grouped by section, for WhatsApp, Notes or a text. */
@@ -6,7 +6,8 @@ export function listAsText(config: ListConfig, items: ShoppingItem[]): string {
   const title = config.kind === "todo" ? "To-do" : `${config.label} list`;
   const line = (i: ShoppingItem) => {
     const extra = [i.shop, i.note].filter(Boolean).join(", ");
-    return `- ${i.name}${extra ? ` (${extra})` : ""}`;
+    const count = config.usesQty && qtyOf(i) > 1 ? ` ×${qtyOf(i)}` : "";
+    return `- ${i.name}${count}${extra ? ` (${extra})` : ""}`;
   };
   if (config.sections.length === 0) return [title, "", ...items.map(line)].join("\n");
   const lines: string[] = [title];
