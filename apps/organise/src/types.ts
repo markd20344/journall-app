@@ -19,6 +19,8 @@ export interface ShoppingItem {
   /** Section within the list: an aisle for food, a kind of clothing for clothes. Unused for to-dos. */
   aisle: string;
   note: string;
+  /** How many to get. Missing on items saved before quantities existed: read it through qtyOf(). */
+  qty?: number;
   status: ItemStatus;
   /** How often it's gone on the list; orders the "Buy again" suggestions. */
   timesAdded: number;
@@ -31,4 +33,8 @@ export interface ShoppingItem {
 
 export function listOf(item: ShoppingItem): ListKind {
   return item.list ?? "food";
+}
+
+export function qtyOf(item: ShoppingItem): number {
+  return item.qty && item.qty > 0 ? item.qty : 1;
 }
