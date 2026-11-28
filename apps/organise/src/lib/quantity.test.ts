@@ -25,6 +25,22 @@ describe("quantities", () => {
     ]);
   });
 
+  it("takes a shop said after the item, with or without 'from'", () => {
+    expect(parseItems("tuna times 2 Aldi")).toEqual([{ name: "Tuna", shop: "Aldi", qty: 2 }]);
+    expect(parseItems("protein powder times 1 Tesco")).toEqual([{ name: "Protein powder", shop: "Tesco", qty: 1 }]);
+    expect(parseItems("tuna Aldi times 2")).toEqual([{ name: "Tuna", shop: "Aldi", qty: 2 }]);
+    expect(parseItems("tuna from Aldi x 2")).toEqual([{ name: "Tuna", shop: "Aldi", qty: 2 }]);
+    expect(parseItems("tuna × 2 Aldi, milk Tesco")).toEqual([
+      { name: "Tuna", shop: "Aldi", qty: 2 },
+      { name: "Milk", shop: "Tesco" },
+    ]);
+  });
+
+  it("doesn't take shop names that are ordinary words without 'from'", () => {
+    expect(LISTS.clothes.parse("running boots")).toEqual([{ name: "Running boots", shop: null }]);
+    expect(LISTS.clothes.parse("running boots from Boots")).toEqual([{ name: "Running boots", shop: "Boots" }]);
+  });
+
   it("works for clothes", () => {
     expect(LISTS.clothes.parse("3 pairs of black socks")).toEqual([{ name: "Black socks", shop: null, qty: 3 }]);
   });

@@ -309,9 +309,9 @@ button.danger {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-height: 58px;
-  padding: 8px 4px 8px 14px;
+  padding: 8px 4px 8px 12px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -320,8 +320,8 @@ button.danger {
 
 .tick {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid var(--border);
   display: grid;
@@ -368,7 +368,7 @@ button.danger {
 }
 
 .qty button {
-  width: 40px;
+  width: 36px;
   min-height: 40px;
   padding: 0;
   border: 0;
@@ -403,6 +403,42 @@ button.danger {
   align-self: center;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Shop column: small, and the edit button for the row. */
+.shop-tag {
+  flex: none;
+  align-self: center;
+  /* Fixed, so the quantity and shop columns line up down the list. */
+  width: 74px;
+  min-height: 40px;
+  margin: 0 8px 0 4px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shop-tag.none {
+  border-style: dashed;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.item.done .shop-tag {
+  color: var(--muted);
+}
+
+.quick-shops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .item .edit {

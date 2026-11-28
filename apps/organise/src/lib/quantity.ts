@@ -13,7 +13,7 @@ const UNIT =
   "(?:packets?|packs?|multipacks?|bottles?|tins?|cans?|jars?|bags?|boxes?|loaf|loaves|cartons?|tubs?|bunch(?:es)?|pairs?|punnets?|bars?|blocks?|pots?|sachets?|tubes?|trays?|crates?|rolls?|tins)";
 
 const LEADING = new RegExp(`^(?:${NUM}\\s+)?(?:${UNIT}\\s+of\\s+)?(.+)$`, "i");
-const TRAILING = new RegExp(`^(.+?)\\s+(?:x\\s*|times\\s+)${NUM}$`, "i");
+const TRAILING = new RegExp(`^(.+?)\\s+(?:x\\s*|×\\s*|\\*\\s*|times\\s+)${NUM}$`, "i");
 
 function toNumber(word: string): number | undefined {
   const w = word.toLowerCase().trim();

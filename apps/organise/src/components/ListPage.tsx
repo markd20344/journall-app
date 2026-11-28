@@ -168,7 +168,7 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
             {section && <h2>{section}</h2>}
             <ul>
               {inSection.map((item) => (
-                <ItemRow key={item.id} item={item} showQty={config.usesQty} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
+                <ItemRow key={item.id} item={item} config={config} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
               ))}
             </ul>
           </section>
@@ -187,7 +187,7 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
           </div>
           <ul>
             {got.map((item) => (
-              <ItemRow key={item.id} item={item} showQty={config.usesQty} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
+              <ItemRow key={item.id} item={item} config={config} onToggle={() => toggleGot(item.id)} onEdit={() => setEditing(item)} />
             ))}
           </ul>
         </section>
@@ -304,9 +304,11 @@ export default function ListPage({ config, allItems, autoListen }: Props) {
   );
 }
 
-function ItemRow({ item, showQty, onToggle, onEdit }: { item: ShoppingItem; showQty: boolean; onToggle: () => void; onEdit: () => void }) {
+function ItemRow({ item, config, onToggle, onEdit }: { item: ShoppingItem; config: ListConfig; onToggle: () => void; onEdit: () => void }) {
   const done = item.status === "got";
   const qty = qtyOf(item);
+  // On lists with shops the shop shows in its own column, so only the note goes under the name.
+  const meta = config.usesShops ? item.note : [item.shop, item.note].filter(Boolean).join(" · ");
   return (
     <li className={`item ${done ? "done" : ""}`}>
       <button type="button" className="item-main" role="checkbox" aria-checked={done} aria-label={qty > 1 ? `${item.name}, ${qty}` : item.name} onClick={onToggle}>
@@ -315,10 +317,10 @@ function ItemRow({ item, showQty, onToggle, onEdit }: { item: ShoppingItem; show
         </span>
         <span className="item-text">
           <span className="item-name">{item.name}</span>
-          {(item.shop || item.note) && <span className="item-meta">{[item.shop, item.note].filter(Boolean).join(" · ")}</span>}
+          {meta && <span className="item-meta">{meta}</span>}
         </span>
       </button>
-      {showQty &&
+      {config.usesQty &&
         (done ? (
           qty > 1 && <span className="qty-done">×{qty}</span>
         ) : (
@@ -334,9 +336,16 @@ function ItemRow({ item, showQty, onToggle, onEdit }: { item: ShoppingItem; show
             </button>
           </span>
         ))}
-      <button type="button" className="edit" aria-label={`Edit ${item.name}`} onClick={onEdit}>
-        ⋯
-      </button>
+      {config.usesShops ? (
+        // The shop doubles as the edit button, so the row doesn't need a ⋯ as well.
+        <button type="button" className={`shop-tag ${item.shop ? "" : "none"}`} aria-label={`${item.shop ?? "No shop"}: change shop or edit ${item.name}`} onClick={onEdit}>
+          {item.shop ?? "Shop"}
+        </button>
+      ) : (
+        <button type="button" className="edit" aria-label={`Edit ${item.name}`} onClick={onEdit}>
+          ⋯
+        </button>
+      )}
     </li>
   );
 }

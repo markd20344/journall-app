@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ShoppingItem } from "../types";
 import type { ListConfig } from "../lib/lists";
-import { KNOWN_SHOPS } from "../lib/shops";
+import { COMMON_CLOTHES_SHOPS, COMMON_FOOD_SHOPS, KNOWN_SHOPS } from "../lib/shops";
 
 interface Props {
   item: ShoppingItem;
@@ -27,6 +27,13 @@ export default function EditSheet({ item, config, shops, onSave, onRemove, onFor
   }, []);
 
   const shopOptions = Array.from(new Set([...shops, ...KNOWN_SHOPS]));
+  // One-tap shops: the ones already used on this list, then the usual ones.
+  const quickShops = Array.from(new Set([...shops, ...(config.kind === "clothes" ? COMMON_CLOTHES_SHOPS : COMMON_FOOD_SHOPS)])).slice(0, 9);
+
+  function saveWith(chosenShop: string | null) {
+    if (!name.trim()) return;
+    onSave({ name: name.trim(), shop: config.usesShops ? chosenShop : null, aisle, note: note.trim() });
+  }
 
   return (
     <dialog
@@ -45,17 +52,30 @@ export default function EditSheet({ item, config, shops, onSave, onRemove, onFor
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          onSave({ name: name.trim(), shop: config.usesShops ? shop.trim() || null : null, aisle, note: note.trim() });
+          saveWith(shop.trim() || null);
         }}
       >
-        <h2>{config.sections.length ? "Edit item" : "Edit job"}</h2>
+        <h2>{config.usesShops ? item.name : config.sections.length ? "Edit item" : "Edit job"}</h2>
+        {config.usesShops && (
+          // Changing the shop is the usual reason to open this, so it's one tap and done.
+          <div className="quick-shops" role="group" aria-label="Shop">
+            {quickShops.map((s) => (
+              <button key={s} type="button" className={`chip ${item.shop === s ? "on" : ""}`} aria-pressed={item.shop === s} onClick={() => saveWith(s)}>
+                {s}
+              </button>
+            ))}
+            <button type="button" className={`chip ghost-chip ${item.shop ? "" : "on"}`} aria-pressed={!item.shop} onClick={() => saveWith(null)}>
+              Any shop
+            </button>
+          </div>
+        )}
         <label>
           {config.sections.length ? "Item" : "Job"}
           <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         </label>
         {config.usesShops && (
         <label>
-          Shop
+          Other shop
           <input value={shop} onChange={(e) => setShop(e.target.value)} list="shop-options" placeholder="Any shop" autoComplete="off" />
           <datalist id="shop-options">
             {shopOptions.map((s) => (
