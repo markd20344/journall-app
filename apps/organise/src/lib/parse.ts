@@ -4,7 +4,7 @@
 // Speech recognition gives back plain words with little punctuation, so the
 // splitting is on "and", commas and a few other joiners, and the chatter
 // around the items ("I need", "we've run out of", "please") is dropped.
-import { SHOP_PREFIX, SHOP_SUFFIX, SHOPS_WITH_AND, isShop, shopName } from "./shops";
+import { SHOP_BARE_SUFFIX, SHOP_PREFIX, SHOP_SUFFIX, SHOPS_WITH_AND, isShop, shopName } from "./shops";
 import { extractQty } from "./quantity";
 import { capitaliseFirst } from "./text";
 
@@ -104,10 +104,12 @@ export function parseItems(input: string): ParsedItem[] {
   for (const raw of text.split(SPLITTER)) {
     let part = stripFiller(raw);
     let shop = sentenceShop;
-    const suffix = part.match(SHOP_SUFFIX);
-    if (suffix) {
+    const suffix = part.match(SHOP_SUFFIX) ?? part.match(SHOP_BARE_SUFFIX);
+    // Not when the shop is the whole phrase: "...and Aldi" is dropped below.
+    if (suffix && suffix.index) {
       shop = shopName(suffix[1]);
-      part = stripFiller(part.slice(0, suffix.index));
+      // Keep a count said after the shop for extractQty: "tuna aldi times 2".
+      part = stripFiller(part.slice(0, suffix.index) + (suffix[2] ?? ""));
     } else {
       const prefix = part.match(SHOP_PREFIX);
       if (prefix && part.length > prefix[0].length) {

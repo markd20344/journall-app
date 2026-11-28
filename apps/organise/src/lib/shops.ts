@@ -68,8 +68,21 @@ const SORTED = [...SHOPS].sort((a, b) => b[0].length - a[0].length);
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const SHOP_PATTERN = SORTED.map(([spoken]) => escape(spoken)).join("|");
 
-/** "from aldi" / "at tesco" / "in lidl" at the end of a phrase. */
-export const SHOP_SUFFIX = new RegExp(`\\s*\\b(?:from|at|in|on|off)\\s+(?:the\\s+)?(${SHOP_PATTERN})\\s*$`, "i");
+// A count said after the shop: "tuna aldi times 2", "tuna from aldi x2".
+const COUNT_AFTER = "(\\s+(?:x|×|\\*|times)\\s*[\\w-]+)?";
+
+/** "from aldi" / "at tesco" / "in lidl" at the end of a phrase. Group 2 is any count after it. */
+export const SHOP_SUFFIX = new RegExp(`\\s*\\b(?:from|at|in|on|off)\\s+(?:the\\s+)?(${SHOP_PATTERN})${COUNT_AFTER}\\s*$`, "i");
+
+// Shop names that are also ordinary words ("running boots", "the next one",
+// "little gem") only count after "from" / "at", never on their own.
+const NOT_BARE = new Set(["little", "next", "gap", "boots", "the butcher", "the butchers", "the market", "iceland"]);
+const BARE_PATTERN = SORTED.filter(([spoken]) => !NOT_BARE.has(spoken))
+  .map(([spoken]) => escape(spoken))
+  .join("|");
+
+/** "tuna times 2 aldi": a shop name ending the phrase with no "from". Group 2 is any count after it. */
+export const SHOP_BARE_SUFFIX = new RegExp(`\\s+(${BARE_PATTERN})${COUNT_AFTER}\\s*$`, "i");
 /**
  * "from aldi ..." / "aldi: ..." at the start of a phrase. A bare shop name
  * isn't enough ("little gem lettuce" is not from Lidl).
@@ -90,6 +103,10 @@ export function isShop(text: string): boolean {
   const f = fold(text);
   return SHOPS.some(([spoken, shown]) => spoken === f || fold(shown) === f);
 }
+
+/** One-tap shop buttons offered before any shop has been used on a list. */
+export const COMMON_FOOD_SHOPS = ["Aldi", "Lidl", "Tesco", "Sainsbury's", "Asda", "M&S"];
+export const COMMON_CLOTHES_SHOPS = ["Primark", "Next", "M&S", "JD", "TK Maxx", "Amazon"];
 
 /** Every shop name the edit screen offers, de-duplicated. */
 export const KNOWN_SHOPS = Array.from(new Set(SHOPS.map(([, shown]) => shown)));
